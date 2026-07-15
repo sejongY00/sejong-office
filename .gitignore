@@ -1,0 +1,12 @@
+node_modules/
+dist/
+packages/backend/public/
+packages/backend/dist/
+packages/frontend/dist/
+.env
+.env.local
+*.log
+.DS_Store
+tmp/
+.vscode/
+.idea/

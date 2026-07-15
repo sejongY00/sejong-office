@@ -1,0 +1,20 @@
+{
+  "name": "sejong-office",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Ephemeral OnlyOffice + rhwp document editor",
+  "license": "MIT",
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev -w @sejong-office/backend & npm run dev -w @sejong-office/frontend",
+    "dev:backend": "npm run dev -w @sejong-office/backend",
+    "dev:frontend": "npm run dev -w @sejong-office/frontend",
+    "build": "npm run build -w @sejong-office/frontend && npm run build -w @sejong-office/backend",
+    "start": "npm run start -w @sejong-office/backend"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
