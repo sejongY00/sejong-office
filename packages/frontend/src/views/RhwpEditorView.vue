@@ -5,6 +5,7 @@ import { createEditor, type RhwpEditor } from '@rhwp/editor';
 import AppShell from '@/components/AppShell.vue';
 import EditorErrorState from '@/components/EditorErrorState.vue';
 import { ApiError } from '@/api/client';
+import { usePageTitle } from '@/composables/usePageTitle';
 import {
   clearHwpFile,
   loadHwpFile,
@@ -19,6 +20,7 @@ const filename = ref('문서.hwp');
 let editor: RhwpEditor | null = null;
 let initialized = false;
 
+usePageTitle(filename);
 useSessionLifecycle({ enableHeartbeat: true });
 
 onMounted(async () => {

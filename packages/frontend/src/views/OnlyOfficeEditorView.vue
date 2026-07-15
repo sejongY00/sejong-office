@@ -4,6 +4,7 @@ import { useRoute, useRouter } from 'vue-router';
 import AppShell from '@/components/AppShell.vue';
 import EditorErrorState from '@/components/EditorErrorState.vue';
 import { fetchEditorConfig } from '@/api/client';
+import { usePageTitle } from '@/composables/usePageTitle';
 import { useSessionLifecycle } from '@/composables/useSessionLifecycle';
 
 defineOptions({ name: 'OnlyOfficeEditorView' });
@@ -18,6 +19,7 @@ let scriptEl: HTMLScriptElement | null = null;
 let resizeObserver: ResizeObserver | null = null;
 let initialized = false;
 
+usePageTitle(filename);
 useSessionLifecycle({ enableHeartbeat: true });
 
 function editorHeightPx(): number {

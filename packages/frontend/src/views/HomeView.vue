@@ -4,12 +4,15 @@ import { useRouter } from 'vue-router';
 import AppShell from '@/components/AppShell.vue';
 import { APP_DISPLAY_NAME, isHwp, isOffice } from '@/config/app';
 import { createSession, uploadDocument } from '@/api/client';
+import { usePageTitle } from '@/composables/usePageTitle';
 import { storeHwpFile } from '@/composables/useSessionLifecycle';
 
 const router = useRouter();
 const dragging = ref(false);
 const error = ref('');
 const busy = ref(false);
+
+usePageTitle();
 
 async function handleFile(file: File | undefined) {
   if (!file || busy.value) return;

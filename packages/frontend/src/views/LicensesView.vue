@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import AppShell from '@/components/AppShell.vue';
 import { APP_DISPLAY_NAME, APP_GIT_URL, APP_NAME } from '@/config/app';
+import { usePageTitle } from '@/composables/usePageTitle';
+
+usePageTitle('오픈소스 라이선스');
 
 const thirdParty = [
   { name: 'Vue', license: 'MIT', url: 'https://github.com/vuejs/core' },
