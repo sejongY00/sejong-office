@@ -8,7 +8,7 @@ services:
       PUBLIC_URL: ${PUBLIC_URL:-http://localhost:3000}
       INTERNAL_URL: ${INTERNAL_URL:-http://backend:3000}
       ONLYOFFICE_URL: ${ONLYOFFICE_URL:-http://localhost:8080}
-      ONLYOFFICE_INTERNAL_URL: ${ONLYOFFICE_INTERNAL_URL:-http://onlyoffice}
+      ONLYOFFICE_INTERNAL_URL: ${ONLYOFFICE_INTERNAL_URL:-http://documentserver}
       SESSION_TTL_MS: ${SESSION_TTL_MS:-900000}
       TEMP_DIR: /tmp/sejong
       PORT: 3000
@@ -16,11 +16,11 @@ services:
     tmpfs:
       - /tmp/sejong:size=512m,mode=1777
     depends_on:
-      - onlyoffice
+      - documentserver
     restart: unless-stopped
 
-  onlyoffice:
-    image: onlyoffice/documentserver:8.3
+  documentserver:
+    image: ghcr.io/euro-office/documentserver:v9.3.2
     ports:
       - '8080:80'
     environment:
@@ -30,8 +30,8 @@ services:
       JWT_IN_BODY: 'true'
     volumes:
       # Persist DS license/cache lightly; document content still lives in backend tmpfs
-      - onlyoffice_data:/var/www/onlyoffice/Data
+      - documentserver_data:/var/www/onlyoffice/Data
     restart: unless-stopped
 
 volumes:
-  onlyoffice_data:
+  documentserver_data:

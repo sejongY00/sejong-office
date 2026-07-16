@@ -5,7 +5,7 @@
 
 import { extensionOf } from '@/config/app';
 
-type FaviconKind =
+export type FaviconKind =
   | 'home'
   | 'pdf'
   | 'word'
@@ -16,7 +16,7 @@ type FaviconKind =
   | 'csv'
   | 'file';
 
-const PATHS: Record<FaviconKind, string> = {
+export const ICON_PATHS: Record<FaviconKind, string> = {
   home: 'M9,13H15V19H18V10L12,5.5L6,10V19H9V13M4,21V9L12,3L20,9V21H4Z',
   pdf: 'M19 3H5C3.9 3 3 3.9 3 5V19C3 20.1 3.9 21 5 21H19C20.1 21 21 20.1 21 19V5C21 3.9 20.1 3 19 3M9.5 11.5C9.5 12.3 8.8 13 8 13H7V15H5.5V9H8C8.8 9 9.5 9.7 9.5 10.5V11.5M14.5 13.5C14.5 14.3 13.8 15 13 15H10.5V9H13C13.8 9 14.5 9.7 14.5 10.5V13.5M18.5 10.5H17V11.5H18.5V13H17V15H15.5V9H18.5V10.5M12 10.5H13V13.5H12V10.5M7 10.5H8V11.5H7V10.5Z',
   word: 'M15.5,17H14L12,9.5L10,17H8.5L6.1,7H7.8L9.34,14.5L11.3,7H12.7L14.67,14.5L16.2,7H17.9M19,3H5C3.89,3 3,3.89 3,5V19A2,2 0 0,0 5,21H19A2,2 0 0,0 21,19V5C21,3.89 20.1,3 19,3Z',
@@ -30,8 +30,8 @@ const PATHS: Record<FaviconKind, string> = {
   file: 'M6,2A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2H6M6,4H13V9H18V20H6V4M8,12V14H16V12H8M8,16V18H13V16H8Z',
 };
 
-const COLORS: Record<FaviconKind, string> = {
-  home: '#2f6b55',
+export const ICON_COLORS: Record<FaviconKind, string> = {
+  home: '#0f6cbd',
   pdf: '#e53935',
   word: '#1e88e5',
   excel: '#43a047',
@@ -64,11 +64,15 @@ const EXT_KIND: Record<string, FaviconKind> = {
 };
 
 function toDataUri(kind: FaviconKind): string {
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="${COLORS[kind]}" d="${PATHS[kind]}"/></svg>`;
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="${ICON_COLORS[kind]}" d="${ICON_PATHS[kind]}"/></svg>`;
   return `data:image/svg+xml,${encodeURIComponent(svg)}`;
 }
 
 const CACHE = new Map<FaviconKind, string>();
+
+export function iconKindForExtension(ext: string): FaviconKind {
+  return EXT_KIND[ext] ?? 'file';
+}
 
 export function faviconHrefFor(filename?: string | null): string {
   const name = filename?.trim();

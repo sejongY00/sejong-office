@@ -1,14 +1,35 @@
 :root {
-  --ink: #1c2b24;
-  --ink-soft: #2f4038;
-  --muted: #5c6b63;
-  --accent: #2f6b55;
-  --accent-soft: #d7ebe2;
-  --surface: #faf9f6;
-  --canvas: #eef1ee;
-  --border: #d0d7d2;
+  --ink: #242424;
+  --ink-soft: #424242;
+  --muted: #616161;
+  --accent: #0f6cbd;
+  --accent-soft: #e8f3fc;
+  --surface: #ffffff;
+  --canvas: #f3f3f3;
+  --border: #e0e0e0;
+  --card: #ffffff;
+  --card-hover: #f5f5f5;
+  --danger: #c62828;
   --font-sans: 'IBM Plex Sans KR', 'Apple SD Gothic Neo', sans-serif;
-  --font-display: 'Newsreader', 'IBM Plex Sans KR', serif;
+  --font-display: 'IBM Plex Sans KR', 'Apple SD Gothic Neo', sans-serif;
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --ink: #f5f5f5;
+    --ink-soft: #e0e0e0;
+    --muted: #a0a0a0;
+    --accent: #4da3ff;
+    --accent-soft: #1a2f42;
+    --surface: #2b2b2b;
+    --canvas: #1f1f1f;
+    --border: #3a3a3a;
+    --card: #2b2b2b;
+    --card-hover: #333333;
+    --danger: #ef9a9a;
+    color-scheme: dark;
+  }
 }
 
 *,

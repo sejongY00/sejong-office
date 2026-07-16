@@ -2,7 +2,7 @@
 
 임시 세션 기반 문서 편집 웹앱입니다.
 
-- **오피스 / PDF** → [ONLYOFFICE Document Server](https://www.onlyoffice.com/)
+- **오피스 / PDF** → [Euro-Office Document Server](https://github.com/Euro-Office/DocumentServer)
 - **HWP / HWPX** → [rhwp](https://github.com/edwardkim/rhwp) (`@rhwp/editor`)
 
 서버에 문서를 **영구 저장하지 않습니다**. 오피스·PDF는 세션 동안만 tmpfs에 두고, 브라우저 종료·TTL로 삭제합니다. HWP/HWPX는 기본적으로 브라우저 메모리에서만 다룹니다. 편집 결과는 **다운로드**로만 가져가세요.
@@ -40,10 +40,10 @@ npm run dev:backend
 npm run dev:frontend
 ```
 
-OnlyOffice Document Server는 Docker로만 띄워도 됩니다.
+Euro-Office Document Server는 Docker로만 띄워도 됩니다.
 
 ```bash
-docker compose up onlyoffice
+docker compose up documentserver
 ```
 
 ## 소스 저장소 링크
@@ -52,10 +52,10 @@ docker compose up onlyoffice
 
 ## 라이선스 고지
 
-앱 내 [/licenses](http://localhost:3000/licenses) 페이지에서 OnlyOffice(AGPL), rhwp(MIT), 주요 OSS 고지를 볼 수 있습니다.
+앱 내 [/licenses](http://localhost:3000/licenses) 페이지에서 Euro-Office(AGPL), rhwp(MIT), 주요 OSS 고지를 볼 수 있습니다.
 
 - 본 앱: MIT
-- ONLYOFFICE Document Server Community: AGPL-3.0 (배포 시 의무 확인)
+- Euro-Office Document Server: AGPL-3.0 (배포 시 의무 확인)
 - rhwp: MIT — Hancom 상표와 무관한 독립 프로젝트
 
 ## 포맷 안내
@@ -63,6 +63,6 @@ docker compose up onlyoffice
 | 확장자 | 엔진 | 저장 |
 |--------|------|------|
 | hwp, hwpx | rhwp | 원본 확장자로 export |
-| pdf, docx, xlsx, pptx 등 | OnlyOffice | 원본 확장자 유지 시도 (`assemblyFormatAsOrigin`) |
+| pdf, docx, xlsx, pptx 등 | Euro-Office | 원본 확장자 유지 시도 (`forcesave` + ConvertService) |
 
 rhwp는 v0.7.x 기준이며, 복잡한 공공문서에서 한컴과 조판이 다를 수 있습니다.

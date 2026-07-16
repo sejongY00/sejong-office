@@ -66,6 +66,39 @@ export async function uploadDocument(file: File): Promise<{
   );
 }
 
+export type BlankDocumentType = 'docx' | 'xlsx' | 'pptx' | 'pdf' | 'hwpx';
+
+export async function createBlankDocument(type: BlankDocumentType): Promise<{
+  docId: string;
+  filename: string;
+  fileType: string;
+  documentType: string;
+  token: string;
+}> {
+  return parseJson(
+    await fetch('/api/documents/new', {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type }),
+    }),
+  );
+}
+
+export async function fetchDocumentContent(
+  docId: string,
+  token: string,
+): Promise<ArrayBuffer> {
+  const res = await fetch(
+    `/api/documents/${docId}/content?token=${encodeURIComponent(token)}`,
+    { credentials: 'include' },
+  );
+  if (!res.ok) {
+    throw new ApiError(res.status, 'content_failed', '문서를 불러오지 못했습니다.');
+  }
+  return res.arrayBuffer();
+}
+
 export type EditorConfigResponse = {
   documentType: string;
   document: Record<string, unknown>;

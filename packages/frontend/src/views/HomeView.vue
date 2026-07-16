@@ -1,72 +1,57 @@
 <script setup lang="ts">
 import { ref } from 'vue';
-import { useRouter } from 'vue-router';
 import AppShell from '@/components/AppShell.vue';
-import { APP_DISPLAY_NAME, isHwp, isOffice } from '@/config/app';
-import { createSession, uploadDocument } from '@/api/client';
+import FileTypeIcon from '@/components/FileTypeIcon.vue';
+import { APP_DISPLAY_NAME } from '@/config/app';
+import { useOpenDocument } from '@/composables/useOpenDocument';
 import { usePageTitle } from '@/composables/usePageTitle';
-import { storeHwpFile } from '@/composables/useSessionLifecycle';
+import type { BlankDocumentType } from '@/api/client';
 
-const router = useRouter();
 const dragging = ref(false);
-const error = ref('');
-const busy = ref(false);
+const { busy, error, openDocument, createAndOpenBlank } = useOpenDocument();
 
 usePageTitle();
 
-async function handleFile(file: File | undefined) {
-  if (!file || busy.value) return;
-  error.value = '';
-  busy.value = true;
-
-  try {
-    if (isHwp(file.name)) {
-      await storeHwpFile(file);
-      await createSession().catch(() => undefined);
-      await router.push({ name: 'rhwp-editor' });
-      return;
-    }
-
-    if (!isOffice(file.name)) {
-      error.value =
-        '지원하지 않는 형식입니다. docx, xlsx, pptx, pdf, hwp, hwpx 등을 올려 주세요.';
-      return;
-    }
-
-    await createSession();
-    const { docId } = await uploadDocument(file);
-    await router.push({ name: 'onlyoffice-editor', params: { docId } });
-  } catch (err) {
-    error.value =
-      err instanceof Error ? err.message : '파일을 열 수 없습니다.';
-  } finally {
-    busy.value = false;
-  }
-}
+const blankTypes: {
+  type: BlankDocumentType;
+  title: string;
+  subtitle: string;
+}[] = [
+  { type: 'docx', title: '문서 (DOCX)', subtitle: '새문서.docx' },
+  { type: 'xlsx', title: '스프레드시트 (XLSX)', subtitle: '새문서.xlsx' },
+  { type: 'pptx', title: '프레젠테이션 (PPTX)', subtitle: '새문서.pptx' },
+  { type: 'pdf', title: 'PDF', subtitle: '새문서.pdf' },
+  { type: 'hwpx', title: '한글 문서 (HWPX)', subtitle: '새문서.hwpx' },
+];
 
 function onDrop(e: DragEvent) {
   dragging.value = false;
-  const file = e.dataTransfer?.files?.[0];
-  void handleFile(file);
+  void openDocument(e.dataTransfer?.files?.[0]);
 }
 
 function onInput(e: Event) {
   const input = e.target as HTMLInputElement;
-  void handleFile(input.files?.[0]);
+  void openDocument(input.files?.[0]);
   input.value = '';
+}
+
+function onCreate(type: BlankDocumentType) {
+  void createAndOpenBlank(type);
 }
 </script>
 
 <template>
   <AppShell>
     <main class="home">
-      <div class="home__bg" aria-hidden="true" />
-      <section class="hero">
-        <p class="hero__brand">{{ APP_DISPLAY_NAME }}</p>
-        <h1 class="hero__title">문서를 열고, 고치고, 가져가세요</h1>
-        <p class="hero__lead">
-          서버에 영구 저장하지 않습니다. 편집이 끝나면 다운로드하세요. 브라우저를
-          닫으면 임시 파일은 삭제됩니다.
+      <header class="home__top">
+        <h1 class="home__brand">{{ APP_DISPLAY_NAME }}</h1>
+        <RouterLink class="home__licenses" to="/licenses">라이선스</RouterLink>
+      </header>
+
+      <section class="section">
+        <h2 class="section__title">파일 열기</h2>
+        <p class="section__lead">
+          서버에 영구 저장하지 않습니다. 편집 후 저장(다운로드)하세요.
         </p>
 
         <label
@@ -88,11 +73,33 @@ function onInput(e: Event) {
             {{ busy ? '여는 중…' : '파일을 끌어다 놓거나 클릭하여 선택' }}
           </span>
           <span class="drop__hint">
-            오피스·PDF → OnlyOffice · HWP/HWPX → rhwp
+            오피스·PDF · HWP/HWPX
           </span>
         </label>
 
-        <p v-if="error" class="hero__error" role="alert">{{ error }}</p>
+        <p v-if="error" class="home__error" role="alert">{{ error }}</p>
+      </section>
+
+      <section class="section">
+        <h2 class="section__title">새 문서</h2>
+        <p class="section__lead">빈 문서를 만들어 바로 편집합니다.</p>
+
+        <div class="grid">
+          <button
+            v-for="item in blankTypes"
+            :key="item.type"
+            type="button"
+            class="tile"
+            :disabled="busy"
+            @click="onCreate(item.type)"
+          >
+            <FileTypeIcon :extension="item.type" :size="36" />
+            <span class="tile__text">
+              <strong>{{ item.title }}</strong>
+              <span>{{ item.subtitle }}</span>
+            </span>
+          </button>
+        </div>
       </section>
     </main>
   </AppShell>
@@ -100,86 +107,77 @@ function onInput(e: Event) {
 
 <style scoped>
 .home {
-  position: relative;
   flex: 1;
-  display: grid;
-  place-items: center;
-  padding: 3rem 1.25rem 2rem;
-  overflow: hidden;
+  width: min(920px, 100%);
+  margin: 0 auto;
+  padding: 1.5rem 1.25rem 3rem;
 }
 
-.home__bg {
-  position: absolute;
-  inset: 0;
-  background:
-    radial-gradient(ellipse 80% 60% at 20% 10%, #c8e0d4 0%, transparent 55%),
-    radial-gradient(ellipse 70% 50% at 90% 80%, #d9cfc0 0%, transparent 50%),
-    linear-gradient(165deg, #f3f6f4 0%, #e8ebe6 45%, #f7f2ea 100%);
-  z-index: 0;
+.home__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1.75rem;
 }
 
-.home__bg::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%232d4a3e' fill-opacity='0.04'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
-  opacity: 0.9;
-}
-
-.hero {
-  position: relative;
-  z-index: 1;
-  width: min(560px, 100%);
-  text-align: center;
-  animation: rise 0.7s ease both;
-}
-
-.hero__brand {
+.home__brand {
+  margin: 0;
   font-family: var(--font-display);
-  font-size: clamp(2.4rem, 6vw, 3.4rem);
+  font-size: 1.5rem;
   font-weight: 600;
   letter-spacing: -0.02em;
   color: var(--ink);
-  margin: 0 0 1rem;
-  line-height: 1.1;
 }
 
-.hero__title {
-  font-family: var(--font-sans);
+.home__licenses {
+  font-size: 0.85rem;
+  color: var(--muted);
+  text-decoration: none;
+}
+
+.home__licenses:hover {
+  color: var(--accent);
+}
+
+.section {
+  margin-bottom: 2rem;
+}
+
+.section__title {
+  margin: 0 0 0.35rem;
   font-size: 1.15rem;
   font-weight: 600;
-  margin: 0 0 0.65rem;
-  color: var(--ink-soft);
+  color: var(--ink);
 }
 
-.hero__lead {
-  margin: 0 0 1.75rem;
+.section__lead {
+  margin: 0 0 1rem;
+  font-size: 0.9rem;
   color: var(--muted);
-  font-size: 0.95rem;
-  line-height: 1.55;
 }
 
 .drop {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.45rem;
-  padding: 2.25rem 1.5rem;
-  border: 1.5px dashed color-mix(in srgb, var(--accent) 45%, var(--border));
-  border-radius: 4px;
-  background: color-mix(in srgb, var(--surface) 70%, transparent);
+  justify-content: center;
+  gap: 0.35rem;
+  min-height: 7.5rem;
+  padding: 1.5rem 1.25rem;
+  border: 1.5px dashed var(--border);
+  border-radius: 8px;
+  background: var(--card);
   cursor: pointer;
   transition:
-    border-color 0.25s ease,
-    background 0.25s ease,
-    transform 0.25s ease;
+    border-color 0.2s ease,
+    background 0.2s ease;
 }
 
 .drop:hover,
 .drop--active {
   border-color: var(--accent);
-  background: color-mix(in srgb, var(--accent-soft) 55%, var(--surface));
-  transform: translateY(-2px);
+  background: var(--accent-soft);
 }
 
 .drop--busy {
@@ -197,6 +195,7 @@ function onInput(e: Event) {
 
 .drop__label {
   font-weight: 600;
+  font-size: 0.95rem;
   color: var(--ink);
 }
 
@@ -205,20 +204,59 @@ function onInput(e: Event) {
   color: var(--muted);
 }
 
-.hero__error {
-  margin: 1rem 0 0;
-  color: #9b2c2c;
+.home__error {
+  margin: 0.85rem 0 0;
+  color: var(--danger);
   font-size: 0.9rem;
 }
 
-@keyframes rise {
-  from {
-    opacity: 0;
-    transform: translateY(12px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 0.75rem;
+}
+
+.tile {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  padding: 0.9rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--card);
+  text-align: left;
+  cursor: pointer;
+  font-family: inherit;
+  color: var(--ink);
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease;
+}
+
+.tile:hover:not(:disabled) {
+  background: var(--card-hover);
+  border-color: color-mix(in srgb, var(--accent) 40%, var(--border));
+}
+
+.tile:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.tile__text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.tile__text strong {
+  font-size: 0.92rem;
+  font-weight: 600;
+}
+
+.tile__text span {
+  font-size: 0.78rem;
+  color: var(--muted);
 }
 </style>

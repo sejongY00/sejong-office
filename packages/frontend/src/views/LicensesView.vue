@@ -40,22 +40,26 @@ const thirdParty = [
         <p v-else class="muted">
           소스 저장소 URL은 <code>APP_GIT_URL</code> 상수에 설정할 수 있습니다.
         </p>
+        <p class="muted">
+          본 앱의 UI는 Microsoft Office와 유사한 레이아웃을 참고했으나,
+          Microsoft·Office·Word·Excel·PowerPoint 등 Microsoft 상표와 공식 제휴
+          관계가 없습니다.
+        </p>
       </section>
 
       <section class="card">
-        <h2>ONLYOFFICE Document Server</h2>
+        <h2>Euro-Office Document Server</h2>
         <p>
-          Community Edition은 일반적으로
           <strong>GNU AGPL v3</strong>로 배포됩니다. 서버에 Document Server를
           배포·수정하는 경우 AGPL 의무(소스 제공 등)를 확인하세요.
         </p>
         <ul>
           <li>
             <a
-              href="https://www.onlyoffice.com/"
+              href="https://github.com/Euro-Office/DocumentServer"
               target="_blank"
               rel="noopener noreferrer"
-              >onlyoffice.com</a
+              >Euro-Office DocumentServer (GitHub)</a
             >
           </li>
           <li>
@@ -63,13 +67,14 @@ const thirdParty = [
               href="https://github.com/ONLYOFFICE/DocumentServer"
               target="_blank"
               rel="noopener noreferrer"
-              >DocumentServer (GitHub)</a
+              >ONLYOFFICE DocumentServer (upstream)</a
             >
           </li>
         </ul>
         <p class="muted">
-          ONLYOFFICE는 Ascensio System SIA의 상표입니다. 본 프로젝트는 OnlyOffice와
-          공식 제휴 관계가 없습니다.
+          Euro-Office Document Server는 ONLYOFFICE Document Server를 기반으로
+          합니다. ONLYOFFICE는 Ascensio System SIA의 상표입니다. 본 프로젝트는
+          Euro-Office·OnlyOffice와 공식 제휴 관계가 없습니다.
         </p>
       </section>
 

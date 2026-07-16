@@ -3,7 +3,9 @@ import { nextTick, onActivated, onMounted, onUnmounted, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import AppShell from '@/components/AppShell.vue';
 import EditorErrorState from '@/components/EditorErrorState.vue';
-import { fetchEditorConfig } from '@/api/client';
+import EditorToolbar from '@/components/EditorToolbar.vue';
+import { downloadDocumentUrl, fetchEditorConfig } from '@/api/client';
+import { useOpenDocument } from '@/composables/useOpenDocument';
 import { usePageTitle } from '@/composables/usePageTitle';
 import { useSessionLifecycle } from '@/composables/useSessionLifecycle';
 
@@ -14,10 +16,13 @@ const router = useRouter();
 const error = ref<unknown>(null);
 const filename = ref('문서');
 const frameHost = ref<HTMLElement | null>(null);
+const fileInput = ref<HTMLInputElement | null>(null);
 let editor: { destroyEditor?: () => void } | null = null;
 let scriptEl: HTMLScriptElement | null = null;
 let resizeObserver: ResizeObserver | null = null;
 let initialized = false;
+
+const { openDocument } = useOpenDocument();
 
 usePageTitle(filename);
 useSessionLifecycle({ enableHeartbeat: true });
@@ -28,7 +33,7 @@ function editorHeightPx(): number {
     const h = host.clientHeight;
     if (h > 200) return h;
   }
-  return Math.max(400, window.innerHeight - 120);
+  return Math.max(400, window.innerHeight - 48);
 }
 
 function syncIframeSize() {
@@ -108,26 +113,49 @@ onUnmounted(() => {
   initialized = false;
 });
 
-function goHome() {
+function onOpen() {
+  fileInput.value?.click();
+}
+
+function onFileSelected(e: Event) {
+  const input = e.target as HTMLInputElement;
+  void openDocument(input.files?.[0]);
+  input.value = '';
+}
+
+function onSave() {
+  const docId = route.params.docId as string;
+  const a = document.createElement('a');
+  a.href = downloadDocumentUrl(docId);
+  a.download = filename.value;
+  a.rel = 'noopener';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+}
+
+function onClose() {
   void router.push({ name: 'home' });
 }
 </script>
 
 <template>
-  <AppShell :compact-footer="true">
+  <AppShell :editor="true">
     <div class="editor-page">
-      <header v-if="!error" class="bar">
-        <button type="button" class="bar__btn bar__btn--ghost" @click="goHome">
-          ← 홈
-        </button>
-        <div class="bar__meta">
-          <strong>{{ filename }}</strong>
-          <span>
-            서버에 영구 저장되지 않습니다. 닫기 전에 다운로드하세요.
-            <em>파일 → 저장</em>
-          </span>
-        </div>
-      </header>
+      <EditorToolbar
+        v-if="!error"
+        :filename="filename"
+        @open="onOpen"
+        @save="onSave"
+        @close="onClose"
+      />
+      <input
+        ref="fileInput"
+        class="sr-only"
+        type="file"
+        accept=".docx,.xlsx,.pptx,.pdf,.hwp,.hwpx,.odt,.ods,.odp,.doc,.xls,.ppt,.rtf,.txt,.csv"
+        @change="onFileSelected"
+      />
 
       <EditorErrorState v-if="error" :error="error" context="onlyoffice" />
       <div v-show="!error" ref="frameHost" class="editor-frame">
@@ -147,55 +175,16 @@ function goHome() {
   background: var(--canvas);
 }
 
-.bar {
-  flex: 0 0 auto;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.75rem;
-  align-items: center;
-  padding: 0.65rem 1rem;
-  border-bottom: 1px solid var(--border);
-  background: var(--surface);
-  z-index: 2;
-}
-
-.bar__meta {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 0.15rem;
-  min-width: 12rem;
-}
-
-.bar__meta strong {
-  font-size: 0.95rem;
-}
-
-.bar__meta span {
-  font-size: 0.75rem;
-  color: var(--muted);
-}
-
-.bar__meta em {
-  font-style: normal;
-  font-weight: 600;
-  color: var(--accent);
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
   white-space: nowrap;
-}
-
-.bar__btn {
-  border: none;
-  padding: 0.5rem 0.95rem;
-  border-radius: 3px;
-  font-weight: 600;
-  cursor: pointer;
-  font-family: inherit;
-}
-
-.bar__btn--ghost {
-  background: transparent;
-  color: var(--ink);
-  border: 1px solid var(--border);
+  border: 0;
 }
 
 .editor-frame {

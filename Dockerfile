@@ -25,6 +25,7 @@ RUN npm install --omit=dev -w @sejong-office/backend && npm cache clean --force
 
 COPY --from=build /app/packages/backend/dist ./packages/backend/dist
 COPY --from=build /app/packages/backend/public ./packages/backend/public
+COPY --from=build /app/packages/backend/templates ./packages/backend/templates
 
 WORKDIR /app/packages/backend
 ENV TEMP_DIR=/tmp/sejong

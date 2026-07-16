@@ -1,21 +1,18 @@
 <script setup lang="ts">
-import AppFooter from './AppFooter.vue';
-
 withDefaults(
   defineProps<{
-    /** Editor pages: fill viewport, compact footer */
-    compactFooter?: boolean;
+    /** Editor pages: fill viewport, no scroll */
+    editor?: boolean;
   }>(),
-  { compactFooter: false },
+  { editor: false },
 );
 </script>
 
 <template>
-  <div class="shell" :class="{ 'shell--editor': compactFooter }">
+  <div class="shell" :class="{ 'shell--editor': editor }">
     <div class="shell__main">
       <slot />
     </div>
-    <AppFooter :compact="compactFooter" />
   </div>
 </template>
 

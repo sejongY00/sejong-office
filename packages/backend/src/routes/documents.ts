@@ -13,6 +13,10 @@ import {
   buildEditorConfig,
   convertToOriginalFormat,
 } from '../services/onlyOffice.js';
+import {
+  createBlankDocument,
+  isBlankType,
+} from '../services/blankDocument.js';
 import { extensionOf } from '../utils/formats.js';
 import { decodeUploadFilename } from '../utils/filename.js';
 import { extractToken, verifyOnlyOfficeToken } from '../utils/jwt.js';
@@ -23,6 +27,34 @@ const upload = multer({
 });
 
 export const documentsRouter = Router();
+
+documentsRouter.post('/new', requireSession, async (req, res) => {
+  const type = typeof req.body?.type === 'string' ? req.body.type.trim() : '';
+  if (!isBlankType(type)) {
+    res.status(400).json({
+      error: 'unsupported_type',
+      message: '지원 형식: docx, xlsx, pptx, pdf, hwpx',
+    });
+    return;
+  }
+
+  try {
+    const doc = await createBlankDocument(
+      res.locals.sessionId as string,
+      type,
+    );
+    res.json({
+      docId: doc.docId,
+      filename: doc.filename,
+      fileType: doc.fileType,
+      documentType: doc.documentType,
+      token: doc.token,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'create_failed' });
+  }
+});
 
 documentsRouter.post(
   '/',

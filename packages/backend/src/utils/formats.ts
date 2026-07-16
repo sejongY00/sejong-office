@@ -78,6 +78,8 @@ export function mimeFor(ext: string): string {
     rtf: 'application/rtf',
     txt: 'text/plain',
     csv: 'text/csv',
+    hwp: 'application/x-hwp',
+    hwpx: 'application/hwp+zip',
   };
   return map[ext] ?? 'application/octet-stream';
 }

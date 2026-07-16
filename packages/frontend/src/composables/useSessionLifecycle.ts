@@ -26,28 +26,25 @@ export function bindSessionPageHideOnce() {
 }
 
 export function storeHwpFile(file: File): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      const buffer = reader.result as ArrayBuffer;
-      const bytes = new Uint8Array(buffer);
-      let binary = '';
-      const chunk = 0x8000;
-      for (let i = 0; i < bytes.length; i += chunk) {
-        binary += String.fromCharCode(...bytes.subarray(i, i + chunk));
-      }
-      sessionStorage.setItem(
-        HWP_FILE_KEY,
-        JSON.stringify({
-          name: file.name,
-          base64: btoa(binary),
-        }),
-      );
-      resolve();
-    };
-    reader.onerror = () => reject(reader.error);
-    reader.readAsArrayBuffer(file);
+  return file.arrayBuffer().then((buffer) => {
+    storeHwpBuffer(file.name, buffer);
   });
+}
+
+export function storeHwpBuffer(name: string, buffer: ArrayBuffer): void {
+  const bytes = new Uint8Array(buffer);
+  let binary = '';
+  const chunk = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunk) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + chunk));
+  }
+  sessionStorage.setItem(
+    HWP_FILE_KEY,
+    JSON.stringify({
+      name,
+      base64: btoa(binary),
+    }),
+  );
 }
 
 export function loadHwpFile(): { name: string; buffer: ArrayBuffer } | null {
