@@ -3,12 +3,14 @@ withDefaults(
   defineProps<{
     filename: string;
     saveLabel?: string;
+    showSave?: boolean;
     showExportActions?: boolean;
     showFilename?: boolean;
     busy?: boolean;
   }>(),
   {
     saveLabel: '저장',
+    showSave: true,
     showExportActions: false,
     showFilename: true,
     busy: false,
@@ -36,6 +38,7 @@ defineEmits<{
         열기
       </button>
       <button
+        v-if="showSave"
         type="button"
         class="toolbar__btn"
         :disabled="busy"

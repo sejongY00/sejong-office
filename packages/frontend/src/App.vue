@@ -18,7 +18,9 @@ const viewKey = computed(() => {
   if (
     route.name === 'excalidraw-editor' ||
     route.name === 'mermaid-editor' ||
-    route.name === 'drawio-editor'
+    route.name === 'drawio-editor' ||
+    route.name === 'cad-viewer' ||
+    route.name === 'model3d-viewer'
   ) {
     return String(route.name);
   }
@@ -35,8 +37,10 @@ const viewKey = computed(() => {
         'ExcalidrawEditorView',
         'MermaidEditorView',
         'DrawioEditorView',
+        'CadViewerView',
+        'Model3DViewerView',
       ]"
-      :max="8"
+      :max="10"
     >
       <component :is="Component" :key="viewKey" />
     </KeepAlive>

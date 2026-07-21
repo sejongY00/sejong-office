@@ -6,6 +6,7 @@ export const APP_NAME = "sejong-office";
 export const APP_DISPLAY_NAME = "Sejong Office";
 
 export type DiagramKind = "excalidraw" | "mermaid" | "drawio";
+export type ViewerKind = "cad" | "model3d";
 
 const DIAGRAM_EXTENSION_KIND: Record<string, DiagramKind> = {
   excalidraw: "excalidraw",
@@ -13,6 +14,17 @@ const DIAGRAM_EXTENSION_KIND: Record<string, DiagramKind> = {
   mermaid: "mermaid",
   drawio: "drawio",
   xml: "drawio",
+};
+
+const VIEWER_EXTENSION_KIND: Record<string, ViewerKind> = {
+  dxf: "cad",
+  dwg: "cad",
+  glb: "model3d",
+  gltf: "model3d",
+  obj: "model3d",
+  step: "model3d",
+  stp: "model3d",
+  ifc: "model3d",
 };
 
 /** HWP/HWPX — client-side rhwp */
@@ -54,4 +66,8 @@ export function isOffice(filename: string): boolean {
 
 export function diagramKindFor(filename: string): DiagramKind | null {
   return DIAGRAM_EXTENSION_KIND[extensionOf(filename)] ?? null;
+}
+
+export function viewerKindFor(filename: string): ViewerKind | null {
+  return VIEWER_EXTENSION_KIND[extensionOf(filename)] ?? null;
 }

@@ -35,6 +35,16 @@ const router = createRouter({
       component: () => import('@/views/DrawioEditorView.vue'),
     },
     {
+      path: '/viewer/cad',
+      name: 'cad-viewer',
+      component: () => import('@/views/CadViewerView.vue'),
+    },
+    {
+      path: '/viewer/3d',
+      name: 'model3d-viewer',
+      component: () => import('@/views/Model3DViewerView.vue'),
+    },
+    {
       path: '/licenses',
       name: 'licenses',
       component: () => import('@/views/LicensesView.vue'),

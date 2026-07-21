@@ -15,6 +15,8 @@ export type FaviconKind =
   | 'sketch'
   | 'code'
   | 'diagram'
+  | 'cad'
+  | 'model3d'
   | 'text'
   | 'csv'
   | 'file';
@@ -31,6 +33,8 @@ export const ICON_PATHS: Record<FaviconKind, string> = {
   sketch: 'M3 17.25V21H6.75L17.81 9.94L14.06 6.19L3 17.25M20.71 7.04C21.1 6.65 21.1 6 20.71 5.63L18.37 3.29C18 2.9 17.35 2.9 16.96 3.29L15.13 5.12L18.88 8.87L20.71 7.04Z',
   code: 'M8 3L6.59 4.41L10.17 8L6.59 11.59L8 13L13 8L8 3M14 11V13H22V11H14M5 19H19V17H5V19Z',
   diagram: 'M4 3H10V9H8V11H16V9H14V3H20V9H18V13H13V15H16V21H8V15H11V13H6V9H4V3M6 5V7H8V5H6M16 5V7H18V5H16M10 17V19H14V17H10Z',
+  cad: 'M3 3H21V21H3V3M5 5V19H19V5H5M7 17V15H9V13H11V11H13V9H15V7H17V17H7Z',
+  model3d: 'M12 2L21 7V17L12 22L3 17V7L12 2M12 4.3L5.4 8L12 11.7L18.6 8L12 4.3M5 9.7V15.8L11 19.1V13.1L5 9.7M13 19.1L19 15.8V9.7L13 13.1V19.1Z',
   text: 'M6,2A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2H6M6,4H13V9H18V20H6V4M8,12V14H16V12H8M8,16V18H13V16H8Z',
   csv: 'M14 2H6C4.9 2 4 2.9 4 4V20C4 21.1 4.9 22 6 22H18C19.1 22 20 21.1 20 20V8L14 2M18 20H6V4H13V9H18V20M10 19L12 15H9V10H15V15L13 19H10',
   file: 'M6,2A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2H6M6,4H13V9H18V20H6V4M8,12V14H16V12H8M8,16V18H13V16H8Z',
@@ -46,6 +50,8 @@ export const ICON_COLORS: Record<FaviconKind, string> = {
   sketch: '#7b61a8',
   code: '#d97706',
   diagram: '#2e7d8a',
+  cad: '#5c6bc0',
+  model3d: '#6d4c41',
   text: '#607d8b',
   csv: '#00838f',
   file: '#546e7a',
@@ -74,6 +80,14 @@ const EXT_KIND: Record<string, FaviconKind> = {
   mermaid: 'code',
   drawio: 'diagram',
   xml: 'diagram',
+  dxf: 'cad',
+  dwg: 'cad',
+  glb: 'model3d',
+  gltf: 'model3d',
+  obj: 'model3d',
+  step: 'model3d',
+  stp: 'model3d',
+  ifc: 'model3d',
   txt: 'text',
 };
 

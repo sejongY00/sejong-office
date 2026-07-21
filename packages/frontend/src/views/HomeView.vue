@@ -47,14 +47,29 @@ const diagramTypes = [
   },
 ] as const;
 
+const viewerTypes = [
+  {
+    route: 'cad-viewer',
+    extension: 'dwg',
+    title: 'CAD 도면',
+    subtitle: 'DXF · DWG',
+  },
+  {
+    route: 'model3d-viewer',
+    extension: 'glb',
+    title: '3D 모델',
+    subtitle: 'GLB · glTF · OBJ · STEP · IFC',
+  },
+] as const;
+
 function onDrop(e: DragEvent) {
   dragging.value = false;
-  void openDocument(e.dataTransfer?.files?.[0]);
+  void openDocument(e.dataTransfer?.files);
 }
 
 function onInput(e: Event) {
   const input = e.target as HTMLInputElement;
-  void openDocument(input.files?.[0]);
+  void openDocument(input.files ?? undefined);
   input.value = '';
 }
 
@@ -62,7 +77,7 @@ function onCreate(type: BlankDocumentType) {
   void createAndOpenBlank(type);
 }
 
-function onCreateDiagram(route: string) {
+function onOpenTool(route: string) {
   void router.push({ name: route });
 }
 </script>
@@ -92,7 +107,8 @@ function onCreateDiagram(route: string) {
           <input
             class="drop__input"
             type="file"
-            accept=".docx,.xlsx,.pptx,.pdf,.hwp,.hwpx,.odt,.ods,.odp,.doc,.xls,.ppt,.rtf,.txt,.csv,.excalidraw,.mmd,.mermaid,.drawio,.xml"
+            accept=".docx,.xlsx,.pptx,.pdf,.hwp,.hwpx,.odt,.ods,.odp,.doc,.xls,.ppt,.rtf,.txt,.csv,.excalidraw,.mmd,.mermaid,.drawio,.xml,.dxf,.dwg,.glb,.gltf,.obj,.step,.stp,.ifc,.bin,.mtl,.png,.jpg,.jpeg,.webp"
+            multiple
             :disabled="busy"
             @change="onInput"
           />
@@ -100,7 +116,7 @@ function onCreateDiagram(route: string) {
             {{ busy ? '여는 중…' : '파일을 끌어다 놓거나 클릭하여 선택' }}
           </span>
           <span class="drop__hint">
-            오피스·PDF · HWP/HWPX · 다이어그램
+            오피스·PDF · HWP/HWPX · 다이어그램 · CAD · 3D 모델
           </span>
         </label>
 
@@ -142,7 +158,32 @@ function onCreateDiagram(route: string) {
             type="button"
             class="tile"
             :disabled="busy"
-            @click="onCreateDiagram(item.route)"
+            @click="onOpenTool(item.route)"
+          >
+            <FileTypeIcon :extension="item.extension" :size="36" />
+            <span class="tile__text">
+              <strong>{{ item.title }}</strong>
+              <span>{{ item.subtitle }}</span>
+            </span>
+          </button>
+        </div>
+      </section>
+
+      <section class="section">
+        <h2 class="section__title">CAD·3D 모델</h2>
+        <p class="section__lead">
+          서버 업로드 없이 도면과 모델을 조회합니다. glTF·OBJ의 보조 파일은
+          원본과 함께 선택하세요.
+        </p>
+
+        <div class="grid">
+          <button
+            v-for="item in viewerTypes"
+            :key="item.route"
+            type="button"
+            class="tile"
+            :disabled="busy"
+            @click="onOpenTool(item.route)"
           >
             <FileTypeIcon :extension="item.extension" :size="36" />
             <span class="tile__text">

@@ -20,6 +20,17 @@ const thirdParty = [
     license: 'MIT',
     url: 'https://github.com/mermaid-js/mermaid',
   },
+  { name: 'Three.js', license: 'MIT', url: 'https://github.com/mrdoob/three.js' },
+  {
+    name: 'occt-import-js',
+    license: 'LGPL-2.1',
+    url: 'https://github.com/kovacsv/occt-import-js',
+  },
+  {
+    name: 'web-ifc',
+    license: 'MPL-2.0',
+    url: 'https://github.com/ThatOpen/engine_web-ifc',
+  },
   { name: 'Express', license: 'MIT', url: 'https://github.com/expressjs/express' },
   { name: 'jsonwebtoken', license: 'MIT', url: 'https://github.com/auth0/node-jsonwebtoken' },
   { name: 'multer', license: 'MIT', url: 'https://github.com/expressjs/multer' },
@@ -41,7 +52,7 @@ const thirdParty = [
 
       <section class="card">
         <h2>본 앱</h2>
-        <p>라이선스: <strong>MIT</strong></p>
+        <p>라이선스: <strong>GNU General Public License v3.0 only</strong></p>
         <p v-if="APP_GIT_URL">
           소스 코드:
           <a :href="APP_GIT_URL" target="_blank" rel="noopener noreferrer">{{
@@ -55,6 +66,55 @@ const thirdParty = [
           본 앱의 UI는 Microsoft Office와 유사한 레이아웃을 참고했으나,
           Microsoft·Office·Word·Excel·PowerPoint 등 Microsoft 상표와 공식 제휴
           관계가 없습니다.
+        </p>
+      </section>
+
+      <section class="card">
+        <h2>MLightCAD · LibreDWG</h2>
+        <p>
+          CAD 화면과 렌더러는
+          <a
+            href="https://github.com/mlightcad/cad-viewer"
+            target="_blank"
+            rel="noopener noreferrer"
+            >MLightCAD CAD Viewer</a
+          >
+          (MIT)를 사용합니다.
+        </p>
+        <p>
+          DXF 변환기
+          <a
+            href="https://github.com/mlightcad/dxf-json"
+            target="_blank"
+            rel="noopener noreferrer"
+            >@mlightcad/dxf-json-converter</a
+          >와 DWG Worker에 포함된
+          <a
+            href="https://www.gnu.org/software/libredwg/"
+            target="_blank"
+            rel="noopener noreferrer"
+            >GNU LibreDWG</a
+          >는 <strong>GPL-3.0</strong>입니다. 이에 따라 본 앱도
+          GPL-3.0-only로 배포됩니다.
+        </p>
+        <p class="muted">
+          CAD 폰트는 재배포 권리가 명확한 파일만 자체 호스팅해야 합니다. 본 배포본은
+          상용 AutoCAD 폰트를 포함하지 않으며, 누락된 글꼴은 대체 글꼴로 표시될 수
+          있습니다.
+        </p>
+      </section>
+
+      <section class="card">
+        <h2>3D 모델 파서</h2>
+        <p>
+          glTF·OBJ 렌더링은 Three.js(MIT), STEP 변환은
+          occt-import-js(LGPL-2.1)와 OpenCascade, IFC 변환은
+          web-ifc(MPL-2.0)를 사용합니다. 각 WASM 파일은 앱과 함께 자체
+          호스팅됩니다.
+        </p>
+        <p class="muted">
+          CAD·3D 원본 파일과 보조 파일은 브라우저 메모리에서만 처리하며 앱 서버로
+          업로드하거나 영구 저장하지 않습니다.
         </p>
       </section>
 

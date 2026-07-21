@@ -1,6 +1,11 @@
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
-import { diagramKindFor, isHwp, isOffice } from '@/config/app';
+import {
+  diagramKindFor,
+  isHwp,
+  isOffice,
+  viewerKindFor,
+} from '@/config/app';
 import {
   createBlankDocument,
   createSession,
@@ -13,18 +18,41 @@ import {
   storeHwpFile,
 } from '@/composables/useSessionLifecycle';
 import { stageDiagramFile } from '@/composables/diagramSession';
+import { stageViewerFiles } from '@/composables/viewerSession';
 
 export function useOpenDocument() {
   const router = useRouter();
   const busy = ref(false);
   const error = ref('');
 
-  async function openDocument(file: File | undefined): Promise<boolean> {
-    if (!file || busy.value) return false;
+  async function openDocument(
+    input: File | FileList | readonly File[] | undefined,
+  ): Promise<boolean> {
+    if (!input || busy.value) return false;
+    const files =
+      input instanceof File
+        ? [input]
+        : Array.from(input);
+    const file =
+      files.find(
+        (candidate) =>
+          viewerKindFor(candidate.name) ||
+          diagramKindFor(candidate.name) ||
+          isHwp(candidate.name) ||
+          isOffice(candidate.name),
+      ) ?? files[0];
+    if (!file) return false;
     error.value = '';
     busy.value = true;
 
     try {
+      const viewerKind = viewerKindFor(file.name);
+      if (viewerKind) {
+        stageViewerFiles(viewerKind, files);
+        await router.push({ name: `${viewerKind}-viewer` });
+        return true;
+      }
+
       const diagramKind = diagramKindFor(file.name);
       if (diagramKind) {
         stageDiagramFile(diagramKind, file);
