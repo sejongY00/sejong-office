@@ -29,9 +29,11 @@ const WORKERS = {
 const router = useRouter();
 const fileInput = ref<HTMLInputElement | null>(null);
 const localFile = ref<File>();
+const pendingFile = ref<File>();
 const filename = ref('CAD 도면');
 const ready = ref(false);
 const viewerCreated = ref(false);
+const fontReady = ref(false);
 const error = ref('');
 const notice = ref('');
 const theme = useSystemTheme();
@@ -51,7 +53,8 @@ settings.set('isShowToolbar', true);
 function applyFiles(files: File[]) {
   const file = files.find((item) => /\.(?:dxf|dwg)$/i.test(item.name));
   if (!file) return;
-  localFile.value = file;
+  pendingFile.value = file;
+  if (fontReady.value) localFile.value = file;
   filename.value = file.name;
   error.value = '';
   notice.value =
@@ -103,6 +106,19 @@ function onFileSelected(event: Event) {
   void nextTick();
 }
 
+async function onViewerCreated() {
+  viewerCreated.value = true;
+  try {
+    await AcApDocManager.instance.loadFonts(['Noto Sans KR']);
+  } catch {
+    notice.value =
+      '대체 글꼴을 불러오지 못했습니다. 일부 CAD 문자가 표시되지 않을 수 있습니다.';
+  } finally {
+    fontReady.value = true;
+    if (pendingFile.value) localFile.value = pendingFile.value;
+  }
+}
+
 function onClose() {
   void router.push({ name: 'home' });
 }
@@ -140,7 +156,7 @@ function onClose() {
           :progressive-rendering="true"
           :fail-on-font-load-error="false"
           locale="en"
-          @create="viewerCreated = true"
+          @create="onViewerCreated"
         />
         <div v-if="ready && !localFile && viewerCreated" class="empty-state">
           <strong>CAD 도면을 선택해 주세요.</strong>

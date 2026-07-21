@@ -28,6 +28,14 @@ const assets = [
     'viewer-assets/wasm/occt-import-js.wasm',
   ],
   ['web-ifc/web-ifc.wasm', 'viewer-assets/wasm/web-ifc.wasm'],
+  [
+    '@noto-pdf-ts/fonts-kr/dist/fonts/NotoSansKR-VF.ttf',
+    'viewer-assets/cad-resources/fonts/NotoSansKR-VF.ttf',
+  ],
+  [
+    '@fontsource-variable/noto-sans-kr/LICENSE',
+    'viewer-assets/cad-resources/fonts/OFL-1.1.txt',
+  ],
 ];
 
 await Promise.all(
@@ -41,12 +49,45 @@ await Promise.all(
 const resources = path.join(publicDir, 'viewer-assets', 'cad-resources');
 await mkdir(path.join(resources, 'fonts'), { recursive: true });
 await mkdir(path.join(resources, 'templates'), { recursive: true });
-await writeFile(path.join(resources, 'fonts.json'), '[]\n');
+const fontManifest = `${JSON.stringify(
+    [
+      {
+        name: [
+          'Noto Sans KR',
+          'arial',
+          'batang',
+          'dotum',
+          'ghs',
+          'gulim',
+          'hztxt',
+          'isocpeur',
+          'malgun',
+          'malgun gothic',
+          'pmingliu',
+          'romans',
+          'sanss___',
+          'simplex',
+          'swisscbo',
+          'whgtxt',
+          'whs',
+        ],
+        file: 'NotoSansKR-VF.ttf',
+        type: 'mesh',
+        description: 'Open-source Korean CAD fallback (SIL OFL 1.1)',
+      },
+    ],
+    null,
+    2,
+  )}\n`;
+await Promise.all([
+  writeFile(path.join(resources, 'fonts.json'), fontManifest),
+  writeFile(path.join(resources, 'fonts', 'fonts.json'), fontManifest),
+]);
 await writeFile(
   path.join(resources, 'README.txt'),
   [
-    'Optional CAD fonts and templates can be placed here.',
-    'Only files with redistribution rights should be added.',
+    'Noto Sans KR is bundled as the open-source Korean CAD fallback.',
+    'Additional CAD fonts may be placed here when redistribution is permitted.',
     'The read-only viewer does not require a drawing template.',
     '',
   ].join('\n'),

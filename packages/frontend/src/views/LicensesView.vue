@@ -31,6 +31,11 @@ const thirdParty = [
     license: 'MPL-2.0',
     url: 'https://github.com/ThatOpen/engine_web-ifc',
   },
+  {
+    name: 'Noto Sans KR',
+    license: 'SIL OFL 1.1',
+    url: 'https://github.com/notofonts/noto-cjk',
+  },
   { name: 'Express', license: 'MIT', url: 'https://github.com/expressjs/express' },
   { name: 'jsonwebtoken', license: 'MIT', url: 'https://github.com/auth0/node-jsonwebtoken' },
   { name: 'multer', license: 'MIT', url: 'https://github.com/expressjs/multer' },
@@ -98,9 +103,9 @@ const thirdParty = [
           GPL-3.0-only로 배포됩니다.
         </p>
         <p class="muted">
-          CAD 폰트는 재배포 권리가 명확한 파일만 자체 호스팅해야 합니다. 본 배포본은
-          상용 AutoCAD 폰트를 포함하지 않으며, 누락된 글꼴은 대체 글꼴로 표시될 수
-          있습니다.
+          상용 AutoCAD 폰트는 포함하지 않습니다. 누락된 한글·라틴 글꼴은 SIL Open
+          Font License 1.1의 Noto Sans KR로 대체하며, 원본 글꼴과 글자 폭·형태가
+          다를 수 있습니다.
         </p>
       </section>
 
