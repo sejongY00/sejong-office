@@ -20,6 +20,21 @@ const router = createRouter({
       component: () => import('@/views/RhwpEditorView.vue'),
     },
     {
+      path: '/editor/excalidraw',
+      name: 'excalidraw-editor',
+      component: () => import('@/views/ExcalidrawEditorView.vue'),
+    },
+    {
+      path: '/editor/mermaid',
+      name: 'mermaid-editor',
+      component: () => import('@/views/MermaidEditorView.vue'),
+    },
+    {
+      path: '/editor/drawio',
+      name: 'drawio-editor',
+      component: () => import('@/views/DrawioEditorView.vue'),
+    },
+    {
       path: '/licenses',
       name: 'licenses',
       component: () => import('@/views/LicensesView.vue'),

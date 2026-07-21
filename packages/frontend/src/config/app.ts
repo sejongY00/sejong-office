@@ -5,6 +5,16 @@ export const APP_NAME = "sejong-office";
 
 export const APP_DISPLAY_NAME = "Sejong Office";
 
+export type DiagramKind = "excalidraw" | "mermaid" | "drawio";
+
+const DIAGRAM_EXTENSION_KIND: Record<string, DiagramKind> = {
+  excalidraw: "excalidraw",
+  mmd: "mermaid",
+  mermaid: "mermaid",
+  drawio: "drawio",
+  xml: "drawio",
+};
+
 /** HWP/HWPX — client-side rhwp */
 export const HWP_EXTENSIONS = new Set(["hwp", "hwpx"]);
 
@@ -40,4 +50,8 @@ export function isHwp(filename: string): boolean {
 
 export function isOffice(filename: string): boolean {
   return OFFICE_EXTENSIONS.has(extensionOf(filename));
+}
+
+export function diagramKindFor(filename: string): DiagramKind | null {
+  return DIAGRAM_EXTENSION_KIND[extensionOf(filename)] ?? null;
 }

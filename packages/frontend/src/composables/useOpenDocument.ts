@@ -1,6 +1,6 @@
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
-import { isHwp, isOffice } from '@/config/app';
+import { diagramKindFor, isHwp, isOffice } from '@/config/app';
 import {
   createBlankDocument,
   createSession,
@@ -12,6 +12,7 @@ import {
   storeHwpBuffer,
   storeHwpFile,
 } from '@/composables/useSessionLifecycle';
+import { stageDiagramFile } from '@/composables/diagramSession';
 
 export function useOpenDocument() {
   const router = useRouter();
@@ -24,6 +25,13 @@ export function useOpenDocument() {
     busy.value = true;
 
     try {
+      const diagramKind = diagramKindFor(file.name);
+      if (diagramKind) {
+        stageDiagramFile(diagramKind, file);
+        await router.push({ name: `${diagramKind}-editor` });
+        return true;
+      }
+
       if (isHwp(file.name)) {
         await storeHwpFile(file);
         await createSession().catch(() => undefined);
@@ -33,7 +41,7 @@ export function useOpenDocument() {
 
       if (!isOffice(file.name)) {
         error.value =
-          '지원하지 않는 형식입니다. docx, xlsx, pptx, pdf, hwp, hwpx 등을 올려 주세요.';
+          '지원하지 않는 형식입니다. 오피스, HWP 또는 다이어그램 파일을 선택해 주세요.';
         return false;
       }
 

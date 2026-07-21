@@ -145,6 +145,7 @@ function onClose() {
       <EditorToolbar
         v-if="!error"
         :filename="filename"
+        :show-filename="false"
         @open="onOpen"
         @save="onSave"
         @close="onClose"

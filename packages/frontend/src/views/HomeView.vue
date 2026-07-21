@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue';
+import { useRouter } from 'vue-router';
 import AppShell from '@/components/AppShell.vue';
 import FileTypeIcon from '@/components/FileTypeIcon.vue';
 import { APP_DISPLAY_NAME } from '@/config/app';
@@ -8,6 +9,7 @@ import { usePageTitle } from '@/composables/usePageTitle';
 import type { BlankDocumentType } from '@/api/client';
 
 const dragging = ref(false);
+const router = useRouter();
 const { busy, error, openDocument, createAndOpenBlank } = useOpenDocument();
 
 usePageTitle();
@@ -24,6 +26,27 @@ const blankTypes: {
   { type: 'hwpx', title: '한글 문서 (HWPX)', subtitle: '새문서.hwpx' },
 ];
 
+const diagramTypes = [
+  {
+    route: 'excalidraw-editor',
+    extension: 'excalidraw',
+    title: '스케치 (Excalidraw)',
+    subtitle: '새그림.excalidraw',
+  },
+  {
+    route: 'mermaid-editor',
+    extension: 'mmd',
+    title: '텍스트 다이어그램 (Mermaid)',
+    subtitle: '새다이어그램.mmd',
+  },
+  {
+    route: 'drawio-editor',
+    extension: 'drawio',
+    title: '다이어그램 (draw.io)',
+    subtitle: '새다이어그램.drawio',
+  },
+] as const;
+
 function onDrop(e: DragEvent) {
   dragging.value = false;
   void openDocument(e.dataTransfer?.files?.[0]);
@@ -37,6 +60,10 @@ function onInput(e: Event) {
 
 function onCreate(type: BlankDocumentType) {
   void createAndOpenBlank(type);
+}
+
+function onCreateDiagram(route: string) {
+  void router.push({ name: route });
 }
 </script>
 
@@ -65,7 +92,7 @@ function onCreate(type: BlankDocumentType) {
           <input
             class="drop__input"
             type="file"
-            accept=".docx,.xlsx,.pptx,.pdf,.hwp,.hwpx,.odt,.ods,.odp,.doc,.xls,.ppt,.rtf,.txt,.csv"
+            accept=".docx,.xlsx,.pptx,.pdf,.hwp,.hwpx,.odt,.ods,.odp,.doc,.xls,.ppt,.rtf,.txt,.csv,.excalidraw,.mmd,.mermaid,.drawio,.xml"
             :disabled="busy"
             @change="onInput"
           />
@@ -73,7 +100,7 @@ function onCreate(type: BlankDocumentType) {
             {{ busy ? '여는 중…' : '파일을 끌어다 놓거나 클릭하여 선택' }}
           </span>
           <span class="drop__hint">
-            오피스·PDF · HWP/HWPX
+            오피스·PDF · HWP/HWPX · 다이어그램
           </span>
         </label>
 
@@ -94,6 +121,30 @@ function onCreate(type: BlankDocumentType) {
             @click="onCreate(item.type)"
           >
             <FileTypeIcon :extension="item.type" :size="36" />
+            <span class="tile__text">
+              <strong>{{ item.title }}</strong>
+              <span>{{ item.subtitle }}</span>
+            </span>
+          </button>
+        </div>
+      </section>
+
+      <section class="section">
+        <h2 class="section__title">다이어그램</h2>
+        <p class="section__lead">
+          브라우저에서 직접 편집하고 원본·SVG·PNG로 저장합니다.
+        </p>
+
+        <div class="grid">
+          <button
+            v-for="item in diagramTypes"
+            :key="item.route"
+            type="button"
+            class="tile"
+            :disabled="busy"
+            @click="onCreateDiagram(item.route)"
+          >
+            <FileTypeIcon :extension="item.extension" :size="36" />
             <span class="tile__text">
               <strong>{{ item.title }}</strong>
               <span>{{ item.subtitle }}</span>

@@ -1,11 +1,25 @@
 <script setup lang="ts">
-defineProps<{
-  filename: string;
-}>();
+withDefaults(
+  defineProps<{
+    filename: string;
+    saveLabel?: string;
+    showExportActions?: boolean;
+    showFilename?: boolean;
+    busy?: boolean;
+  }>(),
+  {
+    saveLabel: '저장',
+    showExportActions: false,
+    showFilename: true,
+    busy: false,
+  },
+);
 
 defineEmits<{
   open: [];
   save: [];
+  exportSvg: [];
+  exportPng: [];
   close: [];
 }>();
 </script>
@@ -13,14 +27,48 @@ defineEmits<{
 <template>
   <header class="toolbar">
     <div class="toolbar__left">
-      <button type="button" class="toolbar__btn" @click="$emit('open')">
+      <button
+        type="button"
+        class="toolbar__btn"
+        :disabled="busy"
+        @click="$emit('open')"
+      >
         열기
       </button>
-      <button type="button" class="toolbar__btn" @click="$emit('save')">
-        저장
+      <button
+        type="button"
+        class="toolbar__btn"
+        :disabled="busy"
+        @click="$emit('save')"
+      >
+        {{ saveLabel }}
+      </button>
+      <button
+        v-if="showExportActions"
+        type="button"
+        class="toolbar__btn"
+        :disabled="busy"
+        @click="$emit('exportSvg')"
+      >
+        SVG
+      </button>
+      <button
+        v-if="showExportActions"
+        type="button"
+        class="toolbar__btn"
+        :disabled="busy"
+        @click="$emit('exportPng')"
+      >
+        PNG
       </button>
     </div>
-    <p class="toolbar__title" :title="filename">{{ filename }}</p>
+    <p
+      class="toolbar__title"
+      :title="showFilename ? filename : undefined"
+      :aria-hidden="!showFilename"
+    >
+      {{ showFilename ? filename : '' }}
+    </p>
     <div class="toolbar__right">
       <RouterLink class="toolbar__link" to="/licenses">라이선스</RouterLink>
       <button type="button" class="toolbar__btn" @click="$emit('close')">
@@ -48,6 +96,13 @@ defineEmits<{
   display: flex;
   gap: 0.4rem;
   justify-self: start;
+  max-width: 100%;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.toolbar__left::-webkit-scrollbar {
+  display: none;
 }
 
 .toolbar__right {
@@ -86,6 +141,11 @@ defineEmits<{
   color: var(--accent);
 }
 
+.toolbar__btn:disabled {
+  opacity: 0.55;
+  cursor: wait;
+}
+
 .toolbar__link {
   font-size: 0.8rem;
   font-weight: 500;
@@ -95,5 +155,15 @@ defineEmits<{
 
 .toolbar__link:hover {
   color: var(--accent);
+}
+
+@media (max-width: 640px) {
+  .toolbar {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .toolbar__title {
+    display: none;
+  }
 }
 </style>

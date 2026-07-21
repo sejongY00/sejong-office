@@ -24,6 +24,7 @@ declare module '@rhwp/editor' {
 }
 
 interface Window {
+  EXCALIDRAW_ASSET_PATH?: string;
   DocsAPI?: {
     DocEditor: new (
       id: string,

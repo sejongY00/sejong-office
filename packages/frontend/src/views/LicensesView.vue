@@ -9,6 +9,17 @@ const thirdParty = [
   { name: 'Vue', license: 'MIT', url: 'https://github.com/vuejs/core' },
   { name: 'Vue Router', license: 'MIT', url: 'https://github.com/vuejs/router' },
   { name: 'Vite', license: 'MIT', url: 'https://github.com/vitejs/vite' },
+  { name: 'React', license: 'MIT', url: 'https://github.com/facebook/react' },
+  {
+    name: 'Excalidraw',
+    license: 'MIT',
+    url: 'https://github.com/excalidraw/excalidraw',
+  },
+  {
+    name: 'Mermaid',
+    license: 'MIT',
+    url: 'https://github.com/mermaid-js/mermaid',
+  },
   { name: 'Express', license: 'MIT', url: 'https://github.com/expressjs/express' },
   { name: 'jsonwebtoken', license: 'MIT', url: 'https://github.com/auth0/node-jsonwebtoken' },
   { name: 'multer', license: 'MIT', url: 'https://github.com/expressjs/multer' },
@@ -75,6 +86,24 @@ const thirdParty = [
           Euro-Office Document Server는 ONLYOFFICE Document Server를 기반으로
           합니다. ONLYOFFICE는 Ascensio System SIA의 상표입니다. 본 프로젝트는
           Euro-Office·OnlyOffice와 공식 제휴 관계가 없습니다.
+        </p>
+      </section>
+
+      <section class="card">
+        <h2>diagrams.net / draw.io</h2>
+        <p>
+          라이선스: <strong>Apache License 2.0</strong> —
+          <a
+            href="https://github.com/jgraph/drawio"
+            target="_blank"
+            rel="noopener noreferrer"
+            >github.com/jgraph/drawio</a
+          >
+        </p>
+        <p class="muted">
+          draw.io 편집 화면은 공식 <code>embed.diagrams.net</code> 정적 앱을
+          네트워크로 불러옵니다. 다이어그램 데이터는 브라우저의
+          <code>postMessage</code>를 통해 교환하며 본 앱 서버에 저장하지 않습니다.
         </p>
       </section>
 
