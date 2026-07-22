@@ -22,6 +22,11 @@ const thirdParty = [
   },
   { name: 'Three.js', license: 'MIT', url: 'https://github.com/mrdoob/three.js' },
   {
+    name: 'Online 3D Viewer',
+    license: 'MIT',
+    url: 'https://github.com/kovacsv/Online3DViewer',
+  },
+  {
     name: 'occt-import-js',
     license: 'LGPL-2.1',
     url: 'https://github.com/kovacsv/occt-import-js',
@@ -30,6 +35,21 @@ const thirdParty = [
     name: 'web-ifc',
     license: 'MPL-2.0',
     url: 'https://github.com/ThatOpen/engine_web-ifc',
+  },
+  {
+    name: 'rhino3dm',
+    license: 'MIT',
+    url: 'https://github.com/mcneel/rhino3dm',
+  },
+  {
+    name: 'Draco',
+    license: 'Apache-2.0',
+    url: 'https://github.com/google/draco',
+  },
+  {
+    name: 'fflate',
+    license: 'MIT',
+    url: 'https://github.com/101arrowz/fflate',
   },
   {
     name: 'Noto Sans KR',
@@ -110,12 +130,18 @@ const thirdParty = [
       </section>
 
       <section class="card">
-        <h2>3D 모델 파서</h2>
+        <h2>Online 3D Viewer</h2>
         <p>
-          glTF·OBJ 렌더링은 Three.js(MIT), STEP 변환은
-          occt-import-js(LGPL-2.1)와 OpenCascade, IFC 변환은
-          web-ifc(MPL-2.0)를 사용합니다. 각 WASM 파일은 앱과 함께 자체
-          호스팅됩니다.
+          3D 뷰어 엔진은
+          <a
+            href="https://github.com/kovacsv/Online3DViewer"
+            target="_blank"
+            rel="noopener noreferrer"
+            >Online 3D Viewer</a
+          >
+          (MIT)를 사용합니다. Three.js·fflate·Pickr(MIT), Draco(Apache-2.0),
+          rhino3dm(MIT), web-ifc(MPL-2.0), occt-import-js(LGPL-2.1) 로더는
+          CDN 없이 <code>/viewer-assets/o3dv/</code>에 자체 호스팅됩니다.
         </p>
         <p class="muted">
           CAD·3D 원본 파일과 보조 파일은 브라우저 메모리에서만 처리하며 앱 서버로

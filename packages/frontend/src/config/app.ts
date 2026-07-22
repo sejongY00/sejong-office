@@ -16,15 +16,39 @@ const DIAGRAM_EXTENSION_KIND: Record<string, DiagramKind> = {
   xml: "drawio",
 };
 
+/** Online3DViewer import formats (+ zip container). */
+export const MODEL3D_EXTENSIONS = [
+  "3dm",
+  "3ds",
+  "3mf",
+  "amf",
+  "bim",
+  "brp",
+  "brep",
+  "dae",
+  "fbx",
+  "fcstd",
+  "gltf",
+  "glb",
+  "ifc",
+  "igs",
+  "iges",
+  "stp",
+  "step",
+  "stl",
+  "obj",
+  "off",
+  "ply",
+  "wrl",
+  "zip",
+] as const;
+
 const VIEWER_EXTENSION_KIND: Record<string, ViewerKind> = {
   dxf: "cad",
   dwg: "cad",
-  glb: "model3d",
-  gltf: "model3d",
-  obj: "model3d",
-  step: "model3d",
-  stp: "model3d",
-  ifc: "model3d",
+  ...Object.fromEntries(
+    MODEL3D_EXTENSIONS.map((ext) => [ext, "model3d" as const]),
+  ),
 };
 
 /** HWP/HWPX — client-side rhwp */

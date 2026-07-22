@@ -58,7 +58,7 @@ const viewerTypes = [
     route: 'model3d-viewer',
     extension: 'glb',
     title: '3D 모델',
-    subtitle: 'GLB · glTF · OBJ · STEP · IFC',
+    subtitle: 'glTF · OBJ · STEP · IFC · STL · 3DM 등',
   },
 ] as const;
 
@@ -107,7 +107,7 @@ function onOpenTool(route: string) {
           <input
             class="drop__input"
             type="file"
-            accept=".docx,.xlsx,.pptx,.pdf,.hwp,.hwpx,.odt,.ods,.odp,.doc,.xls,.ppt,.rtf,.txt,.csv,.excalidraw,.mmd,.mermaid,.drawio,.xml,.dxf,.dwg,.glb,.gltf,.obj,.step,.stp,.ifc,.bin,.mtl,.png,.jpg,.jpeg,.webp"
+            accept=".docx,.xlsx,.pptx,.pdf,.hwp,.hwpx,.odt,.ods,.odp,.doc,.xls,.ppt,.rtf,.txt,.csv,.excalidraw,.mmd,.mermaid,.drawio,.xml,.dxf,.dwg,.3dm,.3ds,.3mf,.amf,.bim,.brp,.brep,.dae,.fbx,.fcstd,.gltf,.glb,.ifc,.igs,.iges,.stp,.step,.stl,.obj,.off,.ply,.wrl,.zip,.bin,.mtl,.png,.jpg,.jpeg,.webp"
             multiple
             :disabled="busy"
             @change="onInput"
@@ -116,7 +116,7 @@ function onOpenTool(route: string) {
             {{ busy ? '여는 중…' : '파일을 끌어다 놓거나 클릭하여 선택' }}
           </span>
           <span class="drop__hint">
-            오피스·PDF · HWP/HWPX · 다이어그램 · CAD · 3D 모델
+            오피스·PDF · HWP/HWPX · 다이어그램 · CAD · 3D 모델(ZIP 포함)
           </span>
         </label>
 
@@ -172,8 +172,8 @@ function onOpenTool(route: string) {
       <section class="section">
         <h2 class="section__title">CAD·3D 모델</h2>
         <p class="section__lead">
-          서버 업로드 없이 도면과 모델을 조회합니다. glTF·OBJ의 보조 파일은
-          원본과 함께 선택하세요.
+          서버 업로드 없이 도면과 모델을 조회합니다. 텍스처·MTL·BIN 등 보조
+          파일이나 ZIP은 원본과 함께 선택하세요.
         </p>
 
         <div class="grid">

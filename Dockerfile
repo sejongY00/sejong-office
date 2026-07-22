@@ -1,6 +1,9 @@
 # Build frontend + backend
 FROM node:22-bookworm-slim AS build
 WORKDIR /app
+# CAD viewer + Online3DViewer + Mermaid/Excalidraw make Vite chunking
+# exceed the default ~2GB heap inside slim Docker builds.
+ENV NODE_OPTIONS=--max-old-space-size=8192
 
 COPY package.json package-lock.json* ./
 COPY packages/backend/package.json packages/backend/
