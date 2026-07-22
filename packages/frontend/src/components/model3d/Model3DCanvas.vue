@@ -272,6 +272,7 @@ async function load(files: readonly File[]) {
       applyUp(props.upAxis);
       void nextTick(() => {
         fitCamera();
+        emit('progress', 1, '모델 준비 완료');
         emit(
           'loaded',
           summarizeModel(importResult.model),
@@ -279,7 +280,6 @@ async function load(files: readonly File[]) {
           modelPropertyGroups(importResult.model),
           importResult.missingFiles ?? [],
         );
-        emit('progress', 1, '모델 준비 완료');
         selectByKey(null);
       });
     },

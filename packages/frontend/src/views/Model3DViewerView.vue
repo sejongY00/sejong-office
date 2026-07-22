@@ -136,9 +136,9 @@ function onFilesSelected(event: Event) {
 }
 
 function onProgress(value: number, label: string) {
-  loading.value = true;
   progress.value = value;
   progressLabel.value = label;
+  if (value < 1) loading.value = true;
 }
 
 function onLoaded(
