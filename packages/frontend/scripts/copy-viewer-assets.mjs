@@ -193,6 +193,149 @@ await writeFile(
   ].join('\n'),
 );
 
+const scannerAssets = [
+  [resolvePackage('jscanify/src/opencv.js'), 'viewer-assets/scanner/opencv.js'],
+  [resolvePackage('jscanify/src/jscanify.js'), 'viewer-assets/scanner/jscanify.js'],
+  [resolvePackage('jscanify/LICENSE'), 'viewer-assets/scanner/licenses/jscanify.LICENSE'],
+  [
+    resolvePackage('ppu-paddle-ocr/LICENSE'),
+    'viewer-assets/scanner/licenses/ppu-paddle-ocr.LICENSE',
+  ],
+  [
+    resolvePackage('pdfjs-dist/build/pdf.worker.min.mjs'),
+    'viewer-assets/scanner/pdfjs/pdf.worker.min.mjs',
+  ],
+  [
+    resolvePackage('pdfjs-dist/LICENSE'),
+    'viewer-assets/scanner/licenses/pdfjs-dist.LICENSE',
+  ],
+];
+
+await Promise.all(
+  scannerAssets.map(([sources, destination]) =>
+    copyFirst(sources, destination),
+  ),
+);
+
+{
+  const { access, readdir, rm } = await import('node:fs/promises');
+  const legacyTesseract = path.join(publicDir, 'viewer-assets/scanner/tesseract');
+  try {
+    await rm(legacyTesseract, { recursive: true, force: true });
+  } catch {
+    // ignore
+  }
+
+  const ortDest = path.join(publicDir, 'viewer-assets/scanner/ort');
+  await mkdir(ortDest, { recursive: true });
+  const ortNames = [
+    'ort-wasm-simd-threaded.wasm',
+    'ort-wasm-simd-threaded.mjs',
+    'ort-wasm-simd-threaded.jsep.wasm',
+    'ort-wasm-simd-threaded.jsep.mjs',
+  ];
+  let ortCopied = false;
+  for (const candidate of resolvePackage('onnxruntime-web/dist')) {
+    try {
+      const entries = await readdir(candidate);
+      const wanted = ortNames.filter((name) => entries.includes(name));
+      if (wanted.length < ortNames.length) continue;
+      await Promise.all(
+        wanted.map((name) =>
+          cp(path.join(candidate, name), path.join(ortDest, name)),
+        ),
+      );
+      ortCopied = true;
+      break;
+    } catch {
+      // try next
+    }
+  }
+  if (!ortCopied) {
+    throw new Error('Missing onnxruntime-web WASM assets');
+  }
+
+  const paddleDest = path.join(publicDir, 'viewer-assets/scanner/paddle');
+  await mkdir(paddleDest, { recursive: true });
+  const modelCacheDir = path.join(frontendDir, '.cache', 'paddle-ocr-models');
+  await mkdir(modelCacheDir, { recursive: true });
+
+  const MODEL_BASE =
+    'https://media.githubusercontent.com/media/PT-Perkasa-Pilar-Utama/ppu-paddle-ocr-models/main';
+  const DICT_BASE =
+    'https://raw.githubusercontent.com/PT-Perkasa-Pilar-Utama/ppu-paddle-ocr-models/main';
+  const paddleFiles = [
+    {
+      url: `${MODEL_BASE}/detection/PP-OCRv5_mobile_det_infer.onnx`,
+      name: 'PP-OCRv5_mobile_det_infer.onnx',
+    },
+    {
+      url: `${MODEL_BASE}/recognition/multi/korean/v5/korean_PP-OCRv5_mobile_rec_infer.onnx`,
+      name: 'korean_PP-OCRv5_mobile_rec_infer.onnx',
+    },
+    {
+      url: `${DICT_BASE}/recognition/multi/korean/v5/ppocrv5_korean_dict.txt`,
+      name: 'ppocrv5_korean_dict.txt',
+    },
+  ];
+
+  async function downloadToCache(url, name) {
+    const cached = path.join(modelCacheDir, name);
+    try {
+      await access(cached);
+      return cached;
+    } catch {
+      // download
+    }
+    console.log(`downloading paddle model: ${name}`);
+    let lastError;
+    for (let attempt = 1; attempt <= 3; attempt += 1) {
+      try {
+        const response = await fetch(url);
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status} for ${url}`);
+        }
+        const buffer = Buffer.from(await response.arrayBuffer());
+        if (buffer.byteLength < 64) {
+          throw new Error(`Unexpectedly small download for ${name}`);
+        }
+        await writeFile(cached, buffer);
+        return cached;
+      } catch (error) {
+        lastError = error;
+        console.warn(`retry ${attempt}/3 failed for ${name}:`, error);
+      }
+    }
+    throw lastError ?? new Error(`Failed to download ${name}`);
+  }
+
+  for (const file of paddleFiles) {
+    const cachedPath = await downloadToCache(file.url, file.name);
+    await cp(cachedPath, path.join(paddleDest, file.name));
+  }
+
+  await writeFile(
+    path.join(publicDir, 'viewer-assets/scanner/licenses/paddle-ocr-models.NOTICE.txt'),
+    [
+      'PP-OCRv5 ONNX models are sourced from:',
+      'https://github.com/PT-Perkasa-Pilar-Utama/ppu-paddle-ocr-models',
+      'upstream: https://www.paddleocr.ai/ (Apache-2.0)',
+      '',
+    ].join('\n'),
+  );
+}
+
+await writeFile(
+  path.join(publicDir, 'viewer-assets/scanner/README.txt'),
+  [
+    'Self-hosted document scanner libraries (OpenCV.js, jscanify, ppu-paddle-ocr, pdf.js).',
+    'OCR: PP-OCRv5 Korean mobile (det + rec + dict) under paddle/.',
+    'ONNX Runtime Web WASM under ort/.',
+    'PDF.js worker under pdfjs/.',
+    '',
+  ].join('\n'),
+);
+
 const O3DV_BASE = '/viewer-assets/o3dv/';
 const replacements = [
   [

@@ -40,10 +40,21 @@ async function main() {
   app.use('/api/documents', documentsRouter);
 
   if (fs.existsSync(config.publicDir)) {
-    app.use(express.static(config.publicDir));
+    app.use(express.static(config.publicDir, {
+      setHeaders(res, filePath) {
+        if (filePath.endsWith('.wasm')) {
+          res.setHeader('Content-Type', 'application/wasm');
+        }
+      },
+    }));
     app.get('*', (req, res, next) => {
       if (req.path.startsWith('/api')) {
         next();
+        return;
+      }
+      // Do not SPA-fallback missing static assets (wasm, workers, traineddata).
+      if (/\.[a-z0-9]+$/i.test(req.path)) {
+        res.status(404).end();
         return;
       }
       res.sendFile(path.join(config.publicDir, 'index.html'));

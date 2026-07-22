@@ -62,6 +62,15 @@ const viewerTypes = [
   },
 ] as const;
 
+const toolTypes = [
+  {
+    route: 'tools-scanner',
+    extension: 'png',
+    title: '문서 스캐너',
+    subtitle: '코너 보정 · OCR · PDF',
+  },
+] as const;
+
 function onDrop(e: DragEvent) {
   dragging.value = false;
   void openDocument(e.dataTransfer?.files);
@@ -116,7 +125,7 @@ function onOpenTool(route: string) {
             {{ busy ? '여는 중…' : '파일을 끌어다 놓거나 클릭하여 선택' }}
           </span>
           <span class="drop__hint">
-            오피스·PDF · HWP/HWPX · 다이어그램 · CAD · 3D 모델(ZIP 포함)
+            오피스·PDF · HWP/HWPX · 다이어그램 · CAD · 3D · 이미지(스캐너)
           </span>
         </label>
 
@@ -179,6 +188,30 @@ function onOpenTool(route: string) {
         <div class="grid">
           <button
             v-for="item in viewerTypes"
+            :key="item.route"
+            type="button"
+            class="tile"
+            :disabled="busy"
+            @click="onOpenTool(item.route)"
+          >
+            <FileTypeIcon :extension="item.extension" :size="36" />
+            <span class="tile__text">
+              <strong>{{ item.title }}</strong>
+              <span>{{ item.subtitle }}</span>
+            </span>
+          </button>
+        </div>
+      </section>
+
+      <section class="section">
+        <h2 class="section__title">도구</h2>
+        <p class="section__lead">
+          브라우저에서 문서를 스캔·보정하고 OCR이 포함된 PDF로 저장합니다.
+        </p>
+
+        <div class="grid">
+          <button
+            v-for="item in toolTypes"
             :key="item.route"
             type="button"
             class="tile"

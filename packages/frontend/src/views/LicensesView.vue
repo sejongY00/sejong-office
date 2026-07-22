@@ -52,6 +52,41 @@ const thirdParty = [
     url: 'https://github.com/101arrowz/fflate',
   },
   {
+    name: 'jscanify',
+    license: 'MIT',
+    url: 'https://github.com/puffinsoft/jscanify',
+  },
+  {
+    name: 'OpenCV.js',
+    license: 'Apache-2.0',
+    url: 'https://opencv.org/',
+  },
+  {
+    name: 'ppu-paddle-ocr',
+    license: 'MIT',
+    url: 'https://github.com/PT-Perkasa-Pilar-Utama/ppu-paddle-ocr',
+  },
+  {
+    name: 'ONNX Runtime Web',
+    license: 'MIT',
+    url: 'https://github.com/microsoft/onnxruntime',
+  },
+  {
+    name: 'PaddleOCR models (PP-OCRv5)',
+    license: 'Apache-2.0',
+    url: 'https://github.com/PaddlePaddle/PaddleOCR',
+  },
+  {
+    name: 'pdf-lib',
+    license: 'MIT',
+    url: 'https://github.com/Hopding/pdf-lib',
+  },
+  {
+    name: 'PDF.js',
+    license: 'Apache-2.0',
+    url: 'https://github.com/mozilla/pdf.js',
+  },
+  {
     name: 'Noto Sans KR',
     license: 'SIL OFL 1.1',
     url: 'https://github.com/notofonts/noto-cjk',
@@ -146,6 +181,42 @@ const thirdParty = [
         <p class="muted">
           CAD·3D 원본 파일과 보조 파일은 브라우저 메모리에서만 처리하며 앱 서버로
           업로드하거나 영구 저장하지 않습니다.
+        </p>
+      </section>
+
+      <section class="card">
+        <h2>문서 스캐너</h2>
+        <p>
+          문서 코너 검출·퍼스펙티브 보정은
+          <a
+            href="https://github.com/puffinsoft/jscanify"
+            target="_blank"
+            rel="noopener noreferrer"
+            >jscanify</a
+          >
+          와 OpenCV.js(Apache-2.0)를 사용합니다. OCR은
+          <a
+            href="https://github.com/PT-Perkasa-Pilar-Utama/ppu-paddle-ocr"
+            target="_blank"
+            rel="noopener noreferrer"
+            >ppu-paddle-ocr</a
+          >
+          (MIT)와 ONNX Runtime Web(MIT)으로 PP-OCRv5 한국어 모델을 브라우저에서
+          실행하며, PDF 페이지 래스터화는
+          <a
+            href="https://github.com/mozilla/pdf.js"
+            target="_blank"
+            rel="noopener noreferrer"
+            >PDF.js</a
+          >
+          (Apache-2.0), PDF 생성은 pdf-lib(MIT)입니다. OpenCV·ORT WASM·ONNX
+          모델·사전·PDF.js worker는
+          <code>/viewer-assets/scanner/</code>에 자체 호스팅됩니다.
+        </p>
+        <p class="muted">
+          스캔 이미지와 OCR 결과는 브라우저에서만 처리하며 서버로 업로드하지
+          않습니다. OCR을 켠 PDF에는 검색·복사용 투명 텍스트 레이어가
+          포함됩니다.
         </p>
       </section>
 

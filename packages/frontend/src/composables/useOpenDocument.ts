@@ -4,6 +4,7 @@ import {
   diagramKindFor,
   isHwp,
   isOffice,
+  toolKindFor,
   viewerKindFor,
 } from '@/config/app';
 import {
@@ -18,6 +19,7 @@ import {
   storeHwpFile,
 } from '@/composables/useSessionLifecycle';
 import { stageDiagramFile } from '@/composables/diagramSession';
+import { stageScannerFiles } from '@/composables/scannerSession';
 import { stageViewerFiles } from '@/composables/viewerSession';
 
 export function useOpenDocument() {
@@ -37,6 +39,7 @@ export function useOpenDocument() {
       files.find(
         (candidate) =>
           viewerKindFor(candidate.name) ||
+          toolKindFor(candidate.name) ||
           diagramKindFor(candidate.name) ||
           isHwp(candidate.name) ||
           isOffice(candidate.name),
@@ -50,6 +53,14 @@ export function useOpenDocument() {
       if (viewerKind) {
         stageViewerFiles(viewerKind, files);
         await router.push({ name: `${viewerKind}-viewer` });
+        return true;
+      }
+
+      const toolKind = toolKindFor(file.name);
+      if (toolKind === 'scanner') {
+        const images = files.filter((candidate) => toolKindFor(candidate.name) === 'scanner');
+        stageScannerFiles(images.length ? images : [file]);
+        await router.push({ name: 'tools-scanner' });
         return true;
       }
 
@@ -69,7 +80,7 @@ export function useOpenDocument() {
 
       if (!isOffice(file.name)) {
         error.value =
-          '지원하지 않는 형식입니다. 오피스, HWP 또는 다이어그램 파일을 선택해 주세요.';
+          '지원하지 않는 형식입니다. 오피스, HWP, 다이어그램, CAD/3D 또는 이미지를 선택해 주세요.';
         return false;
       }
 

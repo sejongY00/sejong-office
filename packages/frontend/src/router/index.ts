@@ -45,6 +45,11 @@ const router = createRouter({
       component: () => import('@/views/Model3DViewerView.vue'),
     },
     {
+      path: '/tools/scanner',
+      name: 'tools-scanner',
+      component: () => import('@/views/ToolsScannerView.vue'),
+    },
+    {
       path: '/licenses',
       name: 'licenses',
       component: () => import('@/views/LicensesView.vue'),

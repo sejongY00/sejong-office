@@ -7,6 +7,7 @@ export const APP_DISPLAY_NAME = "Sejong Office";
 
 export type DiagramKind = "excalidraw" | "mermaid" | "drawio";
 export type ViewerKind = "cad" | "model3d";
+export type ToolKind = "scanner";
 
 const DIAGRAM_EXTENSION_KIND: Record<string, DiagramKind> = {
   excalidraw: "excalidraw",
@@ -14,6 +15,25 @@ const DIAGRAM_EXTENSION_KIND: Record<string, DiagramKind> = {
   mermaid: "mermaid",
   drawio: "drawio",
   xml: "drawio",
+};
+
+/** Image files opened in the document scanner tool. */
+export const SCANNER_EXTENSIONS = new Set([
+  "png",
+  "jpg",
+  "jpeg",
+  "webp",
+  "gif",
+  "bmp",
+]);
+
+const TOOL_EXTENSION_KIND: Record<string, ToolKind> = {
+  png: "scanner",
+  jpg: "scanner",
+  jpeg: "scanner",
+  webp: "scanner",
+  gif: "scanner",
+  bmp: "scanner",
 };
 
 /** Online3DViewer import formats (+ zip container). */
@@ -94,4 +114,12 @@ export function diagramKindFor(filename: string): DiagramKind | null {
 
 export function viewerKindFor(filename: string): ViewerKind | null {
   return VIEWER_EXTENSION_KIND[extensionOf(filename)] ?? null;
+}
+
+export function toolKindFor(filename: string): ToolKind | null {
+  return TOOL_EXTENSION_KIND[extensionOf(filename)] ?? null;
+}
+
+export function isScannerImage(filename: string): boolean {
+  return SCANNER_EXTENSIONS.has(extensionOf(filename));
 }

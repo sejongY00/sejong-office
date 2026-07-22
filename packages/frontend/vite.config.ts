@@ -9,6 +9,9 @@ export default defineConfig({
       '@': path.resolve(__dirname, 'src'),
     },
   },
+  optimizeDeps: {
+    exclude: ['ppu-paddle-ocr', 'onnxruntime-web'],
+  },
   server: {
     port: 5173,
     proxy: {
@@ -22,4 +25,5 @@ export default defineConfig({
     outDir: path.resolve(__dirname, '../backend/public'),
     emptyOutDir: true,
   },
+  assetsInclude: ['**/*.onnx', '**/*.ort', '**/*.wasm'],
 });
