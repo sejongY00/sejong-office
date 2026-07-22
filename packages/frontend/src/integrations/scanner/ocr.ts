@@ -1,11 +1,12 @@
 import * as ort from 'onnxruntime-web';
+import ortWasmUrl from 'onnxruntime-web/ort-wasm-simd-threaded.jsep.wasm?url';
+import ortMjsUrl from 'onnxruntime-web/ort-wasm-simd-threaded.jsep.mjs?url';
 import {
   PaddleOcrService,
   V5_KOREAN_MOBILE_MODEL,
 } from 'ppu-paddle-ocr/web';
 import type { OcrResult, OcrWord } from './types';
 
-const ORT_WASM_PATH = '/viewer-assets/scanner/ort/';
 const PADDLE_BASE = '/viewer-assets/scanner/paddle';
 
 let servicePromise: Promise<PaddleOcrService> | null = null;
@@ -44,7 +45,12 @@ async function getService(
   if (!servicePromise) {
     servicePromise = (async () => {
       onProgress?.(0.05, 'OCR 모델 준비 중');
-      ort.env.wasm.wasmPaths = ORT_WASM_PATH;
+      // Vite는 /public .mjs 를 import() 하면 실패하므로 node_modules 에셋 URL 사용
+      ort.env.wasm.numThreads = 1;
+      ort.env.wasm.wasmPaths = {
+        wasm: ortWasmUrl,
+        mjs: ortMjsUrl,
+      };
       const service = new PaddleOcrService({
         model: {
           ...V5_KOREAN_MOBILE_MODEL,

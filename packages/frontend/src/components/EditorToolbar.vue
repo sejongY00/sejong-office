@@ -163,10 +163,21 @@ defineEmits<{
 @media (max-width: 640px) {
   .toolbar {
     grid-template-columns: minmax(0, 1fr) auto;
+    min-height: 48px;
+    padding: 0.4rem 0.55rem;
   }
 
   .toolbar__title {
     display: none;
+  }
+
+  .toolbar__link {
+    display: none;
+  }
+
+  .toolbar__btn {
+    min-height: 2.5rem;
+    padding: 0.4rem 0.75rem;
   }
 }
 </style>

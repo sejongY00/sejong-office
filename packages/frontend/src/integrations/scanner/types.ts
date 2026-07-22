@@ -32,6 +32,8 @@ export interface ScannerPage {
   sourceHeight: number;
   corners: CornerPoints;
   aspect: PaperAspect;
+  /** 0 = 원본 색감, 100 = 강한 문서 스캔 보정 */
+  scanIntensity: number;
   warpedUrl: string | null;
   warpedWidth: number;
   warpedHeight: number;

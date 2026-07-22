@@ -31,7 +31,7 @@ import type {
   PaperAspect,
   ScannerPage,
 } from '@/integrations/scanner/types';
-import { warpImage } from '@/integrations/scanner/warp';
+import { warpImage, DEFAULT_SCAN_INTENSITY } from '@/integrations/scanner/warp';
 import { downloadBlob } from '@/utils/downloadBlob';
 
 defineOptions({ name: 'ToolsScannerView' });
@@ -52,11 +52,34 @@ const enableOcr = ref(true);
 const fileDropActive = ref(false);
 const dragPageId = ref<string | null>(null);
 const dropTargetId = ref<string | null>(null);
+const coarsePointer = ref(false);
+const mobilePane = ref<'edit' | 'preview'>('edit');
+const queueOpen = ref(false);
+const settingsOpen = ref(false);
+const mediaQueryCleanups: Array<() => void> = [];
+
+function refreshPointerMode() {
+  if (typeof window === 'undefined') return;
+  coarsePointer.value =
+    window.matchMedia('(pointer: coarse)').matches ||
+    window.matchMedia('(max-width: 900px)').matches;
+  if (!coarsePointer.value) queueOpen.value = false;
+}
+
+function syncBodyScrollLock() {
+  if (typeof document === 'undefined') return;
+  document.body.style.overflow =
+    queueOpen.value || settingsOpen.value ? 'hidden' : '';
+}
 
 usePageTitle(filename);
 
 const activePage = computed(
   () => pages.value.find((page) => page.id === activeId.value) ?? null,
+);
+
+const activePageIndex = computed(() =>
+  pages.value.findIndex((page) => page.id === activeId.value),
 );
 
 const warpedCount = computed(
@@ -94,6 +117,7 @@ async function pushPageFromSource(
     sourceHeight: h,
     corners,
     aspect: 'a4-portrait',
+    scanIntensity: DEFAULT_SCAN_INTENSITY,
     warpedUrl: null,
     warpedWidth: 0,
     warpedHeight: 0,
@@ -140,7 +164,9 @@ async function addFiles(files: File[]) {
       }
     }
 
-    notice.value = `${added}장을 추가했습니다. 드래그로 순서를 바꿀 수 있습니다.`;
+    notice.value = coarsePointer.value
+      ? `${added}장을 추가했습니다. 화살표로 순서를 바꿀 수 있습니다.`
+      : `${added}장을 추가했습니다. 드래그로 순서를 바꿀 수 있습니다.`;
   } catch (reason) {
     error.value =
       reason instanceof Error
@@ -159,6 +185,15 @@ function consumePending() {
 }
 
 onMounted(() => {
+  refreshPointerMode();
+  const narrowMq = window.matchMedia('(max-width: 900px)');
+  const coarseMq = window.matchMedia('(pointer: coarse)');
+  narrowMq.addEventListener('change', refreshPointerMode);
+  coarseMq.addEventListener('change', refreshPointerMode);
+  mediaQueryCleanups.push(() => {
+    narrowMq.removeEventListener('change', refreshPointerMode);
+    coarseMq.removeEventListener('change', refreshPointerMode);
+  });
   void ensureJscanify()
     .then(() => {
       engineReady.value = true;
@@ -175,6 +210,9 @@ onMounted(() => {
 onActivated(consumePending);
 
 onBeforeUnmount(() => {
+  for (const cleanup of mediaQueryCleanups) cleanup();
+  mediaQueryCleanups.length = 0;
+  if (typeof document !== 'undefined') document.body.style.overflow = '';
   for (const page of pages.value) {
     revokeUrl(page.sourceUrl);
     revokeUrl(page.warpedUrl);
@@ -185,6 +223,20 @@ onBeforeUnmount(() => {
 watch(activePage, (page) => {
   if (page) filename.value = page.name;
 });
+
+watch([queueOpen, settingsOpen], () => {
+  syncBodyScrollLock();
+});
+
+watch(
+  () => pages.value.length,
+  (count) => {
+    if (!count) {
+      queueOpen.value = false;
+      settingsOpen.value = false;
+    }
+  },
+);
 
 function onOpen() {
   fileInput.value?.click();
@@ -203,6 +255,23 @@ function onFilesSelected(event: Event) {
 
 function selectPage(id: string) {
   activeId.value = id;
+  if (coarsePointer.value) queueOpen.value = false;
+}
+
+function openQueue() {
+  queueOpen.value = true;
+}
+
+function closeQueue() {
+  queueOpen.value = false;
+}
+
+function openSettings() {
+  settingsOpen.value = true;
+}
+
+function closeSettings() {
+  settingsOpen.value = false;
 }
 
 function removePage(id: string) {
@@ -221,6 +290,15 @@ function movePage(fromId: string, toId: string) {
   const from = pages.value.findIndex((page) => page.id === fromId);
   const to = pages.value.findIndex((page) => page.id === toId);
   if (from < 0 || to < 0) return;
+  const [item] = pages.value.splice(from, 1);
+  pages.value.splice(to, 0, item);
+}
+
+function movePageBy(id: string, delta: number) {
+  const from = pages.value.findIndex((page) => page.id === id);
+  if (from < 0) return;
+  const to = from + delta;
+  if (to < 0 || to >= pages.value.length) return;
   const [item] = pages.value.splice(from, 1);
   pages.value.splice(to, 0, item);
 }
@@ -298,6 +376,16 @@ function updateAspect(aspect: PaperAspect) {
   activePage.value.ocr = null;
 }
 
+function updateScanIntensity(value: number) {
+  if (!activePage.value) return;
+  const next = Math.min(100, Math.max(0, Math.round(value)));
+  if (activePage.value.scanIntensity === next) return;
+  activePage.value.scanIntensity = next;
+  revokeUrl(activePage.value.warpedUrl);
+  activePage.value.warpedUrl = null;
+  activePage.value.ocr = null;
+}
+
 async function redetectActive() {
   if (!activePage.value) return;
   busy.value = true;
@@ -336,6 +424,7 @@ async function warpActive() {
       activePage.value.sourceUrl,
       activePage.value.corners,
       activePage.value.aspect,
+      activePage.value.scanIntensity,
     );
     revokeUrl(activePage.value.warpedUrl);
     activePage.value.warpedUrl = result.url;
@@ -360,7 +449,12 @@ async function warpAll() {
       const page = pages.value[i];
       progress.value = i / pages.value.length;
       progressLabel.value = `${page.name} 보정 중`;
-      const result = await warpImage(page.sourceUrl, page.corners, page.aspect);
+      const result = await warpImage(
+        page.sourceUrl,
+        page.corners,
+        page.aspect,
+        page.scanIntensity,
+      );
       revokeUrl(page.warpedUrl);
       page.warpedUrl = result.url;
       page.warpedWidth = result.width;
@@ -380,7 +474,12 @@ async function warpAll() {
 
 async function runOcrOnPage(page: ScannerPage) {
   if (!page.warpedUrl) {
-    const result = await warpImage(page.sourceUrl, page.corners, page.aspect);
+    const result = await warpImage(
+      page.sourceUrl,
+      page.corners,
+      page.aspect,
+      page.scanIntensity,
+    );
     revokeUrl(page.warpedUrl);
     page.warpedUrl = result.url;
     page.warpedWidth = result.width;
@@ -448,6 +547,7 @@ async function exportPdf() {
           page.sourceUrl,
           page.corners,
           page.aspect,
+          page.scanIntensity,
         );
         revokeUrl(page.warpedUrl);
         page.warpedUrl = warped.url;
@@ -538,17 +638,22 @@ const progressPercent = computed(() =>
       </p>
       <p v-else-if="notice" class="viewer-message">{{ notice }}</p>
 
-      <div class="layout">
-        <aside class="queue">
+      <div class="layout" :class="{ 'has-pages': pages.length > 0 }">
+        <aside v-if="pages.length" class="queue queue--rail">
           <div class="queue__actions">
             <button type="button" :disabled="busy" @click="onOpen">
               파일 추가
             </button>
-            <button type="button" :disabled="busy" @click="onCamera">
+            <button
+              type="button"
+              class="queue__btn-primary"
+              :disabled="busy"
+              @click="onCamera"
+            >
               카메라
             </button>
           </div>
-          <ul v-if="pages.length" class="queue__list">
+          <ul class="queue__list">
             <li
               v-for="(page, index) in pages"
               :key="page.id"
@@ -564,23 +669,47 @@ const progressPercent = computed(() =>
               @dragend="onPageDragEnd"
             >
               <button type="button" class="queue__item" @click="selectPage(page.id)">
+                <img
+                  class="queue__thumb"
+                  :src="page.warpedUrl || page.sourceUrl"
+                  alt=""
+                />
                 <strong>{{ index + 1 }}. {{ page.name }}</strong>
                 <span>
                   {{ page.warpedUrl ? '보정됨' : '원본' }}
                   <template v-if="page.ocr"> · OCR</template>
                 </span>
               </button>
-              <button
-                type="button"
-                class="queue__remove"
-                :disabled="busy"
-                @click="removePage(page.id)"
-              >
-                삭제
-              </button>
+              <div class="queue__controls">
+                <button
+                  type="button"
+                  class="queue__move"
+                  :disabled="busy || index === 0"
+                  aria-label="앞으로 이동"
+                  @click="movePageBy(page.id, -1)"
+                >
+                  ↑
+                </button>
+                <button
+                  type="button"
+                  class="queue__move"
+                  :disabled="busy || index === pages.length - 1"
+                  aria-label="뒤로 이동"
+                  @click="movePageBy(page.id, 1)"
+                >
+                  ↓
+                </button>
+                <button
+                  type="button"
+                  class="queue__remove"
+                  :disabled="busy"
+                  @click="removePage(page.id)"
+                >
+                  삭제
+                </button>
+              </div>
             </li>
           </ul>
-          <p v-else class="muted">이미지·PDF를 추가하거나 아래에 놓으세요.</p>
           <div
             class="queue__drop"
             :class="{ 'is-active': fileDropActive }"
@@ -593,6 +722,103 @@ const progressPercent = computed(() =>
           </div>
         </aside>
 
+        <div v-if="pages.length" class="queue-bar">
+          <button type="button" class="queue-bar__open" @click="openQueue">
+            <span class="queue-bar__main">
+              페이지 {{ pages.length }}장
+              <template v-if="activePageIndex >= 0">
+                · {{ activePageIndex + 1 }}번
+              </template>
+            </span>
+            <span class="queue-bar__sub">{{ activePage?.name || '목록 보기' }}</span>
+            <span class="queue-bar__action">목록</span>
+          </button>
+        </div>
+
+        <Teleport to="body">
+          <div
+            v-if="queueOpen"
+            class="queue-sheet"
+            role="dialog"
+            aria-modal="true"
+            aria-label="페이지 목록"
+          >
+            <header class="queue-sheet__header">
+              <div>
+                <h2>페이지 목록</h2>
+                <p>{{ pages.length }}장</p>
+              </div>
+              <button type="button" class="queue-sheet__close" @click="closeQueue">
+                닫기
+              </button>
+            </header>
+            <div class="queue-sheet__actions">
+              <button type="button" :disabled="busy" @click="onOpen">
+                파일 추가
+              </button>
+              <button
+                type="button"
+                class="queue__btn-primary"
+                :disabled="busy"
+                @click="onCamera"
+              >
+                카메라
+              </button>
+            </div>
+            <ul class="queue-sheet__list">
+              <li
+                v-for="(page, index) in pages"
+                :key="`sheet-${page.id}`"
+                :class="{ active: page.id === activeId }"
+              >
+                <button
+                  type="button"
+                  class="queue-sheet__item"
+                  @click="selectPage(page.id)"
+                >
+                  <img
+                    class="queue-sheet__thumb"
+                    :src="page.warpedUrl || page.sourceUrl"
+                    alt=""
+                  />
+                  <span class="queue-sheet__meta">
+                    <strong>{{ index + 1 }}. {{ page.name }}</strong>
+                    <small>
+                      {{ page.warpedUrl ? '보정됨' : '원본' }}
+                      <template v-if="page.ocr"> · OCR</template>
+                    </small>
+                  </span>
+                </button>
+                <div class="queue-sheet__controls">
+                  <button
+                    type="button"
+                    :disabled="busy || index === 0"
+                    aria-label="앞으로 이동"
+                    @click="movePageBy(page.id, -1)"
+                  >
+                    ↑
+                  </button>
+                  <button
+                    type="button"
+                    :disabled="busy || index === pages.length - 1"
+                    aria-label="뒤로 이동"
+                    @click="movePageBy(page.id, 1)"
+                  >
+                    ↓
+                  </button>
+                  <button
+                    type="button"
+                    :disabled="busy"
+                    @click="removePage(page.id)"
+                  >
+                    삭제
+                  </button>
+                </div>
+              </li>
+            </ul>
+          </div>
+        </Teleport>
+
         <main
           class="workspace"
           @dragenter="onFileDragOver"
@@ -602,69 +828,168 @@ const progressPercent = computed(() =>
         >
           <div v-if="!activePage" class="empty" :class="{ 'is-drop-active': fileDropActive }">
             <strong>문서 스캐너</strong>
-            <span>
+            <span class="empty__copy empty__copy--desktop">
               이미지 또는 PDF를 올리면 페이지를 목록에 추가합니다. 드래그로 순서를
               바꾼 뒤 보정·OCR·검색 가능 PDF로 저장할 수 있습니다. 처리는 모두
               브라우저에서 수행됩니다.
             </span>
+            <span class="empty__copy empty__copy--mobile">
+              사진·PDF를 열고 보정·OCR 후 검색 가능 PDF로 저장하세요. 모두
+              기기에서 처리됩니다.
+            </span>
             <div class="empty__actions">
+              <button
+                type="button"
+                class="empty__btn-primary"
+                :disabled="!engineReady || busy"
+                @click="onCamera"
+              >
+                카메라 촬영
+              </button>
               <button type="button" :disabled="!engineReady || busy" @click="onOpen">
                 파일 열기
-              </button>
-              <button type="button" :disabled="!engineReady || busy" @click="onCamera">
-                카메라 촬영
               </button>
             </div>
           </div>
 
           <template v-else>
-            <div class="toolbar-row">
-              <label>
-                용지
-                <select
-                  :value="activePage.aspect"
-                  :disabled="busy"
-                  @change="
-                    updateAspect(
-                      ($event.target as HTMLSelectElement).value as any,
-                    )
-                  "
-                >
-                  <option value="a4-portrait">A4 세로</option>
-                  <option value="a4-landscape">A4 가로</option>
-                  <option value="square">정사각</option>
-                  <option value="auto">자동 비율</option>
-                </select>
-              </label>
-              <button type="button" :disabled="busy" @click="redetectActive">
-                다시 검출
-              </button>
-              <button type="button" :disabled="busy" @click="useFullFrame">
-                전체 이미지
-              </button>
-              <button type="button" :disabled="busy" @click="warpActive">
+            <div class="toolbar-row toolbar-row--primary">
+              <button type="button" class="btn-accent" :disabled="busy" @click="warpActive">
                 이 장 보정
               </button>
-              <button type="button" :disabled="busy" @click="warpAll">
-                모두 보정
-              </button>
-              <label class="check">
-                <input v-model="enableOcr" type="checkbox" :disabled="busy" />
-                PDF에 OCR 텍스트 포함
-              </label>
-              <button type="button" :disabled="busy" @click="runOcrActive">
+              <button type="button" class="btn-accent" :disabled="busy" @click="runOcrActive">
                 이 장 OCR
               </button>
-              <button type="button" :disabled="busy" @click="runOcrAll">
-                모두 OCR
-              </button>
-              <button type="button" :disabled="busy" @click="exportActivePng">
-                PNG로 저장
+              <button
+                type="button"
+                class="toolbar-more-btn"
+                :disabled="busy"
+                @click="openSettings"
+              >
+                더보기
               </button>
             </div>
 
-            <div class="panes">
-              <section class="pane">
+            <Teleport to="body">
+              <div
+                v-if="settingsOpen"
+                class="settings-modal"
+                role="dialog"
+                aria-modal="true"
+                aria-label="스캔 설정"
+              >
+                <button
+                  type="button"
+                  class="settings-modal__backdrop"
+                  aria-label="설정 닫기"
+                  @click="closeSettings"
+                />
+                <div class="settings-modal__panel">
+                  <header class="settings-modal__header">
+                    <h2>더보기</h2>
+                    <button type="button" @click="closeSettings">닫기</button>
+                  </header>
+                  <div class="settings-modal__body">
+                    <label class="settings-field">
+                      <span>용지</span>
+                      <select
+                        :value="activePage.aspect"
+                        :disabled="busy"
+                        @change="
+                          updateAspect(
+                            ($event.target as HTMLSelectElement).value as any,
+                          )
+                        "
+                      >
+                        <option value="a4-portrait">A4 세로</option>
+                        <option value="a4-landscape">A4 가로</option>
+                        <option value="square">정사각</option>
+                        <option value="auto">자동 비율</option>
+                      </select>
+                    </label>
+                    <label class="settings-field">
+                      <span class="settings-field__row">
+                        스캔 강도
+                        <em>{{ activePage.scanIntensity }}</em>
+                      </span>
+                      <input
+                        class="settings-range"
+                        type="range"
+                        min="0"
+                        max="100"
+                        step="1"
+                        :value="activePage.scanIntensity"
+                        :disabled="busy"
+                        @input="
+                          updateScanIntensity(
+                            Number(($event.target as HTMLInputElement).value),
+                          )
+                        "
+                      />
+                      <span class="settings-field__hint">
+                        0 원본 · 중간 대비 · 100 문서형
+                      </span>
+                    </label>
+                    <label class="settings-check">
+                      <input
+                        v-model="enableOcr"
+                        type="checkbox"
+                        :disabled="busy"
+                      />
+                      PDF에 OCR 텍스트 포함
+                    </label>
+                    <div class="settings-actions">
+                      <button type="button" :disabled="busy" @click="redetectActive">
+                        다시 검출
+                      </button>
+                      <button type="button" :disabled="busy" @click="useFullFrame">
+                        전체 이미지
+                      </button>
+                      <button type="button" :disabled="busy" @click="warpAll">
+                        모두 보정
+                      </button>
+                      <button type="button" :disabled="busy" @click="runOcrAll">
+                        모두 OCR
+                      </button>
+                      <button
+                        type="button"
+                        :disabled="busy"
+                        @click="
+                          closeSettings();
+                          void exportActivePng();
+                        "
+                      >
+                        PNG로 저장
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </Teleport>
+
+            <div class="pane-tabs" role="tablist" aria-label="편집 보기">
+              <button
+                type="button"
+                role="tab"
+                :aria-selected="mobilePane === 'edit'"
+                :class="{ active: mobilePane === 'edit' }"
+                @click="mobilePane = 'edit'"
+              >
+                코너 편집
+              </button>
+              <button
+                type="button"
+                role="tab"
+                :aria-selected="mobilePane === 'preview'"
+                :class="{ active: mobilePane === 'preview' }"
+                @click="mobilePane = 'preview'"
+              >
+                미리보기
+              </button>
+            </div>
+
+            <div class="panes" :data-mobile-pane="mobilePane">
+              <section class="pane pane--edit">
                 <h2>코너 편집</h2>
                 <CornerEditor
                   :image-url="activePage.sourceUrl"
@@ -673,7 +998,7 @@ const progressPercent = computed(() =>
                   @update:corners="updateCorners"
                 />
               </section>
-              <section class="pane">
+              <section class="pane pane--preview">
                 <h2>보정 미리보기</h2>
                 <img
                   v-if="activePage.warpedUrl"
@@ -730,6 +1055,11 @@ const progressPercent = computed(() =>
   color: var(--ink);
 }
 
+.queue-bar,
+.queue-sheet {
+  display: none;
+}
+
 .queue__actions,
 .empty__actions,
 .toolbar-row {
@@ -741,7 +1071,7 @@ const progressPercent = computed(() =>
 .queue__actions button,
 .empty__actions button,
 .toolbar-row button,
-.toolbar-row select {
+.toolbar-more-btn {
   border: 1px solid var(--border);
   border-radius: 4px;
   padding: 0.35rem 0.55rem;
@@ -749,6 +1079,16 @@ const progressPercent = computed(() =>
   color: var(--ink);
   font: inherit;
   cursor: pointer;
+  min-height: 2.25rem;
+}
+
+.queue__btn-primary,
+.empty__btn-primary,
+.btn-accent {
+  border-color: var(--accent) !important;
+  background: var(--accent-soft) !important;
+  color: var(--ink);
+  font-weight: 600;
 }
 
 .queue__list {
@@ -763,6 +1103,7 @@ const progressPercent = computed(() =>
   display: grid;
   grid-template-columns: 1fr auto;
   gap: 0.25rem;
+  align-items: stretch;
 }
 
 .queue__list li.is-drop-target .queue__item {
@@ -776,8 +1117,12 @@ const progressPercent = computed(() =>
 
 .queue__item {
   display: grid;
-  gap: 0.15rem;
-  padding: 0.45rem 0.5rem;
+  grid-template-columns: 40px 1fr;
+  grid-template-rows: auto auto;
+  column-gap: 0.45rem;
+  row-gap: 0.1rem;
+  align-items: center;
+  padding: 0.4rem 0.5rem;
   border: 1px solid var(--border);
   border-radius: 4px;
   background: transparent;
@@ -785,6 +1130,16 @@ const progressPercent = computed(() =>
   text-align: left;
   font: inherit;
   cursor: grab;
+  min-height: 2.75rem;
+}
+
+.queue__thumb {
+  grid-row: 1 / span 2;
+  width: 40px;
+  height: 52px;
+  object-fit: cover;
+  border-radius: 3px;
+  background: #111;
 }
 
 .queue__list li.active .queue__item {
@@ -805,12 +1160,27 @@ const progressPercent = computed(() =>
   font-size: 0.72rem;
 }
 
+.queue__controls {
+  display: grid;
+  gap: 0.15rem;
+  align-content: center;
+}
+
+.queue__move,
 .queue__remove {
   border: 0;
   background: transparent;
   color: var(--muted);
   font: inherit;
   cursor: pointer;
+  min-width: 2rem;
+  min-height: 1.75rem;
+  padding: 0.15rem;
+}
+
+.queue__move:disabled {
+  opacity: 0.35;
+  cursor: default;
 }
 
 .queue__drop {
@@ -859,10 +1229,23 @@ const progressPercent = computed(() =>
   background: var(--accent-soft);
 }
 
-.empty span {
+.empty__copy {
   max-width: 36rem;
   color: var(--muted);
   font-size: 0.9rem;
+}
+
+.empty__copy--mobile {
+  display: none;
+}
+
+.empty__actions {
+  width: min(100%, 22rem);
+}
+
+.empty__actions button {
+  flex: 1;
+  min-height: 2.75rem;
 }
 
 .toolbar-row {
@@ -870,15 +1253,145 @@ const progressPercent = computed(() =>
   align-items: center;
 }
 
-.toolbar-row label {
-  display: inline-flex;
-  gap: 0.35rem;
-  align-items: center;
-  font-size: 0.8rem;
+.toolbar-row--primary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
 }
 
-.check {
-  margin-left: 0.25rem;
+.toolbar-more-btn {
+  margin-left: auto;
+}
+
+.settings-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  display: grid;
+  place-items: end center;
+  padding: 0;
+}
+
+.settings-modal__backdrop {
+  position: absolute;
+  inset: 0;
+  border: 0;
+  background: color-mix(in srgb, black 45%, transparent);
+  cursor: pointer;
+}
+
+.settings-modal__panel {
+  position: relative;
+  z-index: 1;
+  width: min(100%, 28rem);
+  max-height: min(88vh, 40rem);
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border);
+  border-radius: 14px 14px 0 0;
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: 0 -8px 28px color-mix(in srgb, black 28%, transparent);
+}
+
+.settings-modal__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.85rem 1rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.settings-modal__header h2 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.settings-modal__header button {
+  min-height: 2.5rem;
+  padding: 0.35rem 0.8rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--canvas);
+  color: var(--ink);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.settings-modal__body {
+  overflow: auto;
+  padding: 0.9rem 1rem 1.25rem;
+  display: grid;
+  gap: 0.85rem;
+}
+
+.settings-field {
+  display: grid;
+  gap: 0.35rem;
+  font-size: 0.86rem;
+}
+
+.settings-field__row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.settings-field__row em {
+  font-style: normal;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted, #667);
+}
+
+.settings-field__hint {
+  font-size: 0.75rem;
+  color: var(--muted, #667);
+}
+
+.settings-field select {
+  min-height: 2.75rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.4rem 0.55rem;
+  background: var(--canvas);
+  color: var(--ink);
+  font: inherit;
+}
+
+.settings-range {
+  width: 100%;
+  accent-color: var(--accent);
+}
+
+.settings-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 0.86rem;
+}
+
+.settings-actions {
+  display: grid;
+  gap: 0.4rem;
+}
+
+.settings-actions button {
+  min-height: 2.6rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.4rem 0.55rem;
+  background: var(--canvas);
+  color: var(--ink);
+  font: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+
+.pane-tabs {
+  display: none;
 }
 
 .panes {
@@ -977,16 +1490,332 @@ const progressPercent = computed(() =>
 @media (max-width: 900px) {
   .layout {
     grid-template-columns: 1fr;
+    grid-template-rows: auto minmax(0, 1fr);
   }
 
-  .queue {
-    border-right: 0;
+  .layout:not(.has-pages) {
+    grid-template-rows: minmax(0, 1fr);
+  }
+
+  .queue--rail {
+    display: none;
+  }
+
+  .queue-bar {
+    display: grid;
+    gap: 0;
+    padding: 0.65rem 0.75rem 0.55rem;
     border-bottom: 1px solid var(--border);
-    max-height: 180px;
+    background: var(--surface);
+  }
+
+  .queue-bar__open {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    grid-template-rows: auto auto;
+    column-gap: 0.55rem;
+    row-gap: 0.12rem;
+    align-items: center;
+    width: 100%;
+    min-height: 3rem;
+    padding: 0.6rem 0.75rem;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--canvas);
+    color: var(--ink);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+  }
+
+  .queue-bar__main {
+    font-size: 0.9rem;
+    font-weight: 650;
+  }
+
+  .queue-bar__sub {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--muted);
+    font-size: 0.74rem;
+  }
+
+  .queue-bar__action {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+    padding: 0.35rem 0.55rem;
+    border-radius: 999px;
+    background: var(--accent-soft);
+    color: var(--ink);
+    font-size: 0.75rem;
+    font-weight: 600;
+  }
+
+  .queue-sheet {
+    display: flex;
+    flex-direction: column;
+    position: fixed;
+    inset: 0;
+    z-index: 80;
+    background: var(--surface);
+    color: var(--ink);
+  }
+
+  .queue-sheet__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0.85rem 1rem;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .queue-sheet__header h2 {
+    margin: 0;
+    font-size: 1.05rem;
+  }
+
+  .queue-sheet__header p {
+    margin: 0.15rem 0 0;
+    color: var(--muted);
+    font-size: 0.78rem;
+  }
+
+  .queue-sheet__close {
+    min-height: 2.75rem;
+    padding: 0.4rem 0.9rem;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--canvas);
+    color: var(--ink);
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  .queue-sheet__actions {
+    display: flex;
+    gap: 0.45rem;
+    padding: 0.75rem 1rem 0.35rem;
+  }
+
+  .queue-sheet__actions button {
+    flex: 1;
+    min-height: 2.75rem;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 0.35rem 0.55rem;
+    background: var(--canvas);
+    color: var(--ink);
+    font: inherit;
+    cursor: pointer;
+  }
+
+  .queue-sheet__list {
+    flex: 1;
+    min-height: 0;
+    margin: 0;
+    padding: 0.5rem 1rem 1.25rem;
+    overflow: auto;
+    list-style: none;
+    display: grid;
+    gap: 0.65rem;
+    align-content: start;
+  }
+
+  .queue-sheet__list li {
+    display: grid;
+    gap: 0.45rem;
+    padding: 0.55rem;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--canvas);
+  }
+
+  .queue-sheet__list li.active {
+    border-color: var(--accent);
+    background: var(--accent-soft);
+  }
+
+  .queue-sheet__item {
+    display: grid;
+    grid-template-columns: 72px 1fr;
+    gap: 0.7rem;
+    align-items: center;
+    width: 100%;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    text-align: left;
+    font: inherit;
+    cursor: pointer;
+  }
+
+  .queue-sheet__thumb {
+    width: 72px;
+    height: 96px;
+    object-fit: cover;
+    border-radius: 6px;
+    background: #111;
+  }
+
+  .queue-sheet__meta {
+    display: grid;
+    gap: 0.25rem;
+    min-width: 0;
+  }
+
+  .queue-sheet__meta strong {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 0.92rem;
+  }
+
+  .queue-sheet__meta small {
+    color: var(--muted);
+    font-size: 0.76rem;
+  }
+
+  .queue-sheet__controls {
+    display: flex;
+    gap: 0.35rem;
+  }
+
+  .queue-sheet__controls button {
+    flex: 1;
+    min-height: 2.5rem;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    background: var(--surface);
+    color: var(--ink);
+    font: inherit;
+    cursor: pointer;
+  }
+
+  .queue-sheet__controls button:disabled {
+    opacity: 0.4;
+    cursor: default;
+  }
+
+  .workspace {
+    padding: 0.65rem;
+  }
+
+  .empty {
+    place-content: center;
+    align-content: center;
+    min-height: min(70vh, 32rem);
+    padding: 1.25rem 1rem;
+  }
+
+  .empty strong {
+    font-size: 1.35rem;
+  }
+
+  .empty__copy--desktop {
+    display: none;
+  }
+
+  .empty__copy--mobile {
+    display: block;
+    font-size: 0.92rem;
+    line-height: 1.45;
+  }
+
+  .empty__actions {
+    flex-direction: column;
+    width: min(100%, 20rem);
+  }
+
+  .toolbar-row--primary {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    margin: -0.15rem -0.15rem 0.55rem;
+    padding: 0.45rem 0.15rem;
+    background: color-mix(in srgb, var(--canvas) 92%, transparent);
+    backdrop-filter: blur(8px);
+  }
+
+  .toolbar-row--primary button {
+    flex: 1;
+    min-height: 2.5rem;
+  }
+
+  .toolbar-more-btn {
+    margin-left: 0;
+    flex: 0 0 auto;
+  }
+
+  .settings-modal {
+    place-items: end stretch;
+  }
+
+  .settings-modal__panel {
+    width: 100%;
+  }
+
+  .pane-tabs {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.35rem;
+    margin-bottom: 0.65rem;
+  }
+
+  .pane-tabs button {
+    min-height: 2.5rem;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    background: var(--surface);
+    color: var(--ink);
+    font: inherit;
+    cursor: pointer;
+  }
+
+  .pane-tabs button.active {
+    border-color: var(--accent);
+    background: var(--accent-soft);
+    font-weight: 600;
   }
 
   .panes {
     grid-template-columns: 1fr;
+  }
+
+  .panes[data-mobile-pane='edit'] .pane--preview,
+  .panes[data-mobile-pane='preview'] .pane--edit {
+    display: none;
+  }
+
+  .pane h2 {
+    display: none;
+  }
+
+  .preview {
+    max-height: min(58vh, 560px);
+    margin-inline: auto;
+  }
+}
+
+@media (min-width: 901px) {
+  .pane-tabs {
+    display: none;
+  }
+
+  .queue__move {
+    display: none;
+  }
+
+  .settings-modal {
+    place-items: center;
+    padding: 1rem;
+  }
+
+  .settings-modal__panel {
+    border-radius: 12px;
   }
 }
 </style>
