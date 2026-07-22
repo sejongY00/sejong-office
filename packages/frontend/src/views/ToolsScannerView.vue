@@ -60,10 +60,13 @@ const mediaQueryCleanups: Array<() => void> = [];
 
 function refreshPointerMode() {
   if (typeof window === 'undefined') return;
+  const narrow = window.matchMedia('(max-width: 900px)').matches;
   coarsePointer.value =
-    window.matchMedia('(pointer: coarse)').matches ||
-    window.matchMedia('(max-width: 900px)').matches;
-  if (!coarsePointer.value) queueOpen.value = false;
+    window.matchMedia('(pointer: coarse)').matches || narrow;
+  if (!narrow) {
+    queueOpen.value = false;
+    settingsOpen.value = false;
+  }
 }
 
 function syncBodyScrollLock() {
@@ -376,14 +379,17 @@ function updateAspect(aspect: PaperAspect) {
   activePage.value.ocr = null;
 }
 
-function updateScanIntensity(value: number) {
+function setScanIntensity(value: number) {
   if (!activePage.value) return;
-  const next = Math.min(100, Math.max(0, Math.round(value)));
-  if (activePage.value.scanIntensity === next) return;
-  activePage.value.scanIntensity = next;
-  revokeUrl(activePage.value.warpedUrl);
-  activePage.value.warpedUrl = null;
-  activePage.value.ocr = null;
+  activePage.value.scanIntensity = Math.min(
+    100,
+    Math.max(0, Math.round(value)),
+  );
+}
+
+async function commitScanIntensity() {
+  if (!activePage.value || busy.value) return;
+  await warpActive();
 }
 
 async function redetectActive() {
@@ -862,12 +868,101 @@ const progressPercent = computed(() =>
               </button>
               <button
                 type="button"
+                class="toolbar-desktop-only"
+                :disabled="busy"
+                @click="redetectActive"
+              >
+                자동 코너 인식
+              </button>
+              <button
+                type="button"
+                class="toolbar-desktop-only"
+                :disabled="busy"
+                @click="useFullFrame"
+              >
+                전체 이미지
+              </button>
+              <button
+                type="button"
+                class="toolbar-desktop-only"
+                :disabled="busy"
+                @click="warpAll"
+              >
+                모두 보정
+              </button>
+              <button
+                type="button"
+                class="toolbar-desktop-only"
+                :disabled="busy"
+                @click="runOcrAll"
+              >
+                모두 OCR
+              </button>
+              <button
+                type="button"
+                class="toolbar-desktop-only"
+                :disabled="busy"
+                @click="void exportActivePng()"
+              >
+                PNG로 저장
+              </button>
+              <button
+                type="button"
                 class="toolbar-more-btn"
                 :disabled="busy"
                 @click="openSettings"
               >
                 더보기
               </button>
+            </div>
+
+            <div class="toolbar-extras">
+              <label class="settings-field settings-field--inline">
+                <span>용지</span>
+                <select
+                  :value="activePage.aspect"
+                  :disabled="busy"
+                  @change="
+                    updateAspect(
+                      ($event.target as HTMLSelectElement).value as any,
+                    )
+                  "
+                >
+                  <option value="a4-portrait">A4 세로</option>
+                  <option value="a4-landscape">A4 가로</option>
+                  <option value="square">정사각</option>
+                  <option value="auto">자동 비율</option>
+                </select>
+              </label>
+              <label class="settings-field settings-field--intensity">
+                <span class="settings-field__row">
+                  스캔 강도
+                  <em>{{ activePage.scanIntensity }}</em>
+                </span>
+                <input
+                  class="settings-range"
+                  type="range"
+                  min="0"
+                  max="100"
+                  step="1"
+                  :value="activePage.scanIntensity"
+                  :disabled="busy"
+                  @input="
+                    setScanIntensity(
+                      Number(($event.target as HTMLInputElement).value),
+                    )
+                  "
+                  @change="void commitScanIntensity()"
+                />
+              </label>
+              <label class="settings-check">
+                <input
+                  v-model="enableOcr"
+                  type="checkbox"
+                  :disabled="busy"
+                />
+                PDF에 OCR 텍스트 포함
+              </label>
             </div>
 
             <Teleport to="body">
@@ -921,10 +1016,11 @@ const progressPercent = computed(() =>
                         :value="activePage.scanIntensity"
                         :disabled="busy"
                         @input="
-                          updateScanIntensity(
+                          setScanIntensity(
                             Number(($event.target as HTMLInputElement).value),
                           )
                         "
+                        @change="void commitScanIntensity()"
                       />
                       <span class="settings-field__hint">
                         0 원본 · 중간 대비 · 100 문서형
@@ -940,7 +1036,7 @@ const progressPercent = computed(() =>
                     </label>
                     <div class="settings-actions">
                       <button type="button" :disabled="busy" @click="redetectActive">
-                        다시 검출
+                        자동 코너 인식
                       </button>
                       <button type="button" :disabled="busy" @click="useFullFrame">
                         전체 이미지
@@ -1038,9 +1134,24 @@ const progressPercent = computed(() =>
 
 .layout {
   display: grid;
-  grid-template-columns: 220px minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr);
   flex: 1;
   min-height: 0;
+}
+
+.layout.has-pages {
+  grid-template-columns: 220px minmax(0, 1fr);
+}
+
+.layout.has-pages .queue--rail {
+  grid-column: 1;
+  grid-row: 1;
+}
+
+.layout.has-pages .workspace {
+  grid-column: 2;
+  grid-row: 1;
+  min-width: 0;
 }
 
 .queue {
@@ -1260,7 +1371,40 @@ const progressPercent = computed(() =>
 }
 
 .toolbar-more-btn {
+  display: none;
   margin-left: auto;
+}
+
+.toolbar-extras {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 0.75rem 1rem;
+  margin: -0.25rem 0 0.85rem;
+  padding: 0.65rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+}
+
+.toolbar-extras .settings-field--inline {
+  grid-template-columns: auto minmax(8rem, 11rem);
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.toolbar-extras .settings-field--inline select {
+  min-height: 2.25rem;
+}
+
+.toolbar-extras .settings-field--intensity {
+  flex: 1 1 14rem;
+  min-width: 12rem;
+  max-width: 22rem;
+}
+
+.toolbar-extras .settings-check {
+  min-height: 2.25rem;
 }
 
 .settings-modal {
@@ -1488,13 +1632,24 @@ const progressPercent = computed(() =>
 }
 
 @media (max-width: 900px) {
-  .layout {
+  .layout,
+  .layout.has-pages {
     grid-template-columns: 1fr;
     grid-template-rows: auto minmax(0, 1fr);
   }
 
   .layout:not(.has-pages) {
     grid-template-rows: minmax(0, 1fr);
+  }
+
+  .layout.has-pages .queue-bar {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .layout.has-pages .workspace {
+    grid-column: 1;
+    grid-row: 2;
   }
 
   .queue--rail {
@@ -1745,7 +1900,14 @@ const progressPercent = computed(() =>
     min-height: 2.5rem;
   }
 
+  .toolbar-desktop-only,
+  .toolbar-extras {
+    display: none;
+  }
+
   .toolbar-more-btn {
+    display: inline-flex;
+    align-items: center;
     margin-left: 0;
     flex: 0 0 auto;
   }
@@ -1809,13 +1971,9 @@ const progressPercent = computed(() =>
     display: none;
   }
 
+  .toolbar-more-btn,
   .settings-modal {
-    place-items: center;
-    padding: 1rem;
-  }
-
-  .settings-modal__panel {
-    border-radius: 12px;
+    display: none !important;
   }
 }
 </style>
