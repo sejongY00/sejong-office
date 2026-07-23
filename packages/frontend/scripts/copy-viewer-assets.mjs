@@ -356,6 +356,46 @@ const replacements = [
   ],
 ];
 
+/**
+ * CDN builds load OCCT via a blob Worker + importScripts. That fails for
+ * self-hosted absolute paths in some browsers. Use a same-origin Worker URL.
+ */
+function patchCreateOcctWorker(source) {
+  const moduleRe =
+    /function CreateOcctWorker\s*\([^)]*\)\s*\{[\s\S]*?URL\.createObjectURL\s*\(\s*blob\s*\)[\s\S]*?\}\s*(?=\s*function LoadExternalLibrary)/;
+  const moduleNext = `function CreateOcctWorker (worker)
+{
+	return new Promise ((resolve, reject) => {
+		try {
+			if (occtWorkerUrl === null) {
+				occtWorkerUrl = '${O3DV_BASE}occt-import-js-worker.js';
+			}
+			resolve (new Worker (occtWorkerUrl));
+		} catch (error) {
+			reject (error);
+		}
+	});
+}
+
+`;
+
+  const minRe =
+    /function Wo\(r\)\{return new Promise\(\(e,t\)=>\{if\(vu!==null\)\{e\(new Worker\(vu\)\);return\}[\s\S]*?URL\.createObjectURL\(s\),e\(new Worker\(vu\)\)\}\)\.catch\(t\)\}\)\}/;
+  const minNext = `function Wo(r){return new Promise((e,t)=>{try{vu===null&&(vu="${O3DV_BASE}occt-import-js-worker.js"),e(new Worker(vu))}catch(n){t(n)}})}`;
+
+  let next = source;
+  let changed = false;
+  if (moduleRe.test(next)) {
+    next = next.replace(moduleRe, moduleNext);
+    changed = true;
+  }
+  if (minRe.test(next)) {
+    next = next.replace(minRe, minNext);
+    changed = true;
+  }
+  return { source: next, changed };
+}
+
 async function patchO3dvFile(relativePath) {
   for (const candidate of resolvePackage(relativePath)) {
     try {
@@ -367,17 +407,46 @@ async function patchO3dvFile(relativePath) {
           changed = true;
         }
       }
+      const occt = patchCreateOcctWorker(source);
+      source = occt.source;
+      changed = changed || occt.changed;
       if (changed) {
         await writeFile(candidate, source);
         console.log(`patched ${candidate}`);
+      } else if (!source.includes(`${O3DV_BASE}occt-import-js-worker.js`)) {
+        throw new Error(
+          `OCCT worker patch did not apply for ${candidate}`,
+        );
       }
       return;
-    } catch {
+    } catch (error) {
+      if (error && /OCCT worker patch/.test(String(error.message))) throw error;
       // try next path
     }
   }
   throw new Error(`Could not patch ${relativePath}`);
 }
+
+await writeFile(
+  path.join(publicDir, 'viewer-assets/o3dv/occt-import-js-worker.js'),
+  [
+    `importScripts('${O3DV_BASE}occt-import-js.js');`,
+    '',
+    'onmessage = async function (ev)',
+    '{',
+    '\tlet modulOverrides = {',
+    '\t\tlocateFile: function (path) {',
+    `\t\t\treturn '${O3DV_BASE}' + String(path).split('/').pop();`,
+    '\t\t}',
+    '\t};',
+    '\tlet occt = await occtimportjs (modulOverrides);',
+    '\tlet result = occt.ReadFile (ev.data.format, ev.data.buffer, ev.data.params);',
+    '\tpostMessage (result);',
+    '};',
+    '',
+  ].join('\n'),
+);
+console.log('wrote self-hosted occt-import-js-worker.js');
 
 await patchO3dvFile('online-3d-viewer/build/engine/o3dv.module.js');
 await patchO3dvFile('online-3d-viewer/build/engine/o3dv.min.js');
