@@ -58,7 +58,7 @@ async function renderDiagram() {
       startOnLoad: false,
       securityLevel: 'strict',
       theme: theme.value === 'dark' ? 'dark' : 'default',
-      fontFamily: 'IBM Plex Sans KR, sans-serif',
+      fontFamily: 'Pretendard Variable, Pretendard, sans-serif',
       htmlLabels: false,
     });
     await mermaid.parse(code.value);

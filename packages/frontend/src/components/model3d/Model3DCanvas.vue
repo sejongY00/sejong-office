@@ -35,6 +35,11 @@ import {
   meshInstancePropertyGroups,
   modelPropertyGroups,
 } from '@/integrations/model3d/o3dv';
+import {
+  createPointCloudFromPly,
+  isNoFacesImportError,
+  isPlyFileName,
+} from '@/integrations/model3d/pointCloudPly';
 
 const props = defineProps<{
   files: readonly File[];
@@ -67,6 +72,8 @@ const host = ref<HTMLElement | null>(null);
 let viewer: OV.Viewer | null = null;
 let loader: OV.ThreeModelLoader | null = null;
 let model: OV.Model | null = null;
+let pointCloudMode = false;
+let pointCloudGroups: ModelPropertyGroup[] = [];
 let canvas: HTMLCanvasElement | null = null;
 let resizeObserver: ResizeObserver | null = null;
 let loadSequence = 0;
@@ -98,7 +105,7 @@ function applyEnvironment() {
 }
 
 function applyEdges(enabled: boolean) {
-  if (!viewer) return;
+  if (!viewer || pointCloudMode) return;
   viewer.SetEdgeSettings(
     new OV.EdgeSettings(enabled, new OV.RGBColor(0, 0, 0), 15),
   );
@@ -119,7 +126,7 @@ function applyUp(axis: 'y' | 'z') {
 }
 
 function fitCamera() {
-  if (!viewer || !model) return;
+  if (!viewer || (!model && !pointCloudMode)) return;
   const sphere = viewer.GetBoundingSphere(() => true);
   if (!sphere) return;
   viewer.AdjustClippingPlanesToSphere(sphere);
@@ -159,7 +166,7 @@ function addMeasureLine(a: Vector3, b: Vector3) {
 }
 
 function applyVisibility() {
-  if (!viewer) return;
+  if (!viewer || pointCloudMode) return;
   viewer.SetMeshesVisibility((userData: {
     originalMeshInstance?: OV.MeshInstance;
   }) => {
@@ -170,7 +177,7 @@ function applyVisibility() {
 }
 
 function applyHighlight() {
-  if (!viewer) return;
+  if (!viewer || pointCloudMode) return;
   viewer.SetMeshesHighlight(new OV.RGBColor(255, 200, 0), (userData: {
     originalMeshInstance?: OV.MeshInstance;
   }) => {
@@ -180,6 +187,10 @@ function applyHighlight() {
 }
 
 function selectByKey(key: string | null) {
+  if (pointCloudMode) {
+    emit('select', null, pointCloudGroups);
+    return;
+  }
   if (!model) {
     emit('select', null, []);
     return;
@@ -191,9 +202,10 @@ function selectByKey(key: string | null) {
 }
 
 function onMouseClick(_button: number, mouseCoords: { x: number; y: number }) {
-  if (!viewer || !model) return;
+  if (!viewer || (!model && !pointCloudMode)) return;
 
   if (props.measureMode) {
+    if (pointCloudMode) return;
     const hit = viewer.GetMeshIntersectionUnderMouse(
       OV.IntersectionMode.MeshOnly,
       mouseCoords,
@@ -224,6 +236,11 @@ function onMouseClick(_button: number, mouseCoords: { x: number; y: number }) {
     return;
   }
 
+  if (pointCloudMode) {
+    selectByKey(null);
+    return;
+  }
+
   const userData = viewer.GetMeshUserDataUnderMouse(
     OV.IntersectionMode.MeshOnly,
     mouseCoords,
@@ -232,11 +249,33 @@ function onMouseClick(_button: number, mouseCoords: { x: number; y: number }) {
   selectByKey(key);
 }
 
+async function loadPointCloudPly(file: File, sequence: number) {
+  emit('progress', 0.4, '포인트 클라우드 읽는 중');
+  const result = await createPointCloudFromPly(file);
+  if (sequence !== loadSequence || !viewer) return;
+  pointCloudMode = true;
+  pointCloudGroups = result.groups;
+  model = null;
+  viewer.Clear();
+  viewer.SetMainObject(result.object);
+  applyProjection(props.projection);
+  applyUp(props.upAxis);
+  void nextTick(() => {
+    if (sequence !== loadSequence) return;
+    fitCamera();
+    emit('progress', 1, '포인트 클라우드 준비 완료');
+    emit('loaded', result.stats, result.tree, result.groups, []);
+    selectByKey(null);
+  });
+}
+
 async function load(files: readonly File[]) {
   const sequence = ++loadSequence;
   if (!viewer || !loader) return;
   clearMeasure();
   model = null;
+  pointCloudMode = false;
+  pointCloudGroups = [];
   viewer.Clear();
   if (!files.length) return;
 
@@ -263,6 +302,8 @@ async function load(files: readonly File[]) {
     onTextureLoaded: () => viewer?.Render(),
     onModelFinished: (importResult: OV.ImportResult, threeObject: unknown) => {
       if (sequence !== loadSequence) return;
+      pointCloudMode = false;
+      pointCloudGroups = [];
       viewer?.SetMainObject(threeObject);
       model = importResult.model;
       applyVisibility();
@@ -285,7 +326,21 @@ async function load(files: readonly File[]) {
     },
     onLoadError: (importError: OV.ImportError) => {
       if (sequence !== loadSequence) return;
-      emit('error', importErrorMessage(importError));
+      const message = importErrorMessage(importError);
+      const ply = files.find((file) => isPlyFileName(file.name));
+      if (ply && isNoFacesImportError(message)) {
+        void loadPointCloudPly(ply, sequence).catch((reason) => {
+          if (sequence !== loadSequence) return;
+          emit(
+            'error',
+            reason instanceof Error
+              ? reason.message
+              : '포인트 클라우드 PLY를 열지 못했습니다.',
+          );
+        });
+        return;
+      }
+      emit('error', message);
     },
   });
 }

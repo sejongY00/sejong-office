@@ -87,6 +87,11 @@ const thirdParty = [
     url: 'https://github.com/mozilla/pdf.js',
   },
   {
+    name: 'Pretendard',
+    license: 'SIL OFL 1.1',
+    url: 'https://github.com/orioncactus/pretendard',
+  },
+  {
     name: 'Noto Sans KR',
     license: 'SIL OFL 1.1',
     url: 'https://github.com/notofonts/noto-cjk',

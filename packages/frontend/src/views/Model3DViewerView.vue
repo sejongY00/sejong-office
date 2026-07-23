@@ -331,7 +331,8 @@ function onClose() {
             <strong>3D 모델을 선택해 주세요.</strong>
             <span>
               Online3DViewer가 지원하는 형식과 ZIP, 보조 텍스처를 함께 열거나
-              이 영역으로 끌어다 놓을 수 있습니다.
+              이 영역으로 끌어다 놓을 수 있습니다. 면 없는 PLY는 포인트
+              클라우드로 표시됩니다.
             </span>
             <button type="button" @click="onOpen">파일 열기</button>
           </div>
