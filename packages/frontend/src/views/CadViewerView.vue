@@ -14,6 +14,7 @@ import {
 } from '@mlightcad/cad-simple-viewer';
 import AppShell from '@/components/AppShell.vue';
 import EditorToolbar from '@/components/EditorToolbar.vue';
+import { useFileDropZone } from '@/composables/useFileDropZone';
 import { consumeViewerFiles } from '@/composables/viewerSession';
 import { usePageTitle } from '@/composables/usePageTitle';
 import { useSystemTheme } from '@/composables/useSystemTheme';
@@ -52,7 +53,12 @@ settings.set('isShowToolbar', true);
 
 function applyFiles(files: File[]) {
   const file = files.find((item) => /\.(?:dxf|dwg)$/i.test(item.name));
-  if (!file) return;
+  if (!file) {
+    if (files.length) {
+      error.value = '.dxf 또는 .dwg 파일을 선택해 주세요.';
+    }
+    return;
+  }
   pendingFile.value = file;
   if (fontReady.value) localFile.value = file;
   filename.value = file.name;
@@ -62,6 +68,14 @@ function applyFiles(files: File[]) {
       ? '대형 CAD 파일은 브라우저 메모리를 많이 사용할 수 있습니다.'
       : '';
 }
+
+const {
+  dropActive,
+  onDragEnter,
+  onDragOver,
+  onDragLeave,
+  onDrop,
+} = useFileDropZone(applyFiles);
 
 async function initialize() {
   applyFiles(consumeViewerFiles('cad'));
@@ -98,10 +112,6 @@ function onFileSelected(event: Event) {
   const files = Array.from(input.files ?? []);
   input.value = '';
   if (!files.length) return;
-  if (!files.some((file) => /\.(?:dxf|dwg)$/i.test(file.name))) {
-    error.value = '.dxf 또는 .dwg 파일을 선택해 주세요.';
-    return;
-  }
   applyFiles(files);
   void nextTick();
 }
@@ -126,7 +136,14 @@ function onClose() {
 
 <template>
   <AppShell :editor="true">
-    <div class="cad-page">
+    <div
+      class="cad-page"
+      :class="{ 'is-drop-active': dropActive }"
+      @dragenter="onDragEnter"
+      @dragover="onDragOver"
+      @dragleave="onDragLeave"
+      @drop="onDrop"
+    >
       <EditorToolbar
         :filename="filename"
         :show-save="false"
@@ -160,8 +177,14 @@ function onClose() {
         />
         <div v-if="ready && !localFile && viewerCreated" class="empty-state">
           <strong>CAD 도면을 선택해 주세요.</strong>
-          <span>DXF와 DWG 파일은 브라우저 안에서만 처리됩니다.</span>
+          <span>
+            DXF와 DWG 파일을 열거나 이 영역으로 끌어다 놓으세요. 처리는
+            브라우저 안에서만 이뤄집니다.
+          </span>
           <button type="button" @click="onOpen">파일 열기</button>
+        </div>
+        <div v-if="dropActive" class="drop-overlay" aria-hidden="true">
+          DXF · DWG 파일을 놓으세요
         </div>
       </div>
     </div>
@@ -229,6 +252,20 @@ function onClose() {
   color: white;
   font: inherit;
   cursor: pointer;
+}
+
+.drop-overlay {
+  position: absolute;
+  inset: 0.75rem;
+  z-index: 30;
+  display: grid;
+  place-items: center;
+  border: 2px dashed var(--accent);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--accent-soft) 88%, transparent);
+  color: var(--ink);
+  font-weight: 650;
+  pointer-events: none;
 }
 
 .sr-only {

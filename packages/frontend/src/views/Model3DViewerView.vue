@@ -13,6 +13,7 @@ import Model3DCanvas from '@/components/model3d/Model3DCanvas.vue';
 import ModelTreeItem from '@/components/model3d/ModelTreeItem.vue';
 import { MODEL3D_EXTENSIONS } from '@/config/app';
 import { consumeViewerFiles } from '@/composables/viewerSession';
+import { useFileDropZone } from '@/composables/useFileDropZone';
 import { usePageTitle } from '@/composables/usePageTitle';
 import { useSystemTheme } from '@/composables/useSystemTheme';
 import {
@@ -135,6 +136,14 @@ function onFilesSelected(event: Event) {
   if (selected.length) applyFiles(selected);
 }
 
+const {
+  dropActive,
+  onDragEnter,
+  onDragOver,
+  onDragLeave,
+  onDrop,
+} = useFileDropZone(applyFiles);
+
 function onProgress(value: number, label: string) {
   progress.value = value;
   progressLabel.value = label;
@@ -238,7 +247,14 @@ function onClose() {
 
 <template>
   <AppShell :editor="true">
-    <div class="model-page">
+    <div
+      class="model-page"
+      :class="{ 'is-drop-active': dropActive }"
+      @dragenter="onDragEnter"
+      @dragover="onDragOver"
+      @dragleave="onDragLeave"
+      @drop="onDrop"
+    >
       <EditorToolbar
         :filename="filename"
         save-label="내보내기"
@@ -314,8 +330,8 @@ function onClose() {
           <div v-else class="empty-state">
             <strong>3D 모델을 선택해 주세요.</strong>
             <span>
-              Online3DViewer가 지원하는 형식과 ZIP, 보조 텍스처를 함께 열 수
-              있습니다.
+              Online3DViewer가 지원하는 형식과 ZIP, 보조 텍스처를 함께 열거나
+              이 영역으로 끌어다 놓을 수 있습니다.
             </span>
             <button type="button" @click="onOpen">파일 열기</button>
           </div>
@@ -368,6 +384,10 @@ function onClose() {
             <span>{{ progressLabel }}</span>
             <progress :value="progressPercent" max="100" />
             <small>{{ progressPercent }}%</small>
+          </div>
+
+          <div v-if="dropActive" class="drop-overlay" aria-hidden="true">
+            3D 모델 파일을 놓으세요
           </div>
         </main>
 
@@ -630,6 +650,20 @@ function onClose() {
 
 .progress small {
   text-align: right;
+}
+
+.drop-overlay {
+  position: absolute;
+  inset: 0.75rem;
+  z-index: 25;
+  display: grid;
+  place-items: center;
+  border: 2px dashed var(--accent);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--accent-soft) 88%, transparent);
+  color: var(--ink);
+  font-weight: 650;
+  pointer-events: none;
 }
 
 .export-bar {

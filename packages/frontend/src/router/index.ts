@@ -50,6 +50,11 @@ const router = createRouter({
       component: () => import('@/views/ToolsScannerView.vue'),
     },
     {
+      path: '/tools/bg-remove',
+      name: 'tools-bg-remove',
+      component: () => import('@/views/ToolsBgRemoveView.vue'),
+    },
+    {
       path: '/licenses',
       name: 'licenses',
       component: () => import('@/views/LicensesView.vue'),

@@ -21,7 +21,8 @@ const viewKey = computed(() => {
     route.name === 'drawio-editor' ||
     route.name === 'cad-viewer' ||
     route.name === 'model3d-viewer' ||
-    route.name === 'tools-scanner'
+    route.name === 'tools-scanner' ||
+    route.name === 'tools-bg-remove'
   ) {
     return String(route.name);
   }
@@ -41,6 +42,7 @@ const viewKey = computed(() => {
         'CadViewerView',
         'Model3DViewerView',
         'ToolsScannerView',
+        'ToolsBgRemoveView',
       ]"
       :max="10"
     >

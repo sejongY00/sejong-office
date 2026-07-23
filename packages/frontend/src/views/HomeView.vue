@@ -69,6 +69,12 @@ const toolTypes = [
     title: '문서 스캐너',
     subtitle: '코너 보정 · OCR · PDF',
   },
+  {
+    route: 'tools-bg-remove',
+    extension: 'bgremove',
+    title: '배경 제거',
+    subtitle: '로고 단색 배경 · 투명 PNG',
+  },
 ] as const;
 
 function onDrop(e: DragEvent) {
