@@ -85,7 +85,7 @@ const propertyGroups = computed(() =>
   selectedKey.value ? selectionGroups.value : modelGroups.value,
 );
 
-usePageTitle(filename);
+usePageTitle(filename, { faviconKind: 'model3d' });
 
 function applyFiles(nextFiles: File[]) {
   const primary = findPrimaryModelFile(nextFiles);
@@ -257,7 +257,6 @@ function onClose() {
     >
       <EditorToolbar
         :filename="filename"
-        save-label="내보내기"
         :show-save="Boolean(stats)"
         :busy="loading || exportBusy"
         @open="onOpen"

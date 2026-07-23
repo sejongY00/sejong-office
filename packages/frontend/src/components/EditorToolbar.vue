@@ -9,7 +9,7 @@ withDefaults(
     busy?: boolean;
   }>(),
   {
-    saveLabel: '저장',
+    saveLabel: '다운로드',
     showSave: true,
     showExportActions: false,
     showFilename: true,

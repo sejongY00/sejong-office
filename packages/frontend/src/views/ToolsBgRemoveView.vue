@@ -29,7 +29,7 @@ const feather = ref(DEFAULT_BG_REMOVE_OPTIONS.feather);
 const mode = ref<BgRemoveMode>(DEFAULT_BG_REMOVE_OPTIONS.mode);
 const imageUrlInput = ref('');
 
-usePageTitle(filename);
+usePageTitle(filename, { faviconKind: 'bgremove' });
 
 const hasImage = computed(() => Boolean(sourceUrl.value));
 const bgCss = computed(() => {
@@ -197,7 +197,6 @@ onBeforeUnmount(() => {
     >
       <EditorToolbar
         :filename="filename"
-        save-label="PNG 저장"
         :show-save="Boolean(resultUrl)"
         :busy="busy"
         @open="onOpen"

@@ -135,7 +135,6 @@ function onClose() {
     <div class="editor-page">
       <EditorToolbar
         :filename="filename"
-        save-label="원본 저장"
         :show-export-actions="true"
         :busy="busy"
         @open="onOpen"

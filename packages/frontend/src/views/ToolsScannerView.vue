@@ -75,7 +75,7 @@ function syncBodyScrollLock() {
     queueOpen.value || settingsOpen.value ? 'hidden' : '';
 }
 
-usePageTitle(filename);
+usePageTitle(filename, { faviconKind: 'scanner' });
 
 const activePage = computed(
   () => pages.value.find((page) => page.id === activeId.value) ?? null,
@@ -615,7 +615,6 @@ const progressPercent = computed(() =>
     <div class="scan-page">
       <EditorToolbar
         :filename="filename"
-        save-label="PDF 저장"
         :show-save="pages.length > 0"
         :busy="busy"
         @open="onOpen"

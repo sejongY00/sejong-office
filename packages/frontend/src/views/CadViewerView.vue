@@ -39,7 +39,7 @@ const error = ref('');
 const notice = ref('');
 const theme = useSystemTheme();
 
-usePageTitle(filename);
+usePageTitle(filename, { faviconKind: 'cad' });
 
 const settings = AcApSettingManager.instance;
 settings.set('isShowCommandLine', false);

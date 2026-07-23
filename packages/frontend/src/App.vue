@@ -1,7 +1,10 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { useRoute } from 'vue-router';
-import { bindSessionPageHideOnce } from '@/composables/useSessionLifecycle';
+import {
+  bindSessionPageHideOnce,
+  hwpOpenToken,
+} from '@/composables/useSessionLifecycle';
 
 bindSessionPageHideOnce();
 
@@ -12,8 +15,9 @@ const viewKey = computed(() => {
   if (route.name === 'onlyoffice-editor') {
     return `onlyoffice-${route.params.docId}`;
   }
+  // Token changes on every staged HWP open so the view remounts with the new file.
   if (route.name === 'rhwp-editor') {
-    return 'rhwp-editor';
+    return `rhwp-${hwpOpenToken()}`;
   }
   if (
     route.name === 'excalidraw-editor' ||
@@ -35,7 +39,6 @@ const viewKey = computed(() => {
     <KeepAlive
       :include="[
         'OnlyOfficeEditorView',
-        'RhwpEditorView',
         'ExcalidrawEditorView',
         'MermaidEditorView',
         'DrawioEditorView',

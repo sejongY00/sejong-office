@@ -7,11 +7,10 @@ import {
   addDocument,
   deleteDocument,
   getDocument,
-  overwriteDocument,
 } from '../services/sessionStore.js';
 import {
   buildEditorConfig,
-  convertToOriginalFormat,
+  persistDocumentFromUrl,
 } from '../services/onlyOffice.js';
 import {
   createBlankDocument,
@@ -187,33 +186,7 @@ documentsRouter.post('/:docId/callback', async (req, res) => {
     }
 
     try {
-      const downloaded = await fetch(fileUrl);
-      if (!downloaded.ok) {
-        console.error('[callback] download failed', downloaded.status);
-        res.json({ error: 1 });
-        return;
-      }
-
-      let buffer: Buffer = Buffer.from(await downloaded.arrayBuffer());
-      const returnedType = (filetype ?? doc.fileType).toLowerCase();
-
-      if (returnedType !== doc.fileType) {
-        const converted = await convertToOriginalFormat(
-          fileUrl,
-          returnedType,
-          doc.fileType,
-        );
-        if (!converted) {
-          console.error(
-            `[callback] refused save: got ${returnedType}, need ${doc.fileType}`,
-          );
-          res.json({ error: 1 });
-          return;
-        }
-        buffer = Buffer.from(converted);
-      }
-
-      await overwriteDocument(doc, buffer, doc.fileType);
+      await persistDocumentFromUrl(doc, fileUrl, filetype);
     } catch (err) {
       console.error('[callback] save error', err);
       res.json({ error: 1 });

@@ -2,9 +2,10 @@
 import { nextTick, onActivated, onMounted, onUnmounted, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import AppShell from '@/components/AppShell.vue';
+import DownloadGuideModal from '@/components/DownloadGuideModal.vue';
 import EditorErrorState from '@/components/EditorErrorState.vue';
 import EditorToolbar from '@/components/EditorToolbar.vue';
-import { downloadDocumentUrl, fetchEditorConfig } from '@/api/client';
+import { fetchEditorConfig } from '@/api/client';
 import { useOpenDocument } from '@/composables/useOpenDocument';
 import { usePageTitle } from '@/composables/usePageTitle';
 import { useSessionLifecycle } from '@/composables/useSessionLifecycle';
@@ -15,6 +16,7 @@ const route = useRoute();
 const router = useRouter();
 const error = ref<unknown>(null);
 const filename = ref('문서');
+const guideOpen = ref(false);
 const frameHost = ref<HTMLElement | null>(null);
 const fileInput = ref<HTMLInputElement | null>(null);
 let editor: { destroyEditor?: () => void } | null = null;
@@ -26,6 +28,12 @@ const { openDocument } = useOpenDocument();
 
 usePageTitle(filename);
 useSessionLifecycle({ enableHeartbeat: true });
+
+const downloadGuideSteps = [
+  '편집기 좌측 상단의 파일을 누릅니다.',
+  '다운로드 방법을 선택합니다.',
+  '원하는 확장자를 고르면 파일이 저장됩니다.',
+];
 
 function editorHeightPx(): number {
   const host = frameHost.value;
@@ -123,15 +131,8 @@ function onFileSelected(e: Event) {
   input.value = '';
 }
 
-function onSave() {
-  const docId = route.params.docId as string;
-  const a = document.createElement('a');
-  a.href = downloadDocumentUrl(docId);
-  a.download = filename.value;
-  a.rel = 'noopener';
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
+function onDownload() {
+  guideOpen.value = true;
 }
 
 function onClose() {
@@ -147,7 +148,7 @@ function onClose() {
         :filename="filename"
         :show-filename="false"
         @open="onOpen"
-        @save="onSave"
+        @save="onDownload"
         @close="onClose"
       />
       <input
@@ -162,6 +163,14 @@ function onClose() {
       <div v-show="!error" ref="frameHost" class="editor-frame">
         <div id="onlyoffice-placeholder" class="editor-frame__inner" />
       </div>
+
+      <DownloadGuideModal
+        :open="guideOpen"
+        lead="수정한 파일은 EuroOffice 편집기 메뉴에서 받을 수 있습니다."
+        :steps="downloadGuideSteps"
+        path-hint="파일 → 다운로드 방법 → 확장자 선택"
+        @close="guideOpen = false"
+      />
     </div>
   </AppShell>
 </template>

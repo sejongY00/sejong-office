@@ -364,6 +364,11 @@ function onOpenTool(route: string) {
     border-color 0.15s ease;
 }
 
+.tile :deep(.ft-icon) {
+  width: 36px;
+  height: 36px;
+}
+
 .tile:hover:not(:disabled) {
   background: var(--card-hover);
   border-color: color-mix(in srgb, var(--accent) 40%, var(--border));

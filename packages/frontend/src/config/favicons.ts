@@ -4,6 +4,7 @@
  */
 
 import { extensionOf } from '@/config/app';
+import hwpIconUrl from '@/assets/icons/hwp.png';
 
 export type FaviconKind =
   | 'home'
@@ -23,15 +24,17 @@ export type FaviconKind =
   | 'csv'
   | 'file';
 
+/** Shared filled document plate for letter-mark office icons. */
+export const DOC_SHELL_PATH =
+  'M19,3H5C3.89,3 3,3.89 3,5V19A2,2 0 0,0 5,21H19A2,2 0 0,0 21,19V5C21,3.89 20.1,3 19,3Z';
+
 export const ICON_PATHS: Record<FaviconKind, string> = {
   home: 'M9,13H15V19H18V10L12,5.5L6,10V19H9V13M4,21V9L12,3L20,9V21H4Z',
-  pdf: 'M19 3H5C3.9 3 3 3.9 3 5V19C3 20.1 3.9 21 5 21H19C20.1 21 21 20.1 21 19V5C21 3.9 20.1 3 19 3M9.5 11.5C9.5 12.3 8.8 13 8 13H7V15H5.5V9H8C8.8 9 9.5 9.7 9.5 10.5V11.5M14.5 13.5C14.5 14.3 13.8 15 13 15H10.5V9H13C13.8 9 14.5 9.7 14.5 10.5V13.5M18.5 10.5H17V11.5H18.5V13H17V15H15.5V9H18.5V10.5M12 10.5H13V13.5H12V10.5M7 10.5H8V11.5H7V10.5Z',
-  word: 'M15.5,17H14L12,9.5L10,17H8.5L6.1,7H7.8L9.34,14.5L11.3,7H12.7L14.67,14.5L16.2,7H17.9M19,3H5C3.89,3 3,3.89 3,5V19A2,2 0 0,0 5,21H19A2,2 0 0,0 21,19V5C21,3.89 20.1,3 19,3Z',
-  excel:
-    'M16.2,17H14.2L12,13.2L9.8,17H7.8L11,12L7.8,7H9.8L12,10.8L14.2,7H16.2L13,12M19,3H5C3.89,3 3,3.89 3,5V19A2,2 0 0,0 5,21H19A2,2 0 0,0 21,19V5C21,3.89 20.1,3 19,3Z',
-  powerpoint:
-    'M9.8,13.4H12.3C13.8,13.4 14.46,13.12 15.1,12.58C15.74,12.03 16,11.25 16,10.23C16,9.26 15.75,8.5 15.1,7.88C14.45,7.29 13.83,7 12.3,7H8V17H9.8V13.4M19,3A2,2 0 0,1 21,5V19A2,2 0 0,1 19,21H5A2,2 0 0,1 3,19V5C3,3.89 3.9,3 5,3H19M9.8,12V8.4H12.1C12.76,8.4 13.27,8.65 13.6,9C13.93,9.35 14.1,9.72 14.1,10.24C14.1,10.8 13.92,11.19 13.6,11.5C13.28,11.81 12.9,12 12.22,12H9.8Z',
-  hwp: 'M17,4V10L15,8L13,10V4H9V20H19V4H17M3,7V5H5V4C5,2.89 5.9,2 7,2H19C20.05,2 21,2.95 21,4V20C21,21.05 20.05,22 19,22H7C5.95,22 5,21.05 5,20V19H3V17H5V13H3V11H5V7H3M5,5V7H7V5H5M5,19H7V17H5V19M5,13H7V11H5V13Z',
+  pdf: DOC_SHELL_PATH,
+  word: DOC_SHELL_PATH,
+  excel: DOC_SHELL_PATH,
+  powerpoint: DOC_SHELL_PATH,
+  hwp: DOC_SHELL_PATH,
   sketch: 'M3 17.25V21H6.75L17.81 9.94L14.06 6.19L3 17.25M20.71 7.04C21.1 6.65 21.1 6 20.71 5.63L18.37 3.29C18 2.9 17.35 2.9 16.96 3.29L15.13 5.12L18.88 8.87L20.71 7.04Z',
   code: 'M8 3L6.59 4.41L10.17 8L6.59 11.59L8 13L13 8L8 3M14 11V13H22V11H14M5 19H19V17H5V19Z',
   diagram: 'M4 3H10V9H8V11H16V9H14V3H20V9H18V13H13V15H16V21H8V15H11V13H6V9H4V3M6 5V7H8V5H6M16 5V7H18V5H16M10 17V19H14V17H10Z',
@@ -45,13 +48,32 @@ export const ICON_PATHS: Record<FaviconKind, string> = {
   file: 'M6,2A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2H6M6,4H13V9H18V20H6V4M8,12V14H16V12H8M8,16V18H13V16H8Z',
 };
 
+/**
+ * White glyphs drawn on `DOC_SHELL_PATH` (evenodd for letter counters).
+ * Paths adapted from Material Design Icons (@mdi/svg), Apache-2.0.
+ */
+export const ICON_MARK_PATHS: Partial<Record<FaviconKind, string>> = {
+  pdf:
+    'M9.5,11.5C9.5,12.3 8.8,13 8,13H7V15H5.5V9H8C8.8,9 9.5,9.7 9.5,10.5V11.5M7,10.5H8V11.5H7V10.5Z' +
+    'M14.5,13.5C14.5,14.3 13.8,15 13,15H10.5V9H13C13.8,9 14.5,9.7 14.5,10.5V13.5M12,10.5H13V13.5H12V10.5Z' +
+    'M18.5,10.5H17V11.5H18.5V13H17V15H15.5V9H18.5V10.5Z',
+  word: 'M15.5,17H14L12,9.5L10,17H8.5L6.1,7H7.8L9.34,14.5L11.3,7H12.7L14.67,14.5L16.2,7H17.9Z',
+  excel:
+    'M16.2,17H14.2L12,13.2L9.8,17H7.8L11,12L7.8,7H9.8L12,10.8L14.2,7H16.2L13,12Z',
+  powerpoint:
+    'M9.8,13.4H12.3C13.8,13.4 14.46,13.12 15.1,12.58C15.74,12.03 16,11.25 16,10.23C16,9.26 15.75,8.5 15.1,7.88C14.45,7.29 13.83,7 12.3,7H8V17H9.8V13.4M9.8,12V8.4H12.1C12.76,8.4 13.27,8.65 13.6,9C13.93,9.35 14.1,9.72 14.1,10.24C14.1,10.8 13.92,11.19 13.6,11.5C13.28,11.81 12.9,12 12.22,12H9.8Z',
+};
+
+/** Raster logo for Hangul (HWP) documents. */
+export const HWP_ICON_URL = hwpIconUrl;
+
 export const ICON_COLORS: Record<FaviconKind, string> = {
   home: '#0f6cbd',
   pdf: '#e53935',
   word: '#1e88e5',
   excel: '#43a047',
   powerpoint: '#fb8c00',
-  hwp: '#00897b',
+  hwp: '#34aee7',
   sketch: '#7b61a8',
   code: '#d97706',
   diagram: '#2e7d8a',
@@ -122,8 +144,20 @@ const EXT_KIND: Record<string, FaviconKind> = {
   txt: 'text',
 };
 
+export function iconSvgInner(kind: FaviconKind): string {
+  const color = ICON_COLORS[kind];
+  const mark = ICON_MARK_PATHS[kind];
+  if (mark) {
+    return (
+      `<path fill="${color}" d="${ICON_PATHS[kind]}"/>` +
+      `<path fill="#ffffff" fill-rule="evenodd" d="${mark}"/>`
+    );
+  }
+  return `<path fill="${color}" d="${ICON_PATHS[kind]}"/>`;
+}
+
 function toDataUri(kind: FaviconKind): string {
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="${ICON_COLORS[kind]}" d="${ICON_PATHS[kind]}"/></svg>`;
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">${iconSvgInner(kind)}</svg>`;
   return `data:image/svg+xml,${encodeURIComponent(svg)}`;
 }
 
@@ -133,6 +167,16 @@ export function iconKindForExtension(ext: string): FaviconKind {
   return EXT_KIND[ext] ?? 'file';
 }
 
+export function faviconHrefForKind(kind: FaviconKind): string {
+  if (kind === 'hwp') return HWP_ICON_URL;
+  let href = CACHE.get(kind);
+  if (!href) {
+    href = toDataUri(kind);
+    CACHE.set(kind, href);
+  }
+  return href;
+}
+
 export function faviconHrefFor(filename?: string | null): string {
   const name = filename?.trim();
   let kind: FaviconKind = 'home';
@@ -140,12 +184,7 @@ export function faviconHrefFor(filename?: string | null): string {
     const ext = extensionOf(name);
     kind = ext ? (EXT_KIND[ext] ?? 'file') : 'home';
   }
-  let href = CACHE.get(kind);
-  if (!href) {
-    href = toDataUri(kind);
-    CACHE.set(kind, href);
-  }
-  return href;
+  return faviconHrefForKind(kind);
 }
 
 export function setFavicon(href: string) {
@@ -155,7 +194,10 @@ export function setFavicon(href: string) {
     link.rel = 'icon';
     document.head.appendChild(link);
   }
-  link.type = 'image/svg+xml';
+  link.type =
+    /\.png(?:\?|$)/i.test(href) || href.startsWith('data:image/png')
+      ? 'image/png'
+      : 'image/svg+xml';
   // Bust stubborn tab caches when switching between data URIs
   if (link.href !== href) {
     link.href = href;

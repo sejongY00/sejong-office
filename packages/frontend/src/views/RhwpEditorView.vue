@@ -1,37 +1,47 @@
 <script setup lang="ts">
-import { onMounted, onUnmounted, ref } from 'vue';
+import { nextTick, onActivated, onMounted, onUnmounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { createEditor, type RhwpEditor } from '@rhwp/editor';
 import AppShell from '@/components/AppShell.vue';
+import DownloadGuideModal from '@/components/DownloadGuideModal.vue';
 import EditorErrorState from '@/components/EditorErrorState.vue';
 import EditorToolbar from '@/components/EditorToolbar.vue';
 import { ApiError } from '@/api/client';
-import { extensionOf, isHwp } from '@/config/app';
+import { isHwp } from '@/config/app';
 import { usePageTitle } from '@/composables/usePageTitle';
 import {
   clearHwpFile,
+  hwpOpenToken,
   loadHwpFile,
   storeHwpFile,
   useSessionLifecycle,
 } from '@/composables/useSessionLifecycle';
-import { downloadBlob } from '@/utils/downloadBlob';
 
 defineOptions({ name: 'RhwpEditorView' });
 
 const router = useRouter();
 const error = ref<unknown>(null);
 const filename = ref('문서.hwp');
+const guideOpen = ref(false);
 const fileInput = ref<HTMLInputElement | null>(null);
 let editor: RhwpEditor | null = null;
-let initialized = false;
+let loadedToken = '';
+let loadSeq = 0;
 
 usePageTitle(filename);
 useSessionLifecycle({ enableHeartbeat: true });
 
-onMounted(async () => {
-  if (initialized) return;
+const downloadGuideSteps = [
+  '편집기 메뉴에서 파일을 누릅니다.',
+  '저장 또는 다른 이름으로 저장을 선택합니다.',
+  '원하는 위치와 이름으로 저장합니다.',
+];
 
+async function bootstrapFromStore() {
+  const seq = ++loadSeq;
+  const token = hwpOpenToken();
   const stored = loadHwpFile();
+
   if (!stored) {
     error.value = new ApiError(
       404,
@@ -41,25 +51,51 @@ onMounted(async () => {
     return;
   }
 
+  // Same staged file already shown (e.g. mounted + activated).
+  if (editor && loadedToken === token && loadedToken !== '0') {
+    filename.value = stored.name;
+    error.value = null;
+    return;
+  }
+
   filename.value = stored.name;
   error.value = null;
 
   try {
-    editor = await createEditor('#rhwp-host', {
-      width: '100%',
-      height: '100%',
-    });
+    await nextTick();
+    if (seq !== loadSeq) return;
+
+    if (!editor) {
+      editor = await createEditor('#rhwp-host', {
+        width: '100%',
+        height: '100%',
+      });
+    }
+    if (seq !== loadSeq) return;
+
     await editor.loadFile(stored.buffer, stored.name);
-    initialized = true;
+    if (seq !== loadSeq) return;
+
+    loadedToken = token;
   } catch (err) {
+    if (seq !== loadSeq) return;
     error.value = err;
   }
+}
+
+onMounted(() => {
+  void bootstrapFromStore();
+});
+
+onActivated(() => {
+  void bootstrapFromStore();
 });
 
 onUnmounted(() => {
+  loadSeq += 1;
   editor?.destroy();
   editor = null;
-  initialized = false;
+  loadedToken = '';
 });
 
 function onOpen() {
@@ -70,7 +106,7 @@ async function onFileSelected(e: Event) {
   const input = e.target as HTMLInputElement;
   const file = input.files?.[0];
   input.value = '';
-  if (!file || !editor) return;
+  if (!file) return;
 
   if (!isHwp(file.name)) {
     error.value = new ApiError(
@@ -83,30 +119,16 @@ async function onFileSelected(e: Event) {
 
   try {
     await storeHwpFile(file);
-    const stored = loadHwpFile();
-    if (!stored) throw new Error('파일을 읽을 수 없습니다.');
-    await editor.loadFile(stored.buffer, stored.name);
-    filename.value = stored.name;
-    error.value = null;
+    // Token bump remounts via App viewKey; also reload in place if not remounted.
+    loadedToken = '';
+    await bootstrapFromStore();
   } catch (err) {
     error.value = err;
   }
 }
 
-async function onSave() {
-  if (!editor) return;
-  try {
-    const ext = extensionOf(filename.value);
-    const bytes =
-      ext === 'hwpx' ? await editor.exportHwpx() : await editor.exportHwp();
-    const name =
-      ext === 'hwpx' || ext === 'hwp'
-        ? filename.value
-        : `${filename.value}.hwp`;
-    downloadBlob(bytes, name);
-  } catch (err) {
-    error.value = err;
-  }
+async function onDownload() {
+  guideOpen.value = true;
 }
 
 function onClose() {
@@ -122,7 +144,7 @@ function onClose() {
         v-if="!error"
         :filename="filename"
         @open="onOpen"
-        @save="onSave"
+        @save="onDownload"
         @close="onClose"
       />
       <input
@@ -135,6 +157,14 @@ function onClose() {
 
       <EditorErrorState v-if="error" :error="error" context="rhwp" />
       <div v-show="!error" id="rhwp-host" class="editor-frame" />
+
+      <DownloadGuideModal
+        :open="guideOpen"
+        lead="수정한 한글 문서는 rhwp 편집기 메뉴에서 받을 수 있습니다."
+        :steps="downloadGuideSteps"
+        path-hint="파일 → 저장(다른 이름으로 저장)"
+        @close="guideOpen = false"
+      />
     </div>
   </AppShell>
 </template>

@@ -35,11 +35,19 @@ export async function createSession(): Promise<{
 }
 
 export async function heartbeat(): Promise<void> {
-  await fetch('/api/sessions/heartbeat', {
+  const res = await fetch('/api/sessions/heartbeat', {
     method: 'POST',
     credentials: 'include',
   });
+  if (!res.ok) {
+    throw new ApiError(
+      res.status,
+      'session_required',
+      '세션이 만료되었거나 없습니다.',
+    );
+  }
 }
+
 
 export async function endSession(): Promise<void> {
   await fetch('/api/sessions', {
@@ -115,8 +123,4 @@ export async function fetchEditorConfig(
       credentials: 'include',
     }),
   );
-}
-
-export function downloadDocumentUrl(docId: string): string {
-  return `/api/documents/${docId}/download`;
 }
