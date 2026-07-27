@@ -26,6 +26,7 @@
     "@pdf-lib/fontkit": "^1.1.1",
     "@rhwp/editor": "^0.7.18",
     "@vueuse/core": "^11.3.0",
+    "ag-psd": "^31.0.2",
     "draco3d": "^1.5.7",
     "element-plus": "^2.14.3",
     "fflate": "^0.8.2",

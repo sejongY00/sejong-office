@@ -25,6 +25,8 @@ const viewKey = computed(() => {
     route.name === 'drawio-editor' ||
     route.name === 'cad-viewer' ||
     route.name === 'model3d-viewer' ||
+    route.name === 'illustrator-viewer' ||
+    route.name === 'photoshop-viewer' ||
     route.name === 'tools-scanner' ||
     route.name === 'tools-bg-remove'
   ) {
@@ -44,6 +46,8 @@ const viewKey = computed(() => {
         'DrawioEditorView',
         'CadViewerView',
         'Model3DViewerView',
+        'IllustratorViewerView',
+        'PhotoshopViewerView',
         'ToolsScannerView',
         'ToolsBgRemoveView',
       ]"

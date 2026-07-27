@@ -60,6 +60,18 @@ const viewerTypes = [
     title: '3D 모델',
     subtitle: 'glTF · OBJ · STEP · IFC · STL · 3DM 등',
   },
+  {
+    route: 'illustrator-viewer',
+    extension: 'ai',
+    title: '일러스트',
+    subtitle: 'Adobe Illustrator (.ai, PDF 호환)',
+  },
+  {
+    route: 'photoshop-viewer',
+    extension: 'psd',
+    title: '포토샵',
+    subtitle: 'Adobe Photoshop (.psd, RGB 8bit)',
+  },
 ] as const;
 
 const toolTypes = [
@@ -122,7 +134,7 @@ function onOpenTool(route: string) {
           <input
             class="drop__input"
             type="file"
-            accept=".docx,.xlsx,.pptx,.pdf,.hwp,.hwpx,.odt,.ods,.odp,.doc,.xls,.ppt,.rtf,.txt,.csv,.excalidraw,.mmd,.mermaid,.drawio,.xml,.dxf,.dwg,.3dm,.3ds,.3mf,.amf,.bim,.brp,.brep,.dae,.fbx,.fcstd,.gltf,.glb,.ifc,.igs,.iges,.stp,.step,.stl,.obj,.off,.ply,.wrl,.zip,.bin,.mtl,.png,.jpg,.jpeg,.webp"
+            accept=".docx,.xlsx,.pptx,.pdf,.hwp,.hwpx,.odt,.ods,.odp,.doc,.xls,.ppt,.rtf,.txt,.csv,.excalidraw,.mmd,.mermaid,.drawio,.xml,.dxf,.dwg,.ai,.psd,.3dm,.3ds,.3mf,.amf,.bim,.brp,.brep,.dae,.fbx,.fcstd,.gltf,.glb,.ifc,.igs,.iges,.stp,.step,.stl,.obj,.off,.ply,.wrl,.zip,.bin,.mtl,.png,.jpg,.jpeg,.webp"
             multiple
             :disabled="busy"
             @change="onInput"
@@ -131,7 +143,7 @@ function onOpenTool(route: string) {
             {{ busy ? '여는 중…' : '파일을 끌어다 놓거나 클릭하여 선택' }}
           </span>
           <span class="drop__hint">
-            오피스·PDF · HWP/HWPX · 다이어그램 · CAD · 3D · 이미지(스캐너)
+            오피스·PDF · HWP/HWPX · 다이어그램 · CAD · 3D · 일러스트(.ai) · 포토샵(.psd) · 이미지(스캐너)
           </span>
         </label>
 
@@ -185,10 +197,11 @@ function onOpenTool(route: string) {
       </section>
 
       <section class="section">
-        <h2 class="section__title">CAD·3D 모델</h2>
+        <h2 class="section__title">뷰어</h2>
         <p class="section__lead">
-          서버 업로드 없이 도면과 모델을 조회합니다. 텍스처·MTL·BIN 등 보조
-          파일이나 ZIP은 원본과 함께 선택하세요.
+          서버 업로드 없이 도면·모델·일러스트·포토샵을 조회합니다. 텍스처·MTL·BIN
+          등 보조 파일이나 ZIP은 원본과 함께 선택하세요. .ai는 PDF 호환, .psd는
+          RGB·8bit만 안정적으로 열립니다.
         </p>
 
         <div class="grid">

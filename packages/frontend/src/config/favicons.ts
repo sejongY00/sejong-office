@@ -18,6 +18,8 @@ export type FaviconKind =
   | 'diagram'
   | 'cad'
   | 'model3d'
+  | 'illustrator'
+  | 'photoshop'
   | 'scanner'
   | 'bgremove'
   | 'text'
@@ -40,6 +42,12 @@ export const ICON_PATHS: Record<FaviconKind, string> = {
   diagram: 'M4 3H10V9H8V11H16V9H14V3H20V9H18V13H13V15H16V21H8V15H11V13H6V9H4V3M6 5V7H8V5H6M16 5V7H18V5H16M10 17V19H14V17H10Z',
   cad: 'M3 3H21V21H3V3M5 5V19H19V5H5M7 17V15H9V13H11V11H13V9H15V7H17V17H7Z',
   model3d: 'M12 2L21 7V17L12 22L3 17V7L12 2M12 4.3L5.4 8L12 11.7L18.6 8L12 4.3M5 9.7V15.8L11 19.1V13.1L5 9.7M13 19.1L19 15.8V9.7L13 13.1V19.1Z',
+  /** mdi:vector-polyline — Illustrator-style mark */
+  illustrator:
+    'M2,9V15H6.5L9.5,19H14.5L17.5,15H22V9H17.5L14.5,5H9.5L6.5,9H2M9.5,7.5L12,11L14.5,7.5H9.5M6.5,10.5L8.5,13.5H5V10.5H6.5M18.5,13.5L16.5,10.5H19V13.5H18.5M12,12.5L9.5,16.5H14.5L12,12.5Z',
+  /** mdi:image — Photoshop-style mark */
+  photoshop:
+    'M19,19H5V5H19M19,3H5A2,2 0 0,0 3,5V19A2,2 0 0,0 5,21H19A2,2 0 0,0 21,19V5A2,2 0 0,0 19,3M13.96,12.29L11.21,15.83L9.25,13.47L6.5,17H17.5L13.96,12.29Z',
   scanner: 'M4 4H10V6H6V10H4V4M14 4H20V10H18V6H14V4M4 14H6V18H10V20H4V14M18 14H20V20H14V18H18V14M8 8H16V16H8V8Z',
   bgremove:
     'M19.36,2.72L20.78,4.14L15.06,9.85C16.13,11.39 16.28,13.24 15.38,14.44L9.06,8.12C10.26,7.22 12.11,7.37 13.65,8.44L19.36,2.72M5.93,17.57C3.92,15.56 2.69,13.16 2.35,10.92L7.23,8.83L14.67,16.27L12.58,21.15C10.34,20.81 7.94,19.58 5.93,17.57Z',
@@ -79,6 +87,8 @@ export const ICON_COLORS: Record<FaviconKind, string> = {
   diagram: '#2e7d8a',
   cad: '#5c6bc0',
   model3d: '#6d4c41',
+  illustrator: '#f57c00',
+  photoshop: '#31a8ff',
   scanner: '#00897b',
   bgremove: '#5c6bc0',
   text: '#607d8b',
@@ -111,6 +121,8 @@ const EXT_KIND: Record<string, FaviconKind> = {
   xml: 'diagram',
   dxf: 'cad',
   dwg: 'cad',
+  ai: 'illustrator',
+  psd: 'photoshop',
   '3dm': 'model3d',
   '3ds': 'model3d',
   '3mf': 'model3d',

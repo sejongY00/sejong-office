@@ -45,6 +45,16 @@ const router = createRouter({
       component: () => import('@/views/Model3DViewerView.vue'),
     },
     {
+      path: '/viewer/illustrator',
+      name: 'illustrator-viewer',
+      component: () => import('@/views/IllustratorViewerView.vue'),
+    },
+    {
+      path: '/viewer/photoshop',
+      name: 'photoshop-viewer',
+      component: () => import('@/views/PhotoshopViewerView.vue'),
+    },
+    {
       path: '/tools/scanner',
       name: 'tools-scanner',
       component: () => import('@/views/ToolsScannerView.vue'),
