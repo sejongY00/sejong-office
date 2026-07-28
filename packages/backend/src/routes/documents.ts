@@ -2,6 +2,7 @@ import { Router } from 'express';
 import multer from 'multer';
 import fs from 'node:fs/promises';
 import { config, OFFICE_EXTENSIONS } from '../config.js';
+import { logger } from '../logger.js';
 import { requireSession } from '../middleware/session.js';
 import {
   addDocument,
@@ -50,7 +51,7 @@ documentsRouter.post('/new', requireSession, async (req, res) => {
       token: doc.token,
     });
   } catch (err) {
-    console.error(err);
+    logger.error('Failed to create blank document', { err });
     res.status(500).json({ error: 'create_failed' });
   }
 });
@@ -96,7 +97,7 @@ documentsRouter.post(
         documentType: doc.documentType,
       });
     } catch (err) {
-      console.error(err);
+      logger.error('Failed to upload document', { err });
       res.status(500).json({ error: 'upload_failed' });
     }
   },
@@ -147,7 +148,7 @@ documentsRouter.post('/:docId/callback', async (req, res) => {
       verifyOnlyOfficeToken(token);
     }
   } catch (err) {
-    console.error('[callback] jwt invalid', err);
+    logger.warn('Invalid callback JWT', { err, docId: req.params.docId });
     res.status(403).json({ error: 1 });
     return;
   }
@@ -188,7 +189,10 @@ documentsRouter.post('/:docId/callback', async (req, res) => {
     try {
       await persistDocumentFromUrl(doc, fileUrl, filetype);
     } catch (err) {
-      console.error('[callback] save error', err);
+      logger.error('Failed to save callback document', {
+        err,
+        docId: req.params.docId,
+      });
       res.json({ error: 1 });
       return;
     }

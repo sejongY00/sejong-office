@@ -1,4 +1,5 @@
 import { config } from '../config.js';
+import { logger } from '../logger.js';
 import type { SessionDoc } from '../types/session.js';
 import { overwriteDocument } from './sessionStore.js';
 import { signOnlyOfficePayload } from '../utils/jwt.js';
@@ -134,7 +135,9 @@ export async function convertToOriginalFormat(
     });
 
     if (!res.ok) {
-      console.error('[convert] HTTP', res.status);
+      logger.error('OnlyOffice conversion HTTP error', {
+        statusCode: res.status,
+      });
       return null;
     }
 
@@ -145,7 +148,10 @@ export async function convertToOriginalFormat(
     };
 
     if (data.error || !data.fileUrl) {
-      console.error('[convert] failed', data);
+      logger.error('OnlyOffice conversion failed', {
+        errorCode: data.error,
+        hasFileUrl: Boolean(data.fileUrl),
+      });
       return null;
     }
 
@@ -153,7 +159,7 @@ export async function convertToOriginalFormat(
     if (!fileRes.ok) return null;
     return Buffer.from(await fileRes.arrayBuffer());
   } catch (err) {
-    console.error('[convert] error', err);
+    logger.error('OnlyOffice conversion error', { err });
     return null;
   }
 }

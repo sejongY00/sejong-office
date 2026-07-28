@@ -4,6 +4,7 @@ import cookieParser from 'cookie-parser';
 import path from 'node:path';
 import fs from 'node:fs';
 import { config } from './config.js';
+import { logger, requestLogger } from './logger.js';
 import { sessionsRouter } from './routes/sessions.js';
 import { documentsRouter } from './routes/documents.js';
 import {
@@ -18,6 +19,7 @@ async function main() {
 
   const app = express();
 
+  app.use(requestLogger);
   app.use(
     cors({
       origin: true,
@@ -61,16 +63,23 @@ async function main() {
     });
   }
 
+  app.use((err: unknown, req: express.Request, res: express.Response, _next: express.NextFunction) => {
+    logger.error('Unhandled request error', { err, path: req.path });
+    if (!res.headersSent) {
+      res.status(500).json({ error: 'internal_server_error' });
+    }
+  });
+
   startSweeper();
 
   app.listen(config.port, () => {
-    console.log(`[sejong-office] listening on :${config.port}`);
-    console.log(`[sejong-office] tempDir=${config.tempDir}`);
-    console.log(`[sejong-office] publicUrl=${config.publicUrl}`);
+    logger.info(`Backend listening on :${config.port}`);
+    logger.info(`Temp directory: ${config.tempDir}`);
+    logger.info(`Public URL: ${config.publicUrl}`);
   });
 }
 
 main().catch((err) => {
-  console.error(err);
+  logger.error('Backend failed to start', { err });
   process.exit(1);
 });

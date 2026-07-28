@@ -3,6 +3,7 @@ import path from 'node:path';
 import { randomBytes } from 'node:crypto';
 import { v4 as uuidv4 } from 'uuid';
 import { config } from '../config.js';
+import { logger } from '../logger.js';
 import type { Session, SessionDoc } from '../types/session.js';
 import { documentTypeFor, mimeFor } from '../utils/formats.js';
 
@@ -151,10 +152,14 @@ export async function sweepExpired(): Promise<number> {
 
 export function startSweeper(intervalMs = 60_000): NodeJS.Timeout {
   return setInterval(() => {
-    void sweepExpired().then((n) => {
-      if (n > 0) {
-        console.log(`[session] swept ${n} expired session(s)`);
-      }
-    });
+    void sweepExpired()
+      .then((n) => {
+        if (n > 0) {
+          logger.info(`Swept ${n} expired session(s)`);
+        }
+      })
+      .catch((err) => {
+        logger.error('Failed to sweep expired sessions', { err });
+      });
   }, intervalMs);
 }
