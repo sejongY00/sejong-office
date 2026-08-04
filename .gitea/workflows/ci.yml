@@ -36,9 +36,33 @@ jobs:
     needs: build
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
+    env:
+      DOCKER_HOST: tcp://docker:2375
+      DOCKER_TLS_CERTDIR: ""
+    services:
+      docker:
+        image: docker:27-dind
+        env:
+          DOCKER_TLS_CERTDIR: ""
+        options: --privileged --shm-size=2gb
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Install Docker CLI
+        run: |
+          curl -fsSL https://download.docker.com/linux/static/stable/x86_64/docker-27.5.1.tgz \
+            | sudo tar xz --strip-components=1 -C /usr/local/bin docker/docker
+          for i in $(seq 1 60); do
+            if docker info >/dev/null 2>&1; then
+              docker version
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "DinD did not become ready in time"
+          docker info
+          exit 1
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
