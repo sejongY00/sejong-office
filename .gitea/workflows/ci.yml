@@ -12,6 +12,9 @@ jobs:
   build:
     name: Type-check & Build
     runs-on: ubuntu-latest
+    env:
+      # CAD/OCR/3D viewer assets make Vite exceed the default ~2GB heap
+      NODE_OPTIONS: --max-old-space-size=8192
     steps:
       - name: Checkout
         uses: actions/checkout@v4
