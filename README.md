@@ -24,13 +24,104 @@
 cp .env.example .env
 # JWT_SECRET 을 긴 임의 문자열로 바꾸세요
 
-docker compose up --build
+# 로컬에서 이미지 빌드 (레지스트리 없이 테스트할 때)
+docker build -t docker.sejong.dev/sejong-office:latest .
+
+docker compose up -d
+```
+
+프로덕션(레지스트리 pull):
+
+```bash
+# 이미지: docker.sejong.dev/sejong-office:latest (호스트 고정)
+docker compose pull
+docker compose up -d
 ```
 
 - 앱: http://localhost:3000
 - Document Server: http://localhost:8080
 
 첫 Document Server 기동은 수 분 걸릴 수 있습니다. 프론트 빌드 시 Paddle OCR 모델·ORT WASM을 내려받으므로 네트워크와 디스크 여유가 필요합니다.
+
+### docker-compose 예시
+
+[`docker-compose.yml`](docker-compose.yml) — backend는 `docker.sejong.dev/sejong-office:latest`를 pull합니다. (아래는 값 고정 예시)
+
+```yaml
+services:
+  backend:
+    # 고정: 레지스트리 호스트 docker.sejong.dev, 이미지 sejong-office:latest
+    image: docker.sejong.dev/sejong-office:latest
+    ports:
+      # 변경: 호스트 포트 (왼쪽). 컨테이너는 3000 고정
+      - '3000:3000'
+    environment:
+      # 변경(필수): backend ↔ Document Server 공유 JWT. 긴 임의 문자열
+      JWT_SECRET: change-me-to-a-long-random-secret
+      # 변경: 브라우저가 접근하는 앱 공개 URL
+      PUBLIC_URL: https://office.example.com
+      # 보통 유지: compose 네트워크 안에서 backend 컨테이너 주소
+      INTERNAL_URL: http://backend:3000
+      # 변경: 브라우저가 접근하는 Document Server 공개 URL
+      ONLYOFFICE_URL: https://office.example.com/ds
+      # 보통 유지: compose 네트워크 안 Document Server 주소
+      ONLYOFFICE_INTERNAL_URL: http://documentserver
+      # 변경 가능: 세션 TTL(ms). 기본 15분
+      SESSION_TTL_MS: '900000'
+      # 유지: 컨테이너 내 임시 문서 경로 (아래 tmpfs와 맞출 것)
+      TEMP_DIR: /tmp/sejong
+      # 유지: 컨테이너 리스닝 포트
+      PORT: 3000
+      # 변경 가능: 업로드 최대 크기(MB)
+      MAX_UPLOAD_MB: '50'
+    tmpfs:
+      # 변경 가능: 임시 저장 용량. TEMP_DIR 과 경로 일치
+      - /tmp/sejong:size=512m,mode=1777
+    depends_on:
+      - documentserver
+    restart: unless-stopped
+
+  documentserver:
+    # 유지 권장: 버전 태그 pin
+    image: ghcr.io/euro-office/documentserver:v9.3.2
+    ports:
+      # 변경: 호스트 포트 (왼쪽). 프록시만 쓸 거면 공개 안 해도 됨
+      - '8080:80'
+    environment:
+      JWT_ENABLED: 'true'
+      # 변경(필수): backend 의 JWT_SECRET 과 반드시 동일
+      JWT_SECRET: change-me-to-a-long-random-secret
+      JWT_HEADER: Authorization
+      JWT_IN_BODY: 'true'
+    volumes:
+      - documentserver_data:/var/www/onlyoffice/Data
+    restart: unless-stopped
+
+volumes:
+  documentserver_data:
+```
+
+## CI (Gitea Actions)
+
+[`.gitea/workflows/ci.yml`](.gitea/workflows/ci.yml) 이 `main` PR/push에서 `npm run build`를 돌리고, **`main` push**에서만 Docker 이미지를 레지스트리에 push합니다.
+
+푸시 태그: `docker.sejong.dev/sejong-office:latest`, `docker.sejong.dev/sejong-office:sha-<commit>`
+
+### 레포 Actions Secrets
+
+| Secret | 설명 |
+|--------|------|
+| `REGISTRY_USERNAME` | push 전용 계정 |
+| `REGISTRY_PASSWORD` | push 전용 토큰 (write) |
+
+레지스트리 호스트는 `docker.sejong.dev`로 고정입니다. PR job은 이 시크릿을 쓰지 않습니다. 러너에 상시 `docker login` 하지 마세요.
+
+### 서버 배포 체크리스트
+
+1. **pull 전용** 토큰으로 서버에서 `docker login docker.sejong.dev` (CI push 토큰과 분리)
+2. `.env`에 `JWT_SECRET`, URL 설정
+3. 이미지 갱신 후: `docker compose pull && docker compose up -d`
+4. `JWT_SECRET`은 Git·이미지·Actions Secret에 넣지 않음 (서버 `.env`만)
 
 ## 로컬 개발
 
