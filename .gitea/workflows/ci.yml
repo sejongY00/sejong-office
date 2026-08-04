@@ -36,19 +36,11 @@ jobs:
     needs: build
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
-    env:
-      DOCKER_HOST: tcp://docker:2375
-      DOCKER_TLS_CERTDIR: ""
-    services:
-      docker:
-        image: docker:27-dind
-        env:
-          DOCKER_TLS_CERTDIR: ""
-        options: --privileged --shm-size=2gb
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
+      # Job image often has no docker binary; host sock may already be mounted by act_runner.
       - name: Install Docker CLI
         run: |
           mkdir -p "$HOME/.local/bin"
@@ -56,15 +48,16 @@ jobs:
             | tar xz --strip-components=1 -C "$HOME/.local/bin" docker/docker
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
           export PATH="$HOME/.local/bin:$PATH"
-          for i in $(seq 1 60); do
-            if docker info >/dev/null 2>&1; then
-              docker version
-              exit 0
-            fi
-            sleep 2
-          done
-          echo "DinD did not become ready in time"
-          docker info
+          if [ -S /var/run/docker.sock ]; then
+            docker info
+            docker version
+            exit 0
+          fi
+          echo "Host /var/run/docker.sock is not available in this job."
+          echo "On act_runner, set container.docker_host: \"\" (use host Docker)"
+          echo "and/or container.valid_volumes: [/var/run/docker.sock]"
+          ls -la /var/run/docker.sock || true
+          docker info || true
           exit 1
 
       - name: Set up Docker Buildx
