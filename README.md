@@ -128,7 +128,7 @@ Multibranch Pipeline(또는 Gitea/Git 브랜치 소스)로 이 레포를 연결�
 
 1. Jenkins에 **Publish Over SSH** 플러그인 설치
 2. **Manage Jenkins → System → Publish over SSH** 에 배포 서버 등록 (호스트, 사용자, 키 또는 비밀번호)
-3. 등록한 **Name**이 Jenkinsfile의 `SSH_CONFIG_NAME`과 같아야 함 (`sejong-office`)
+3. 등록한 **Name**이 Jenkinsfile의 `SSH_CONFIG_NAME`과 같아야 함 (`SEJONG-NAS`)
 4. 배포 명령은 SSH 접속 후 `sudo -n su -c '...'` 로 root에서 실행함. 대화형 `sudo su`와 비밀번호 입력은 CI에서 불가
 5. Publish Over SSH에 넣은 **그 계정**으로 서버에 로그인한 뒤, 한 번만 NOPASSWD를 설정:
 

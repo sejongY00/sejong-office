@@ -6,7 +6,7 @@ pipeline {
     NODE_IMAGE = 'node:22-bookworm'
     REGISTRY = 'docker.sejong.dev'
     IMAGE = 'docker.sejong.dev/sejong-office'
-    SSH_CONFIG_NAME = 'sejong-office'
+    SSH_CONFIG_NAME = 'SEJONG-NAS'
     DEPLOY_DIR = '/volume1/docker/sejong-office'
   }
 
