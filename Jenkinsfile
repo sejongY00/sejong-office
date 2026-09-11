@@ -20,12 +20,18 @@ pipeline {
       steps {
         sh '''
           set -eu
+          # DooD: docker.sock talks to the host daemon, so -v "$PWD" looks for
+          # that path on the NAS and fails. Reuse the agent container mounts.
+          if docker inspect "$(hostname)" >/dev/null 2>&1; then
+            set -- --volumes-from "$(hostname)" -w "$PWD"
+          else
+            set -- -v "$PWD":/app -w /app
+          fi
           docker run --rm \
             -u "$(id -u):$(id -g)" \
             -e HOME=/tmp \
             -e NODE_OPTIONS \
-            -v "$PWD":/app \
-            -w /app \
+            "$@" \
             "$NODE_IMAGE" \
             bash -lc 'npm ci && npm run build'
         '''
