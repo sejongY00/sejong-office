@@ -101,27 +101,64 @@ volumes:
   documentserver_data:
 ```
 
-## CI (Gitea Actions)
+## CI/CD (Jenkins)
 
-[`.gitea/workflows/ci.yml`](.gitea/workflows/ci.yml) 이 `main` PR/push에서 `npm run build`를 돌리고, **`main` push**에서만 Docker 이미지를 레지스트리에 push합니다.
+[`Jenkinsfile`](Jenkinsfile) 이 `main` PR/브랜치에서 `npm ci` + `npm run build`를 돌리고, **`main` 브랜치 빌드**(PR 제외)에서만 이미지를 push한 뒤 서버에 SSH로 배포합니다.
+
+에이전트에 Docker가 있어야 합니다. Node 22는 `node:22-bookworm` 컨테이너로 돌리며, Vite 힙 한도는 `NODE_OPTIONS=--max-old-space-size=8192`입니다.
 
 푸시 태그: `docker.sejong.dev/sejong-office:latest`, `docker.sejong.dev/sejong-office:sha-<commit>`
 
-### 레포 Actions Secrets
+배포는 [Publish Over SSH](https://plugins.jenkins.io/publish-over-ssh/)로 파일을 올리지 않고, 서버에 이미 있는 `docker-compose.yml` 디렉터리에서 `docker compose pull && docker compose up -d`만 실행합니다.
 
-| Secret | 설명 |
-|--------|------|
-| `REGISTRY_USERNAME` | push 전용 계정 |
-| `REGISTRY_PASSWORD` | push 전용 토큰 (write) |
+### Jenkins Credentials
 
-레지스트리 호스트는 `docker.sejong.dev`로 고정입니다. PR job은 이 시크릿을 쓰지 않습니다. 러너에 상시 `docker login` 하지 마세요.
+Username/password 자격 증명 ID: `docker-sejong-dev`
+
+| 필드 | 설명 |
+|------|------|
+| Username | push 전용 계정 |
+| Password | push 전용 토큰 (write) |
+
+레지스트리 호스트는 `docker.sejong.dev`로 고정입니다. PR 빌드는 이 자격 증명을 쓰지 않습니다. 에이전트에 상시 `docker login` 하지 마세요.
+
+Multibranch Pipeline(또는 Gitea/Git 브랜치 소스)로 이 레포를 연결하면 PR과 `main`이 각각 잡으로 뜹니다.
+
+### Publish Over SSH
+
+1. Jenkins에 **Publish Over SSH** 플러그인 설치
+2. **Manage Jenkins → System → Publish over SSH** 에 배포 서버 등록 (호스트, 사용자, 키 또는 비밀번호)
+3. 등록한 **Name**이 Jenkinsfile의 `SSH_CONFIG_NAME`과 같아야 함 (`sejong-office`)
+4. 배포 명령은 SSH 접속 후 `sudo -n su -c '...'` 로 root에서 실행함. 대화형 `sudo su`와 비밀번호 입력은 CI에서 불가
+5. Publish Over SSH에 넣은 **그 계정**으로 서버에 로그인한 뒤, 한 번만 NOPASSWD를 설정:
+
+```bash
+sudo visudo -f /etc/sudoers.d/sejong-office-deploy
+```
+
+파일 내용 (SSH 사용자 이름으로 바꿀 것):
+
+```
+youruser ALL=(ALL) NOPASSWD: /bin/su, /usr/bin/su
+```
+
+저장 후 비밀번호 없이 root가 되는지 확인:
+
+```bash
+sudo -n su -c 'whoami'
+# root
+```
+
+`sudo -n`은 비밀번호를 묻지 않고, 설정이 안 되어 있으면 바로 실패합니다. Jenkinsfile에 비밀번호를 넣지 마세요.
+
+서버 compose 경로는 Jenkinsfile `DEPLOY_DIR` (`/volume1/docker/sejong-office`)입니다. 이름이나 경로가 다르면 Jenkinsfile을 수정하면 됩니다.
 
 ### 서버 배포 체크리스트
 
-1. **pull 전용** 토큰으로 서버에서 `docker login docker.sejong.dev` (CI push 토큰과 분리)
+1. 배포 디렉터리에 `docker-compose.yml`과 `.env`를 두고, **pull 전용** 토큰으로 `docker login docker.sejong.dev` (CI push 토큰과 분리)
 2. `.env`에 `JWT_SECRET`, URL 설정
-3. 이미지 갱신 후: `docker compose pull && docker compose up -d`
-4. `JWT_SECRET`은 Git·이미지·Actions Secret에 넣지 않음 (서버 `.env`만)
+3. `main` 배포 잡이 이미지 push 후 그 디렉터리에서 compose pull/up 실행
+4. `JWT_SECRET`은 Git·이미지·Jenkins Credential에 넣지 않음 (서버 `.env`만)
 
 ## 로컬 개발
 
