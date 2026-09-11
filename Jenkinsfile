@@ -88,7 +88,7 @@ pipeline {
                       execTimeout: 1800000,
                       usePty: true,
                       execCommand: """
-                        sudo -n su -c 'set -eu; cd "${env.DEPLOY_DIR}"; docker compose pull; docker compose up -d'
+                        sudo -n su -c 'set -eu; export PATH=/usr/local/bin:/usr/bin:/bin; cd "${env.DEPLOY_DIR}"; docker compose pull; docker compose up -d'
                       """.stripIndent().trim()
                     )
                   ]

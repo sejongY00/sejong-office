@@ -151,6 +151,13 @@ sudo -n su -c 'whoami'
 
 `sudo -n`은 비밀번호를 묻지 않고, 설정이 안 되어 있으면 바로 실패합니다. Jenkinsfile에 비밀번호를 넣지 마세요.
 
+비로그인 SSH의 PATH에는 `/usr/local/bin`이 없어서 시놀로지의 `docker`를 못 찾습니다. 그래서 배포 명령이 PATH를 직접 지정합니다. 다음이 같은 결과여야 합니다:
+
+```bash
+ssh -T youruser@nas "sudo -n su -c 'export PATH=/usr/local/bin:/usr/bin:/bin; command -v docker'"
+# /usr/local/bin/docker
+```
+
 서버 compose 경로는 Jenkinsfile `DEPLOY_DIR` (`/volume1/docker/sejong-office`)입니다. 이름이나 경로가 다르면 Jenkinsfile을 수정하면 됩니다.
 
 ### 서버 배포 체크리스트
