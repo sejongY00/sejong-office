@@ -84,12 +84,18 @@ export function extensionForFormat(format: ExportFormat) {
   return 'png';
 }
 
+export function clampPixelSize(value: number) {
+  return Math.min(8192, Math.max(1, Math.round(Number(value)) || 1));
+}
+
 function outputSize(
   srcWidth: number,
   srcHeight: number,
   scale: number,
   maxEdge: number | null,
   padAspect: number | null,
+  targetWidth?: number | null,
+  targetHeight?: number | null,
 ) {
   let width = Math.max(1, srcWidth);
   let height = Math.max(1, srcHeight);
@@ -103,22 +109,29 @@ function outputSize(
     }
   }
 
-  const factor = Math.min(1, Math.max(0.01, scale));
-  width *= factor;
-  height *= factor;
+  if (
+    targetWidth != null &&
+    targetHeight != null &&
+    targetWidth > 0 &&
+    targetHeight > 0
+  ) {
+    width = targetWidth;
+    height = targetHeight;
+  } else {
+    const factor = Math.min(8, Math.max(0.01, scale));
+    width *= factor;
+    height *= factor;
+  }
 
   if (maxEdge && maxEdge > 0) {
-    const long = Math.max(width, height);
-    if (long > maxEdge) {
-      const shrink = maxEdge / long;
-      width *= shrink;
-      height *= shrink;
-    }
+    const cap = Math.min(1, maxEdge / width, maxEdge / height);
+    width *= cap;
+    height *= cap;
   }
 
   return {
-    width: Math.max(1, Math.round(width)),
-    height: Math.max(1, Math.round(height)),
+    width: clampPixelSize(width),
+    height: clampPixelSize(height),
   };
 }
 
@@ -128,6 +141,8 @@ export function previewOutputSize(options: {
   maxEdge: number | null;
   padAspect: number | null;
   fit: RatioFit;
+  targetWidth?: number | null;
+  targetHeight?: number | null;
 }) {
   const padAspect = options.fit === 'pad' ? options.padAspect : null;
   return outputSize(
@@ -136,6 +151,8 @@ export function previewOutputSize(options: {
     options.scale,
     options.maxEdge,
     padAspect,
+    options.targetWidth,
+    options.targetHeight,
   );
 }
 
@@ -195,6 +212,9 @@ export async function exportEditedImage(options: {
   fit: RatioFit;
   padAspect: number | null;
   padColor: string;
+  targetWidth?: number | null;
+  targetHeight?: number | null;
+  lockAspect?: boolean;
 }): Promise<{ blob: Blob; width: number; height: number }> {
   const crop = clampCrop(
     options.crop,
@@ -211,6 +231,8 @@ export async function exportEditedImage(options: {
     options.scale,
     options.maxEdge,
     padAspect,
+    options.targetWidth,
+    options.targetHeight,
   );
 
   const canvas = document.createElement('canvas');
@@ -230,7 +252,8 @@ export async function exportEditedImage(options: {
   ctx.imageSmoothingEnabled = true;
   ctx.imageSmoothingQuality = 'high';
 
-  if (padAspect) {
+  const letterbox = Boolean(padAspect) && options.lockAspect !== false;
+  if (letterbox) {
     const fitted = containSize(crop.width, crop.height, size.width, size.height);
     const dx = Math.round((size.width - fitted.width) / 2);
     const dy = Math.round((size.height - fitted.height) / 2);

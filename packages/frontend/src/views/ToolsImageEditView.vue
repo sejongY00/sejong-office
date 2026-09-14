@@ -16,6 +16,7 @@ import {
   loadImageFromUrl,
   maxCropForAspect,
   previewOutputSize,
+  clampPixelSize,
   type ExportFormat,
   type PixelRect,
   type RatioFit,
@@ -55,6 +56,9 @@ const ratioId = ref<(typeof RATIO_PRESETS)[number]['id']>('free');
 const fit = ref<RatioFit>('crop');
 const scalePercent = ref(100);
 const maxEdgeId = ref('');
+const lockAspect = ref(true);
+const outWidth = ref(1);
+const outHeight = ref(1);
 const format = ref<ExportFormat>('image/jpeg');
 const quality = ref(80);
 const padColor = ref('#ffffff');
@@ -85,6 +89,21 @@ const maxEdge = computed(() => {
   return n > 0 ? n : null;
 });
 
+const naturalSize = computed(() =>
+  previewOutputSize({
+    crop: crop.value,
+    scale: 1,
+    maxEdge: null,
+    padAspect: cropAspect.value,
+    fit: fit.value,
+  }),
+);
+
+const sourceAspect = computed(() => {
+  const { width, height } = naturalSize.value;
+  return height ? width / height : 1;
+});
+
 const outputHint = computed(() =>
   previewOutputSize({
     crop: crop.value,
@@ -92,8 +111,67 @@ const outputHint = computed(() =>
     maxEdge: maxEdge.value,
     padAspect: cropAspect.value,
     fit: fit.value,
+    targetWidth: outWidth.value,
+    targetHeight: outHeight.value,
   }),
 );
+
+function exportPayload() {
+  return {
+    crop: crop.value,
+    scale: scalePercent.value / 100,
+    maxEdge: maxEdge.value,
+    format: format.value,
+    quality: quality.value / 100,
+    fit: fit.value,
+    padAspect: cropAspect.value,
+    padColor: padColor.value,
+    targetWidth: outWidth.value,
+    targetHeight: outHeight.value,
+    lockAspect: lockAspect.value,
+  };
+}
+
+function syncScaleFromOutput() {
+  const base = naturalSize.value.width || 1;
+  const percent = (outWidth.value / base) * 100;
+  scalePercent.value = Math.min(200, Math.max(1, Math.round(percent)));
+}
+
+function applyScaleToOutput() {
+  const size = previewOutputSize({
+    crop: crop.value,
+    scale: scalePercent.value / 100,
+    maxEdge: maxEdge.value,
+    padAspect: cropAspect.value,
+    fit: fit.value,
+  });
+  outWidth.value = size.width;
+  outHeight.value = size.height;
+}
+
+function setOutWidth(raw: number) {
+  const width = clampPixelSize(raw);
+  outWidth.value = width;
+  if (lockAspect.value) {
+    outHeight.value = clampPixelSize(width / sourceAspect.value);
+  }
+  syncScaleFromOutput();
+}
+
+function setOutHeight(raw: number) {
+  const height = clampPixelSize(raw);
+  outHeight.value = height;
+  if (lockAspect.value) {
+    outWidth.value = clampPixelSize(height * sourceAspect.value);
+  }
+  syncScaleFromOutput();
+}
+
+function onLockAspect(next: boolean) {
+  lockAspect.value = next;
+  if (next) setOutWidth(outWidth.value);
+}
 
 const qualityDisabled = computed(
   () => format.value === 'image/png' || format.value === 'image/x-icon',
@@ -156,7 +234,9 @@ async function loadFile(file: File) {
     fit.value = 'crop';
     scalePercent.value = 100;
     maxEdgeId.value = '';
+    lockAspect.value = true;
     crop.value = fullImageCrop(imageWidth.value, imageHeight.value);
+    applyScaleToOutput();
     notice.value = `${imageWidth.value}×${imageHeight.value} · ${formatBytes(file.size)}${extra}`;
   } catch (reason) {
     if (url) revoke(url);
@@ -256,6 +336,7 @@ function resetCrop() {
   } else {
     crop.value = fullImageCrop(imageWidth.value, imageHeight.value);
   }
+  applyScaleToOutput();
 }
 
 watch(ratioId, () => {
@@ -288,6 +369,16 @@ watch(fit, (next) => {
   }
 });
 
+watch(maxEdgeId, () => {
+  if (!hasImage.value) return;
+  applyScaleToOutput();
+});
+
+watch([ratioId, fit], () => {
+  if (!hasImage.value) return;
+  if (lockAspect.value) applyScaleToOutput();
+});
+
 let estimateTimer = 0;
 let estimateGen = 0;
 
@@ -302,6 +393,9 @@ watch(
     ratioId,
     padColor,
     loadedImage,
+    outWidth,
+    outHeight,
+    lockAspect,
   ],
   () => {
     window.clearTimeout(estimateTimer);
@@ -324,14 +418,7 @@ async function refreshEstimate() {
   try {
     const result = await exportEditedImage({
       image,
-      crop: crop.value,
-      scale: scalePercent.value / 100,
-      maxEdge: maxEdge.value,
-      format: format.value,
-      quality: quality.value / 100,
-      fit: fit.value,
-      padAspect: cropAspect.value,
-      padColor: padColor.value,
+      ...exportPayload(),
     });
     if (gen !== estimateGen) return;
     estimateBytes.value = result.blob.size;
@@ -351,14 +438,7 @@ async function saveImage() {
   try {
     const result = await exportEditedImage({
       image,
-      crop: crop.value,
-      scale: scalePercent.value / 100,
-      maxEdge: maxEdge.value,
-      format: format.value,
-      quality: quality.value / 100,
-      fit: fit.value,
-      padAspect: cropAspect.value,
-      padColor: padColor.value,
+      ...exportPayload(),
     });
     const ext = extensionForFormat(format.value);
     downloadBlob(result.blob, `${baseName()}-edited.${ext}`);
@@ -498,18 +578,78 @@ onBeforeUnmount(() => {
               </section>
 
               <section class="group">
-                <h2>축소</h2>
+                <h2>크기</h2>
+                <label class="settings-check">
+                  <input
+                    type="checkbox"
+                    :checked="lockAspect"
+                    @change="
+                      onLockAspect(
+                        ($event.target as HTMLInputElement).checked,
+                      )
+                    "
+                  />
+                  비율 유지
+                </label>
+                <div class="size-row">
+                  <label class="size-field">
+                    <span class="size-field__name">가로</span>
+                    <span class="size-input">
+                      <input
+                        type="number"
+                        min="1"
+                        max="8192"
+                        step="1"
+                        inputmode="numeric"
+                        :value="outWidth"
+                        aria-label="가로 픽셀"
+                        @change="
+                          setOutWidth(
+                            Number(($event.target as HTMLInputElement).value),
+                          )
+                        "
+                      />
+                      <em>px</em>
+                    </span>
+                  </label>
+                  <label class="size-field">
+                    <span class="size-field__name">세로</span>
+                    <span class="size-input">
+                      <input
+                        type="number"
+                        min="1"
+                        max="8192"
+                        step="1"
+                        inputmode="numeric"
+                        :value="outHeight"
+                        aria-label="세로 픽셀"
+                        @change="
+                          setOutHeight(
+                            Number(($event.target as HTMLInputElement).value),
+                          )
+                        "
+                      />
+                      <em>px</em>
+                    </span>
+                  </label>
+                </div>
                 <label class="field">
                   <span class="field__row">
                     배율
                     <em>{{ scalePercent }}%</em>
                   </span>
                   <input
-                    v-model.number="scalePercent"
                     type="range"
                     min="10"
-                    max="100"
+                    max="200"
                     step="1"
+                    :value="scalePercent"
+                    @input="
+                      scalePercent = Number(
+                        ($event.target as HTMLInputElement).value,
+                      );
+                      applyScaleToOutput();
+                    "
                   />
                 </label>
                 <label class="field field--inline">
@@ -716,6 +856,68 @@ onBeforeUnmount(() => {
   font-weight: 650;
 }
 
+.settings-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.86rem;
+}
+
+.size-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.45rem;
+}
+
+.size-field {
+  display: grid;
+  gap: 0.25rem;
+  min-width: 0;
+  font-size: 0.8rem;
+}
+
+.size-field__name {
+  color: var(--muted);
+}
+
+.size-input {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  min-width: 0;
+  min-height: 2.25rem;
+  padding: 0 0.45rem;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--canvas);
+}
+
+.size-input:focus-within {
+  border-color: var(--accent);
+}
+
+.size-input input {
+  flex: 1;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.86rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.size-input input:focus {
+  outline: none;
+}
+
+.size-input em {
+  font-style: normal;
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
 .field {
   display: grid;
   gap: 0.3rem;
@@ -742,7 +944,10 @@ onBeforeUnmount(() => {
 .field select,
 .field input[type='range'],
 .field input[type='color'] {
+  display: block;
   width: 100%;
+  /* Drop the UA 2px margin so ranges align with the other controls. */
+  margin: 0;
   accent-color: var(--accent);
 }
 
