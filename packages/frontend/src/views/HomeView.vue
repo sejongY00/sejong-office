@@ -87,6 +87,12 @@ const toolTypes = [
     title: '배경 제거',
     subtitle: '로고 단색 배경 · 투명 PNG',
   },
+  {
+    route: 'tools-image-edit',
+    extension: 'imgedit',
+    title: '이미지 편집',
+    subtitle: '크롭 · 축소 · 경량화 · 비율',
+  },
 ] as const;
 
 function onDrop(e: DragEvent) {
@@ -225,7 +231,7 @@ function onOpenTool(route: string) {
       <section class="section">
         <h2 class="section__title">도구</h2>
         <p class="section__lead">
-          브라우저에서 문서를 스캔·보정하고 OCR이 포함된 PDF로 저장합니다.
+          브라우저에서 문서를 스캔하고, 배경을 제거하며, 이미지를 크롭·축소·경량화합니다.
         </p>
 
         <div class="grid">

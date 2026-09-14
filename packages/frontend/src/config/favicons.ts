@@ -22,6 +22,7 @@ export type FaviconKind =
   | 'photoshop'
   | 'scanner'
   | 'bgremove'
+  | 'imgedit'
   | 'text'
   | 'csv'
   | 'file';
@@ -51,6 +52,9 @@ export const ICON_PATHS: Record<FaviconKind, string> = {
   scanner: 'M4 4H10V6H6V10H4V4M14 4H20V10H18V6H14V4M4 14H6V18H10V20H4V14M18 14H20V20H14V18H18V14M8 8H16V16H8V8Z',
   bgremove:
     'M19.36,2.72L20.78,4.14L15.06,9.85C16.13,11.39 16.28,13.24 15.38,14.44L9.06,8.12C10.26,7.22 12.11,7.37 13.65,8.44L19.36,2.72M5.93,17.57C3.92,15.56 2.69,13.16 2.35,10.92L7.23,8.83L14.67,16.27L12.58,21.15C10.34,20.81 7.94,19.58 5.93,17.57Z',
+  /** mdi:crop */
+  imgedit:
+    'M7,17V1H5V5H1V7H5V17A2,2 0 0,0 7,19H17V23H19V19H23V17H19V7H7V17M17,17H7V7H17V17Z',
   text: 'M6,2A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2H6M6,4H13V9H18V20H6V4M8,12V14H16V12H8M8,16V18H13V16H8Z',
   csv: 'M14 2H6C4.9 2 4 2.9 4 4V20C4 21.1 4.9 22 6 22H18C19.1 22 20 21.1 20 20V8L14 2M18 20H6V4H13V9H18V20M10 19L12 15H9V10H15V15L13 19H10',
   file: 'M6,2A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2H6M6,4H13V9H18V20H6V4M8,12V14H16V12H8M8,16V18H13V16H8Z',
@@ -91,6 +95,7 @@ export const ICON_COLORS: Record<FaviconKind, string> = {
   photoshop: '#31a8ff',
   scanner: '#00897b',
   bgremove: '#5c6bc0',
+  imgedit: '#c2185b',
   text: '#607d8b',
   csv: '#00838f',
   file: '#546e7a',
@@ -153,6 +158,7 @@ const EXT_KIND: Record<string, FaviconKind> = {
   gif: 'scanner',
   bmp: 'scanner',
   bgremove: 'bgremove',
+  imgedit: 'imgedit',
   txt: 'text',
 };
 

@@ -28,7 +28,8 @@ const viewKey = computed(() => {
     route.name === 'illustrator-viewer' ||
     route.name === 'photoshop-viewer' ||
     route.name === 'tools-scanner' ||
-    route.name === 'tools-bg-remove'
+    route.name === 'tools-bg-remove' ||
+    route.name === 'tools-image-edit'
   ) {
     return String(route.name);
   }
@@ -50,6 +51,7 @@ const viewKey = computed(() => {
         'PhotoshopViewerView',
         'ToolsScannerView',
         'ToolsBgRemoveView',
+        'ToolsImageEditView',
       ]"
       :max="10"
     >

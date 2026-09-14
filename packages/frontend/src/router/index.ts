@@ -65,6 +65,11 @@ const router = createRouter({
       component: () => import('@/views/ToolsBgRemoveView.vue'),
     },
     {
+      path: '/tools/image-edit',
+      name: 'tools-image-edit',
+      component: () => import('@/views/ToolsImageEditView.vue'),
+    },
+    {
       path: '/licenses',
       name: 'licenses',
       component: () => import('@/views/LicensesView.vue'),

@@ -56,6 +56,9 @@ const coarsePointer = ref(false);
 const mobilePane = ref<'edit' | 'preview'>('edit');
 const queueOpen = ref(false);
 const settingsOpen = ref(false);
+const warpPromptOpen = ref(false);
+/** `열기` replaces the queue; `파일 추가`/카메라/드롭은 뒤에 덧붙입니다. */
+const replaceOnSelect = ref(false);
 const mediaQueryCleanups: Array<() => void> = [];
 
 function refreshPointerMode() {
@@ -72,7 +75,9 @@ function refreshPointerMode() {
 function syncBodyScrollLock() {
   if (typeof document === 'undefined') return;
   document.body.style.overflow =
-    queueOpen.value || settingsOpen.value ? 'hidden' : '';
+    queueOpen.value || settingsOpen.value || warpPromptOpen.value
+      ? 'hidden'
+      : '';
 }
 
 usePageTitle(filename, { faviconKind: 'scanner' });
@@ -119,7 +124,7 @@ async function pushPageFromSource(
     sourceWidth: w,
     sourceHeight: h,
     corners,
-    aspect: 'a4-portrait',
+    aspect: 'auto',
     scanIntensity: DEFAULT_SCAN_INTENSITY,
     warpedUrl: null,
     warpedWidth: 0,
@@ -131,13 +136,14 @@ async function pushPageFromSource(
   filename.value = name;
 }
 
-async function addFiles(files: File[]) {
+async function addFiles(files: File[], replace = false) {
   const images = files.filter(isScannerImageFile);
   const pdfs = files.filter(isPdfFile);
   if (!images.length && !pdfs.length) {
     error.value = 'PNG, JPEG, WebP 이미지 또는 PDF를 선택해 주세요.';
     return;
   }
+  if (replace) clearPages();
   error.value = '';
   busy.value = true;
   progressLabel.value = '파일 준비 중';
@@ -167,9 +173,10 @@ async function addFiles(files: File[]) {
       }
     }
 
+    const verb = replace ? '열었습니다' : '추가했습니다';
     notice.value = coarsePointer.value
-      ? `${added}장을 추가했습니다. 화살표로 순서를 바꿀 수 있습니다.`
-      : `${added}장을 추가했습니다. 드래그로 순서를 바꿀 수 있습니다.`;
+      ? `${added}장을 ${verb}. 화살표로 순서를 바꿀 수 있습니다.`
+      : `${added}장을 ${verb}. 드래그로 순서를 바꿀 수 있습니다.`;
   } catch (reason) {
     error.value =
       reason instanceof Error
@@ -227,7 +234,7 @@ watch(activePage, (page) => {
   if (page) filename.value = page.name;
 });
 
-watch([queueOpen, settingsOpen], () => {
+watch([queueOpen, settingsOpen, warpPromptOpen], () => {
   syncBodyScrollLock();
 });
 
@@ -237,23 +244,46 @@ watch(
     if (!count) {
       queueOpen.value = false;
       settingsOpen.value = false;
+      warpPromptOpen.value = false;
     }
   },
 );
 
+function clearPages() {
+  for (const page of pages.value) {
+    revokeUrl(page.sourceUrl);
+    revokeUrl(page.warpedUrl);
+  }
+  pages.value = [];
+  activeId.value = null;
+  filename.value = '문서 스캔';
+  mobilePane.value = 'edit';
+  warpPromptOpen.value = false;
+}
+
+/** Toolbar `열기`: discards the current queue and starts over. */
 function onOpen() {
+  replaceOnSelect.value = true;
+  fileInput.value?.click();
+}
+
+function onAddFiles() {
+  replaceOnSelect.value = false;
   fileInput.value?.click();
 }
 
 function onCamera() {
+  replaceOnSelect.value = false;
   cameraInput.value?.click();
 }
 
 function onFilesSelected(event: Event) {
   const input = event.target as HTMLInputElement;
   const selected = Array.from(input.files ?? []);
+  const replace = replaceOnSelect.value;
+  replaceOnSelect.value = false;
   input.value = '';
-  if (selected.length) void addFiles(selected);
+  if (selected.length) void addFiles(selected, replace);
 }
 
 function selectPage(id: string) {
@@ -275,6 +305,27 @@ function openSettings() {
 
 function closeSettings() {
   settingsOpen.value = false;
+}
+
+/** Ask before showing a preview that has no correction applied yet. */
+function requestWarpPrompt() {
+  if (busy.value) return;
+  if (!activePage.value || activePage.value.warpedUrl) return;
+  warpPromptOpen.value = true;
+}
+
+function showPreviewPane() {
+  mobilePane.value = 'preview';
+  requestWarpPrompt();
+}
+
+function closeWarpPrompt() {
+  warpPromptOpen.value = false;
+}
+
+async function confirmWarpPrompt() {
+  warpPromptOpen.value = false;
+  await warpActive();
 }
 
 function removePage(id: string) {
@@ -646,7 +697,7 @@ const progressPercent = computed(() =>
       <div class="layout" :class="{ 'has-pages': pages.length > 0 }">
         <aside v-if="pages.length" class="queue queue--rail">
           <div class="queue__actions">
-            <button type="button" :disabled="busy" @click="onOpen">
+            <button type="button" :disabled="busy" @click="onAddFiles">
               파일 추가
             </button>
             <button
@@ -758,7 +809,7 @@ const progressPercent = computed(() =>
               </button>
             </header>
             <div class="queue-sheet__actions">
-              <button type="button" :disabled="busy" @click="onOpen">
+              <button type="button" :disabled="busy" @click="onAddFiles">
                 파일 추가
               </button>
               <button
@@ -1062,6 +1113,43 @@ const progressPercent = computed(() =>
               </div>
             </Teleport>
 
+            <Teleport to="body">
+              <div
+                v-if="warpPromptOpen"
+                class="warp-modal"
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="warp-modal-title"
+              >
+                <button
+                  type="button"
+                  class="warp-modal__backdrop"
+                  aria-label="닫기"
+                  @click="closeWarpPrompt"
+                />
+                <div class="warp-modal__panel">
+                  <h2 id="warp-modal-title">지금 보정할까요?</h2>
+                  <p>
+                    이 장은 아직 원근 보정을 하지 않았습니다. 보정하면 코너 기준으로
+                    문서를 펴서 미리보기에 표시합니다.
+                  </p>
+                  <div class="warp-modal__actions">
+                    <button
+                      type="button"
+                      class="warp-modal__primary"
+                      :disabled="busy"
+                      @click="void confirmWarpPrompt()"
+                    >
+                      보정하기
+                    </button>
+                    <button type="button" @click="closeWarpPrompt">
+                      나중에
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </Teleport>
+
             <div class="pane-tabs" role="tablist" aria-label="편집 보기">
               <button
                 type="button"
@@ -1077,7 +1165,7 @@ const progressPercent = computed(() =>
                 role="tab"
                 :aria-selected="mobilePane === 'preview'"
                 :class="{ active: mobilePane === 'preview' }"
-                @click="mobilePane = 'preview'"
+                @click="showPreviewPane"
               >
                 미리보기
               </button>
@@ -1101,7 +1189,16 @@ const progressPercent = computed(() =>
                   :src="activePage.warpedUrl"
                   alt="보정된 스캔"
                 />
-                <p v-else class="muted">보정 후 미리보기가 표시됩니다.</p>
+                <button
+                  v-else
+                  type="button"
+                  class="preview-empty"
+                  :disabled="busy"
+                  @click="requestWarpPrompt"
+                >
+                  <strong>미리보기 준비</strong>
+                  <span>눌러서 이 장을 보정합니다.</span>
+                </button>
                 <div v-if="activePage.ocr" class="ocr-box">
                   <h3>OCR 결과</h3>
                   <pre>{{ activePage.ocr.text || '(텍스트 없음)' }}</pre>
@@ -1565,6 +1662,111 @@ const progressPercent = computed(() =>
   max-height: min(62vh, 720px);
   object-fit: contain;
   background: #111;
+}
+
+.preview-empty {
+  display: grid;
+  gap: 0.25rem;
+  justify-items: start;
+  width: 100%;
+  padding: 1.1rem 0.9rem;
+  border: 1px dashed var(--border);
+  border-radius: 6px;
+  background: var(--canvas);
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.preview-empty:hover:not(:disabled) {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.preview-empty:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.preview-empty strong {
+  font-size: 0.9rem;
+}
+
+.preview-empty span {
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.warp-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 95;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+}
+
+.warp-modal__backdrop {
+  position: absolute;
+  inset: 0;
+  border: 0;
+  background: color-mix(in srgb, black 45%, transparent);
+  cursor: pointer;
+}
+
+.warp-modal__panel {
+  position: relative;
+  z-index: 1;
+  width: min(100%, 24rem);
+  display: grid;
+  gap: 0.65rem;
+  padding: 1.1rem 1.15rem 1.15rem;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: 0 12px 32px color-mix(in srgb, black 28%, transparent);
+}
+
+.warp-modal__panel h2 {
+  margin: 0;
+  font-size: 1.05rem;
+}
+
+.warp-modal__panel p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.86rem;
+  line-height: 1.5;
+}
+
+.warp-modal__actions {
+  display: flex;
+  gap: 0.45rem;
+}
+
+.warp-modal__actions button {
+  flex: 1;
+  min-height: 2.6rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.4rem 0.7rem;
+  background: var(--canvas);
+  color: var(--ink);
+  font: inherit;
+  cursor: pointer;
+}
+
+.warp-modal__primary {
+  border-color: var(--accent) !important;
+  background: var(--accent-soft) !important;
+  font-weight: 600;
+}
+
+.warp-modal__actions button:disabled {
+  opacity: 0.5;
+  cursor: default;
 }
 
 .ocr-box {
