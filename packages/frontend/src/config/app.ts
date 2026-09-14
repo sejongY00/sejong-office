@@ -7,7 +7,7 @@ export const APP_DISPLAY_NAME = "Sejong Office";
 
 export type DiagramKind = "excalidraw" | "mermaid" | "drawio";
 export type ViewerKind = "cad" | "model3d" | "illustrator" | "photoshop";
-export type ToolKind = "scanner";
+export type ToolKind = "scanner" | "imageedit";
 
 const DIAGRAM_EXTENSION_KIND: Record<string, DiagramKind> = {
   excalidraw: "excalidraw",
@@ -34,6 +34,7 @@ const TOOL_EXTENSION_KIND: Record<string, ToolKind> = {
   webp: "scanner",
   gif: "scanner",
   bmp: "scanner",
+  ico: "imageedit",
 };
 
 /** Online3DViewer import formats (+ zip container). */

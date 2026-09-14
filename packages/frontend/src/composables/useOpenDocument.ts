@@ -19,6 +19,7 @@ import {
   storeHwpFile,
 } from '@/composables/useSessionLifecycle';
 import { stageDiagramFile } from '@/composables/diagramSession';
+import { stageImageEditFile } from '@/composables/imageEditSession';
 import { stageScannerFiles } from '@/composables/scannerSession';
 import { stageViewerFiles } from '@/composables/viewerSession';
 
@@ -61,6 +62,11 @@ export function useOpenDocument() {
         const images = files.filter((candidate) => toolKindFor(candidate.name) === 'scanner');
         stageScannerFiles(images.length ? images : [file]);
         await router.push({ name: 'tools-scanner' });
+        return true;
+      }
+      if (toolKind === 'imageedit') {
+        stageImageEditFile(file);
+        await router.push({ name: 'tools-image-edit' });
         return true;
       }
 

@@ -11,6 +11,7 @@ import {
   type BgRemoveMode,
   type Rgb,
 } from '@/integrations/bgremove/removeBg';
+import { decodeIcoToPng, isIcoFile } from '@/integrations/imageedit/ico';
 import { downloadBlob } from '@/utils/downloadBlob';
 
 defineOptions({ name: 'ToolsBgRemoveView' });
@@ -55,23 +56,35 @@ function onOpen() {
 }
 
 function isImageFile(file: File) {
+  if (isIcoFile(file)) return true;
   if (file.type.startsWith('image/')) return true;
   return /\.(png|jpe?g|webp|gif|bmp|svg)$/i.test(file.name);
 }
 
 async function loadFile(file: File) {
   if (!isImageFile(file)) {
-    error.value = 'PNG, JPEG, WebP, GIF, BMP, SVG 이미지를 선택해 주세요.';
+    error.value = 'PNG, JPEG, WebP, GIF, BMP, SVG, ICO 이미지를 선택해 주세요.';
     return;
   }
   error.value = '';
   notice.value = '';
   revoke(sourceUrl.value);
   revoke(resultUrl.value);
-  sourceUrl.value = URL.createObjectURL(file);
   resultUrl.value = null;
   background.value = null;
   filename.value = file.name;
+  if (isIcoFile(file)) {
+    try {
+      const decoded = await decodeIcoToPng(await file.arrayBuffer());
+      sourceUrl.value = URL.createObjectURL(decoded.blob);
+    } catch (reason) {
+      error.value =
+        reason instanceof Error ? reason.message : 'ICO를 열지 못했습니다.';
+      return;
+    }
+  } else {
+    sourceUrl.value = URL.createObjectURL(file);
+  }
   await processImage();
 }
 
@@ -104,7 +117,7 @@ async function loadFromUrl(raw = imageUrlInput.value) {
     const blob = await response.blob();
     const looksImage =
       blob.type.startsWith('image/') ||
-      /\.(png|jpe?g|webp|gif|bmp|svg)(\?|$)/i.test(parsed.pathname);
+      /\.(png|jpe?g|webp|gif|bmp|svg|ico)(\?|$)/i.test(parsed.pathname);
     if (!looksImage) {
       throw new Error('응답이 이미지가 아닙니다.');
     }
@@ -207,7 +220,7 @@ onBeforeUnmount(() => {
         ref="fileInput"
         class="sr-only"
         type="file"
-        accept="image/png,image/jpeg,image/webp,image/gif,image/bmp,image/svg+xml,.png,.jpg,.jpeg,.webp,.gif,.bmp,.svg"
+        accept="image/png,image/jpeg,image/webp,image/gif,image/bmp,image/svg+xml,image/x-icon,image/vnd.microsoft.icon,.png,.jpg,.jpeg,.webp,.gif,.bmp,.svg,.ico"
         @change="onFilesSelected"
       />
 

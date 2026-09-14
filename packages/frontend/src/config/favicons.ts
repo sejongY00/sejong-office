@@ -159,6 +159,7 @@ const EXT_KIND: Record<string, FaviconKind> = {
   bmp: 'scanner',
   bgremove: 'bgremove',
   imgedit: 'imgedit',
+  ico: 'imgedit',
   txt: 'text',
 };
 

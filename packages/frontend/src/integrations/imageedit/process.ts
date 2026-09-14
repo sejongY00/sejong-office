@@ -1,3 +1,5 @@
+import { wrapPngAsIco } from './ico';
+
 export type PixelRect = {
   x: number;
   y: number;
@@ -5,7 +7,7 @@ export type PixelRect = {
   height: number;
 };
 
-export type ExportFormat = 'image/jpeg' | 'image/webp' | 'image/png';
+export type ExportFormat = 'image/jpeg' | 'image/webp' | 'image/png' | 'image/x-icon';
 
 export type RatioFit = 'crop' | 'pad';
 
@@ -78,6 +80,7 @@ export function formatBytes(bytes: number) {
 export function extensionForFormat(format: ExportFormat) {
   if (format === 'image/jpeg') return 'jpg';
   if (format === 'image/webp') return 'webp';
+  if (format === 'image/x-icon') return 'ico';
   return 'png';
 }
 
@@ -141,8 +144,10 @@ function canvasToBlob(
   format: ExportFormat,
   quality: number,
 ) {
+  const mime = format === 'image/x-icon' ? 'image/png' : format;
   return new Promise<Blob>((resolve, reject) => {
-    const q = format === 'image/png' ? undefined : Math.min(1, Math.max(0.01, quality));
+    const q =
+      mime === 'image/png' ? undefined : Math.min(1, Math.max(0.01, quality));
     canvas.toBlob(
       (blob) => {
         if (!blob) {
@@ -151,7 +156,7 @@ function canvasToBlob(
         }
         resolve(blob);
       },
-      format,
+      mime,
       q,
     );
   });
@@ -255,6 +260,13 @@ export async function exportEditedImage(options: {
   }
 
   const blob = await canvasToBlob(canvas, options.format, options.quality);
+  if (options.format === 'image/x-icon') {
+    return {
+      blob: wrapPngAsIco(await blob.arrayBuffer(), size.width, size.height),
+      width: size.width,
+      height: size.height,
+    };
+  }
   return { blob, width: size.width, height: size.height };
 }
 

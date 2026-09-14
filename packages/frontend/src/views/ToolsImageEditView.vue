@@ -1,11 +1,13 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref, watch } from 'vue';
+import { computed, onActivated, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import AppShell from '@/components/AppShell.vue';
 import EditorToolbar from '@/components/EditorToolbar.vue';
 import CropEditor from '@/components/imageedit/CropEditor.vue';
+import { consumeImageEditFile } from '@/composables/imageEditSession';
 import { useFileDropZone } from '@/composables/useFileDropZone';
 import { usePageTitle } from '@/composables/usePageTitle';
+import { decodeIcoToPng, isIcoFile } from '@/integrations/imageedit/ico';
 import {
   exportEditedImage,
   extensionForFormat,
@@ -93,7 +95,9 @@ const outputHint = computed(() =>
   }),
 );
 
-const qualityDisabled = computed(() => format.value === 'image/png');
+const qualityDisabled = computed(
+  () => format.value === 'image/png' || format.value === 'image/x-icon',
+);
 
 function revoke(url: string | null) {
   if (url?.startsWith('blob:')) URL.revokeObjectURL(url);
@@ -112,20 +116,34 @@ function onOpen() {
 }
 
 function isImageFile(file: File) {
+  if (isIcoFile(file)) return true;
   if (file.type.startsWith('image/')) return true;
   return /\.(png|jpe?g|webp|gif|bmp|svg)$/i.test(file.name);
 }
 
 async function loadFile(file: File) {
   if (!isImageFile(file)) {
-    error.value = 'PNG, JPEG, WebP, GIF, BMP, SVG 이미지를 선택해 주세요.';
+    error.value = 'PNG, JPEG, WebP, GIF, BMP, SVG, ICO 이미지를 선택해 주세요.';
     return;
   }
   error.value = '';
   notice.value = '';
   estimateBytes.value = null;
-  const url = URL.createObjectURL(file);
+  busy.value = true;
+  let url: string | null = null;
   try {
+    let source: Blob = file;
+    let extra = '';
+    if (isIcoFile(file)) {
+      const decoded = await decodeIcoToPng(await file.arrayBuffer());
+      source = decoded.blob;
+      extra =
+        decoded.imageCount > 1
+          ? ` · ICO ${decoded.imageCount}장 중 ${decoded.width}×${decoded.height}`
+          : ' · ICO';
+      format.value = 'image/x-icon';
+    }
+    url = URL.createObjectURL(source);
     const image = await loadImageFromUrl(url);
     revoke(sourceUrl.value);
     sourceUrl.value = url;
@@ -139,13 +157,23 @@ async function loadFile(file: File) {
     scalePercent.value = 100;
     maxEdgeId.value = '';
     crop.value = fullImageCrop(imageWidth.value, imageHeight.value);
-    notice.value = `${imageWidth.value}×${imageHeight.value} · ${formatBytes(file.size)}`;
+    notice.value = `${imageWidth.value}×${imageHeight.value} · ${formatBytes(file.size)}${extra}`;
   } catch (reason) {
-    revoke(url);
+    if (url) revoke(url);
     error.value =
       reason instanceof Error ? reason.message : '이미지를 열지 못했습니다.';
+  } finally {
+    busy.value = false;
   }
 }
+
+function consumePending() {
+  const pending = consumeImageEditFile();
+  if (pending) void loadFile(pending);
+}
+
+onMounted(consumePending);
+onActivated(consumePending);
 
 async function loadFromUrl(raw = imageUrlInput.value) {
   const trimmed = raw.trim();
@@ -175,7 +203,7 @@ async function loadFromUrl(raw = imageUrlInput.value) {
     const blob = await response.blob();
     const looksImage =
       blob.type.startsWith('image/') ||
-      /\.(png|jpe?g|webp|gif|bmp|svg)(\?|$)/i.test(parsed.pathname);
+      /\.(png|jpe?g|webp|gif|bmp|svg|ico)(\?|$)/i.test(parsed.pathname);
     if (!looksImage) {
       throw new Error('응답이 이미지가 아닙니다.');
     }
@@ -373,7 +401,7 @@ onBeforeUnmount(() => {
         ref="fileInput"
         class="sr-only"
         type="file"
-        accept="image/png,image/jpeg,image/webp,image/gif,image/bmp,image/svg+xml,.png,.jpg,.jpeg,.webp,.gif,.bmp,.svg"
+        accept="image/png,image/jpeg,image/webp,image/gif,image/bmp,image/svg+xml,image/x-icon,image/vnd.microsoft.icon,.png,.jpg,.jpeg,.webp,.gif,.bmp,.svg,.ico"
         @change="onFilesSelected"
       />
 
@@ -391,7 +419,7 @@ onBeforeUnmount(() => {
           <strong>이미지 편집</strong>
           <p>
             사진을 열거나 끌어다 놓은 뒤 크롭, 축소, 경량화, 비율 변경을 적용해
-            JPEG·WebP·PNG로 저장합니다. 서버에 업로드하지 않습니다.
+            JPEG·WebP·PNG·ICO로 저장합니다. 서버에 업로드하지 않습니다.
           </p>
           <button
             type="button"
@@ -506,6 +534,7 @@ onBeforeUnmount(() => {
                     <option value="image/jpeg">JPEG</option>
                     <option value="image/webp">WebP</option>
                     <option value="image/png">PNG (무손실)</option>
+                    <option value="image/x-icon">ICO</option>
                   </select>
                 </label>
                 <label class="field">
