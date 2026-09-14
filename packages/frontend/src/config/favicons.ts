@@ -23,6 +23,7 @@ export type FaviconKind =
   | 'scanner'
   | 'bgremove'
   | 'imgedit'
+  | 'markdown'
   | 'text'
   | 'csv'
   | 'file';
@@ -55,6 +56,9 @@ export const ICON_PATHS: Record<FaviconKind, string> = {
   /** mdi:crop */
   imgedit:
     'M7,17V1H5V5H1V7H5V17A2,2 0 0,0 7,19H17V23H19V19H23V17H19V7H7V17M17,17H7V7H17V17Z',
+  /** mdi:language-markdown */
+  markdown:
+    'M20.56 18H3.44C2.65 18 2 17.37 2 16.59V7.41C2 6.63 2.65 6 3.44 6H20.56C21.35 6 22 6.63 22 7.41V16.59C22 17.37 21.35 18 20.56 18M6.81 15.19V11.53L8.73 13.88L10.66 11.53V15.19H12.31V8.81H10.66L8.73 11.16L6.81 8.81H5.16V15.19H6.81M15.19 15.19H19.5V13.84H16.84V12.5H19.5V11.16H16.84V9.81H19.5V8.81H15.19V15.19Z',
   text: 'M6,2A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2H6M6,4H13V9H18V20H6V4M8,12V14H16V12H8M8,16V18H13V16H8Z',
   csv: 'M14 2H6C4.9 2 4 2.9 4 4V20C4 21.1 4.9 22 6 22H18C19.1 22 20 21.1 20 20V8L14 2M18 20H6V4H13V9H18V20M10 19L12 15H9V10H15V15L13 19H10',
   file: 'M6,2A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2H6M6,4H13V9H18V20H6V4M8,12V14H16V12H8M8,16V18H13V16H8Z',
@@ -96,6 +100,7 @@ export const ICON_COLORS: Record<FaviconKind, string> = {
   scanner: '#00897b',
   bgremove: '#5c6bc0',
   imgedit: '#c2185b',
+  markdown: '#6f42c1',
   text: '#607d8b',
   csv: '#00838f',
   file: '#546e7a',
@@ -160,6 +165,9 @@ const EXT_KIND: Record<string, FaviconKind> = {
   bgremove: 'bgremove',
   imgedit: 'imgedit',
   ico: 'imgedit',
+  md: 'markdown',
+  markdown: 'markdown',
+  mdown: 'markdown',
   txt: 'text',
 };
 

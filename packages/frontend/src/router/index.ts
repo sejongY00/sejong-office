@@ -55,6 +55,11 @@ const router = createRouter({
       component: () => import('@/views/PhotoshopViewerView.vue'),
     },
     {
+      path: '/viewer/markdown',
+      name: 'markdown-viewer',
+      component: () => import('@/views/MarkdownViewerView.vue'),
+    },
+    {
       path: '/tools/scanner',
       name: 'tools-scanner',
       component: () => import('@/views/ToolsScannerView.vue'),

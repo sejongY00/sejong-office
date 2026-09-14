@@ -72,6 +72,12 @@ const viewerTypes = [
     title: '포토샵',
     subtitle: 'Adobe Photoshop (.psd, RGB 8bit)',
   },
+  {
+    route: 'markdown-viewer',
+    extension: 'md',
+    title: '마크다운',
+    subtitle: '.md · 입력 미리보기',
+  },
 ] as const;
 
 const toolTypes = [
@@ -140,7 +146,7 @@ function onOpenTool(route: string) {
           <input
             class="drop__input"
             type="file"
-            accept=".docx,.xlsx,.pptx,.pdf,.hwp,.hwpx,.odt,.ods,.odp,.doc,.xls,.ppt,.rtf,.txt,.csv,.excalidraw,.mmd,.mermaid,.drawio,.xml,.dxf,.dwg,.ai,.psd,.3dm,.3ds,.3mf,.amf,.bim,.brp,.brep,.dae,.fbx,.fcstd,.gltf,.glb,.ifc,.igs,.iges,.stp,.step,.stl,.obj,.off,.ply,.wrl,.zip,.bin,.mtl,.png,.jpg,.jpeg,.webp,.ico"
+            accept=".docx,.xlsx,.pptx,.pdf,.hwp,.hwpx,.odt,.ods,.odp,.doc,.xls,.ppt,.rtf,.txt,.csv,.excalidraw,.mmd,.mermaid,.drawio,.xml,.dxf,.dwg,.ai,.psd,.md,.markdown,.3dm,.3ds,.3mf,.amf,.bim,.brp,.brep,.dae,.fbx,.fcstd,.gltf,.glb,.ifc,.igs,.iges,.stp,.step,.stl,.obj,.off,.ply,.wrl,.zip,.bin,.mtl,.png,.jpg,.jpeg,.webp,.ico"
             multiple
             :disabled="busy"
             @change="onInput"
@@ -149,7 +155,7 @@ function onOpenTool(route: string) {
             {{ busy ? '여는 중…' : '파일을 끌어다 놓거나 클릭하여 선택' }}
           </span>
           <span class="drop__hint">
-            오피스·PDF · HWP/HWPX · 다이어그램 · CAD · 3D · 일러스트(.ai) · 포토샵(.psd) · 이미지(스캐너) · 아이콘(.ico)
+            오피스·PDF · HWP/HWPX · 다이어그램 · CAD · 3D · 일러스트(.ai) · 포토샵(.psd) · 마크다운(.md) · 이미지(스캐너) · 아이콘(.ico)
           </span>
         </label>
 
@@ -205,7 +211,7 @@ function onOpenTool(route: string) {
       <section class="section">
         <h2 class="section__title">뷰어</h2>
         <p class="section__lead">
-          서버 업로드 없이 도면·모델·일러스트·포토샵을 조회합니다. 텍스처·MTL·BIN
+          서버 업로드 없이 도면·모델·일러스트·포토샵·마크다운을 조회합니다. 텍스처·MTL·BIN
           등 보조 파일이나 ZIP은 원본과 함께 선택하세요. .ai는 PDF 호환, .psd는
           RGB·8bit만 안정적으로 열립니다.
         </p>

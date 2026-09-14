@@ -27,6 +27,7 @@ const viewKey = computed(() => {
     route.name === 'model3d-viewer' ||
     route.name === 'illustrator-viewer' ||
     route.name === 'photoshop-viewer' ||
+    route.name === 'markdown-viewer' ||
     route.name === 'tools-scanner' ||
     route.name === 'tools-bg-remove' ||
     route.name === 'tools-image-edit'
@@ -49,6 +50,7 @@ const viewKey = computed(() => {
         'Model3DViewerView',
         'IllustratorViewerView',
         'PhotoshopViewerView',
+        'MarkdownViewerView',
         'ToolsScannerView',
         'ToolsBgRemoveView',
         'ToolsImageEditView',

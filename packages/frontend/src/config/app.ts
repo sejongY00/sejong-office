@@ -6,7 +6,7 @@ export const APP_NAME = "sejong-office";
 export const APP_DISPLAY_NAME = "Sejong Office";
 
 export type DiagramKind = "excalidraw" | "mermaid" | "drawio";
-export type ViewerKind = "cad" | "model3d" | "illustrator" | "photoshop";
+export type ViewerKind = "cad" | "model3d" | "illustrator" | "photoshop" | "markdown";
 export type ToolKind = "scanner" | "imageedit";
 
 const DIAGRAM_EXTENSION_KIND: Record<string, DiagramKind> = {
@@ -69,6 +69,9 @@ const VIEWER_EXTENSION_KIND: Record<string, ViewerKind> = {
   dwg: "cad",
   ai: "illustrator",
   psd: "photoshop",
+  md: "markdown",
+  markdown: "markdown",
+  mdown: "markdown",
   ...Object.fromEntries(
     MODEL3D_EXTENSIONS.map((ext) => [ext, "model3d" as const]),
   ),

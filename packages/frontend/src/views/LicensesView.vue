@@ -20,6 +20,16 @@ const thirdParty = [
     license: 'MIT',
     url: 'https://github.com/mermaid-js/mermaid',
   },
+  {
+    name: 'marked',
+    license: 'MIT',
+    url: 'https://github.com/markedjs/marked',
+  },
+  {
+    name: 'DOMPurify',
+    license: 'MPL-2.0 OR Apache-2.0',
+    url: 'https://github.com/cure53/DOMPurify',
+  },
   { name: 'Three.js', license: 'MIT', url: 'https://github.com/mrdoob/three.js' },
   {
     name: 'Online 3D Viewer',
