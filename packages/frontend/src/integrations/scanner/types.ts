@@ -12,6 +12,9 @@ export interface CornerPoints {
 
 export type PaperAspect = 'a4-portrait' | 'a4-landscape' | 'square' | 'auto';
 
+/** 원본: 원근 보정만 · 컬러/회색조 문서: 조명 평탄화·글자 보정 · 흑백 문서: 이진화 */
+export type ScanMode = 'original' | 'color' | 'gray' | 'bw';
+
 export interface OcrWord {
   text: string;
   /** Pixel bbox on the warped image: x0,y0,x1,y1 */
@@ -32,7 +35,8 @@ export interface ScannerPage {
   sourceHeight: number;
   corners: CornerPoints;
   aspect: PaperAspect;
-  /** 0 = 원본 색감, 100 = 강한 문서 스캔 보정 */
+  scanMode: ScanMode;
+  /** 글자 진하기·선명도 0–100 (흑백은 이진화 문턱) */
   scanIntensity: number;
   warpedUrl: string | null;
   warpedWidth: number;

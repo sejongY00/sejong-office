@@ -29,9 +29,14 @@ import {
 import type {
   CornerPoints,
   PaperAspect,
+  ScanMode,
   ScannerPage,
 } from '@/integrations/scanner/types';
-import { warpImage, DEFAULT_SCAN_INTENSITY } from '@/integrations/scanner/warp';
+import {
+  warpImage,
+  DEFAULT_SCAN_INTENSITY,
+  DEFAULT_SCAN_MODE,
+} from '@/integrations/scanner/warp';
 import { downloadBlob } from '@/utils/downloadBlob';
 
 defineOptions({ name: 'ToolsScannerView' });
@@ -125,6 +130,7 @@ async function pushPageFromSource(
     sourceHeight: h,
     corners,
     aspect: 'auto',
+    scanMode: DEFAULT_SCAN_MODE,
     scanIntensity: DEFAULT_SCAN_INTENSITY,
     warpedUrl: null,
     warpedWidth: 0,
@@ -438,6 +444,19 @@ function setScanIntensity(value: number) {
   );
 }
 
+const SCAN_MODES: { value: ScanMode; label: string }[] = [
+  { value: 'color', label: '컬러 문서' },
+  { value: 'gray', label: '회색조 문서' },
+  { value: 'bw', label: '흑백 문서' },
+  { value: 'original', label: '원본 (원근만)' },
+];
+
+async function updateScanMode(mode: ScanMode) {
+  if (!activePage.value || busy.value) return;
+  activePage.value.scanMode = mode;
+  await warpActive();
+}
+
 async function commitScanIntensity() {
   if (!activePage.value || busy.value) return;
   await warpActive();
@@ -482,6 +501,7 @@ async function warpActive() {
       activePage.value.corners,
       activePage.value.aspect,
       activePage.value.scanIntensity,
+      activePage.value.scanMode,
     );
     revokeUrl(activePage.value.warpedUrl);
     activePage.value.warpedUrl = result.url;
@@ -511,6 +531,7 @@ async function warpAll() {
         page.corners,
         page.aspect,
         page.scanIntensity,
+        page.scanMode,
       );
       revokeUrl(page.warpedUrl);
       page.warpedUrl = result.url;
@@ -536,6 +557,7 @@ async function runOcrOnPage(page: ScannerPage) {
       page.corners,
       page.aspect,
       page.scanIntensity,
+      page.scanMode,
     );
     revokeUrl(page.warpedUrl);
     page.warpedUrl = result.url;
@@ -605,6 +627,7 @@ async function exportPdf() {
           page.corners,
           page.aspect,
           page.scanIntensity,
+          page.scanMode,
         );
         revokeUrl(page.warpedUrl);
         page.warpedUrl = warped.url;
@@ -645,7 +668,9 @@ async function exportActivePng() {
   if (!activePage.value.warpedUrl) await warpActive();
   if (!activePage.value?.warpedUrl) return;
   const response = await fetch(activePage.value.warpedUrl);
-  downloadBlob(await response.blob(), `${baseName(activePage.value.name)}.png`);
+  const blob = await response.blob();
+  const ext = blob.type === 'image/jpeg' ? 'jpg' : 'png';
+  downloadBlob(blob, `${baseName(activePage.value.name)}.${ext}`);
 }
 
 function baseName(name = filename.value) {
@@ -954,7 +979,7 @@ const progressPercent = computed(() =>
                 :disabled="busy"
                 @click="void exportActivePng()"
               >
-                PNG로 저장
+                이미지로 저장
               </button>
               <button
                 type="button"
@@ -982,6 +1007,22 @@ const progressPercent = computed(() =>
                   <option value="a4-landscape">A4 가로</option>
                   <option value="square">정사각</option>
                   <option value="auto">자동 비율</option>
+                </select>
+              </label>
+              <label class="settings-field settings-field--inline">
+                <span>필터</span>
+                <select
+                  :value="activePage.scanMode"
+                  :disabled="busy"
+                  @change="
+                    void updateScanMode(
+                      ($event.target as HTMLSelectElement).value as ScanMode,
+                    )
+                  "
+                >
+                  <option v-for="m in SCAN_MODES" :key="m.value" :value="m.value">
+                    {{ m.label }}
+                  </option>
                 </select>
               </label>
               <label class="settings-field settings-field--intensity">
@@ -1053,6 +1094,22 @@ const progressPercent = computed(() =>
                       </select>
                     </label>
                     <label class="settings-field">
+                      <span>필터</span>
+                      <select
+                        :value="activePage.scanMode"
+                        :disabled="busy"
+                        @change="
+                          void updateScanMode(
+                            ($event.target as HTMLSelectElement).value as ScanMode,
+                          )
+                        "
+                      >
+                        <option v-for="m in SCAN_MODES" :key="m.value" :value="m.value">
+                          {{ m.label }}
+                        </option>
+                      </select>
+                    </label>
+                    <label class="settings-field">
                       <span class="settings-field__row">
                         스캔 강도
                         <em>{{ activePage.scanIntensity }}</em>
@@ -1073,7 +1130,7 @@ const progressPercent = computed(() =>
                         @change="void commitScanIntensity()"
                       />
                       <span class="settings-field__hint">
-                        0 원본 · 중간 대비 · 100 문서형
+                        0 은은하게 · 100 글자 진하고 선명하게
                       </span>
                     </label>
                     <label class="settings-check">
@@ -1105,7 +1162,7 @@ const progressPercent = computed(() =>
                           void exportActivePng();
                         "
                       >
-                        PNG로 저장
+                        이미지로 저장
                       </button>
                     </div>
                   </div>
