@@ -57,6 +57,20 @@ export function toInternalOnlyOfficeUrl(raw: string): string {
     const target = new URL(raw);
     const publicBase = new URL(config.onlyOfficeUrl);
     const internalBase = new URL(config.onlyOfficeInternalUrl);
+    // Public URL may be a sub-path of the app (e.g. https://office.example.com/ds):
+    // swap the whole prefix, not just the host, so /ds doesn't leak inward.
+    const publicPath = publicBase.pathname.replace(/\/$/, '');
+    if (
+      publicPath &&
+      target.host === publicBase.host &&
+      target.pathname.startsWith(`${publicPath}/`)
+    ) {
+      return (
+        config.onlyOfficeInternalUrl +
+        target.pathname.slice(publicPath.length) +
+        target.search
+      );
+    }
     if (
       target.host === publicBase.host ||
       target.host === internalBase.host

@@ -101,6 +101,8 @@ volumes:
   documentserver_data:
 ```
 
+Document Server를 앱과 같은 도메인의 하위 경로(위 예시의 `/ds`)로 두면 편집기 iframe이 같은 출처가 되어 `X-Frame-Options: SAMEORIGIN`에 막히지 않습니다. 리버스 프록시는 접두어를 떼고 Document Server로 넘기면서 `X-Forwarded-Host`에 경로까지 넣어야 합니다(예: Caddy `handle_path /ds/*` + `header_up X-Forwarded-Host {host}/ds`).
+
 ## CI/CD (Jenkins)
 
 [`Jenkinsfile`](Jenkinsfile) 이 `main` PR/브랜치에서 `npm ci` + `npm run build`를 돌리고, **`main` 브랜치 빌드**(PR 제외)에서만 이미지를 push한 뒤 서버에 SSH로 배포합니다.
