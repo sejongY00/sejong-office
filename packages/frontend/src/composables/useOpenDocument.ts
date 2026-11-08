@@ -8,7 +8,7 @@ import {
   viewerKindFor,
 } from '@/config/app';
 import { fetchBlankTemplate, type BlankDocumentType } from '@/utils/appError';
-import { officeOpenToken, openOfficeEditor, stageOfficeName } from '@/composables/officeSession';
+import { officeOpenToken, stageOfficeBuffer, stageOfficeFile } from '@/composables/officeSession';
 import {
   storeHwpBuffer,
   storeHwpFile,
@@ -84,7 +84,7 @@ export function useOpenDocument() {
         return false;
       }
 
-      stageOfficeName(file.name);
+      await stageOfficeFile(file);
       await router.push({ name: 'office-editor', query: { d: String(officeOpenToken()) } });
       return true;
     } catch (err) {
@@ -99,20 +99,20 @@ export function useOpenDocument() {
   async function createAndOpenBlank(type: BlankDocumentType): Promise<boolean> {
     if (busy.value) return false;
     error.value = '';
-
-    if (type !== 'hwpx') {
-      // Synchronously, before any await, so the click still counts as a user gesture.
-      if (!openOfficeEditor(type)) {
-        error.value = '팝업이 차단되었습니다. 브라우저에서 이 사이트의 팝업을 허용해 주세요.';
-        return false;
-      }
-      return true;
-    }
-
     busy.value = true;
+
     try {
-      storeHwpBuffer('새문서.hwpx', await fetchBlankTemplate('hwpx'));
-      await router.push({ name: 'rhwp-editor' });
+      const buffer = await fetchBlankTemplate(type);
+      const name = `새문서.${type}`;
+
+      if (type === 'hwpx') {
+        storeHwpBuffer(name, buffer);
+        await router.push({ name: 'rhwp-editor' });
+        return true;
+      }
+
+      stageOfficeBuffer(name, buffer);
+      await router.push({ name: 'office-editor', query: { d: String(officeOpenToken()) } });
       return true;
     } catch (err) {
       error.value =

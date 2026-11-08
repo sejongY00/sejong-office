@@ -163,7 +163,7 @@ function onOpenTool(route: string) {
 
       <section class="section">
         <h2 class="section__title">새 문서</h2>
-        <p class="section__lead">빈 문서를 만들어 바로 편집합니다. 오피스 문서는 편집기 새 탭에서 열립니다.</p>
+        <p class="section__lead">빈 문서를 만들어 바로 편집합니다.</p>
 
         <div class="grid">
           <button

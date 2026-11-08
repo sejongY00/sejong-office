@@ -2,7 +2,7 @@
 export const APP_GIT_URL = "https://github.com/sejongY00/sejong-office";
 
 /**
- * Browser-only office editor (ranuts/document, OnlyOffice + x2t WASM), opened in a new tab.
+ * Browser-only office editor (ranuts/document, OnlyOffice + x2t WASM), embedded by iframe.
  * Built by sejongY00/office-editor onto GitHub Pages at a domain root (ranuts uses root-absolute
  * paths such as /sdkjs/…, so a /office-editor/ sub-path breaks conversion). Override with
  * VITE_OFFICE_EDITOR_URL (trailing slash).

@@ -4,7 +4,7 @@ import { AppError } from '@/utils/appError';
 
 const props = defineProps<{
   error: unknown;
-  context?: 'rhwp';
+  context?: 'office' | 'rhwp';
 }>();
 
 const code = computed(() => {
@@ -16,6 +16,8 @@ const title = computed(() => {
   switch (code.value) {
     case 'not_found':
       return '문서를 찾을 수 없습니다';
+    case 'no_document':
+      return '열린 문서가 없습니다';
     case 'unsupported_type':
       return '지원하지 않는 파일 형식입니다';
     default:
@@ -27,6 +29,8 @@ const detail = computed(() => {
   switch (code.value) {
     case 'not_found':
       return '열린 파일이 없습니다. 홈에서 다시 열어 주세요.';
+    case 'no_document':
+      return '파일은 이 탭의 메모리에만 있어서 새로고침하면 사라집니다. 홈에서 다시 열어 주세요.';
     default:
       if (props.error instanceof Error && props.error.message) {
         return props.error.message;
