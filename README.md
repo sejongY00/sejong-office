@@ -21,7 +21,7 @@
 
 ranuts 편집기는 문서를 열 때 cross-origin isolation이 필요해, 다른 페이지에 iframe으로 넣으려면 부모 페이지와 편집기 사이트 **둘 다** COOP/COEP 헤더를 보내야 합니다. GitHub Pages는 응답 헤더를 설정할 수 없어(2026-11 시험: 비격리 부모 → "파일을 여는 동안 오류", 격리 부모 + 헤더 없는 편집기 → 차단) 새 탭으로 엽니다. 기존 파일은 편집기 탭에서 다시 선택합니다. 헤더를 줄 수 있는 호스팅(Cloudflare Pages 등)으로 옮기면 iframe + `postMessage` 임베드(ranuts `docs/embed-api.md`)로 바꿀 수 있습니다.
 
-편집기 주소는 빌드 때 `VITE_OFFICE_EDITOR_URL`(저장소 변수 `OFFICE_EDITOR_URL`)로 바꿀 수 있고, 기본값은 `https://sejongy00.github.io/office-editor/`입니다.
+편집기 주소는 빌드 때 `VITE_OFFICE_EDITOR_URL`(저장소 변수 `OFFICE_EDITOR_URL`)로 바꿀 수 있고, 기본값은 `https://editor.sejong.dev/`입니다. ranuts는 `/sdkjs/…` 같은 루트 절대 경로를 써서 하위 경로(`…github.io/office-editor/`)에 두면 변환 엔진(x2t)이 안 뜨므로 도메인 루트에 둔다.
 
 ## 로컬 개발
 

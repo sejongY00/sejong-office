@@ -2,11 +2,13 @@
 export const APP_GIT_URL = "https://github.com/sejongY00/sejong-office";
 
 /**
- * Browser-only office editor (ranuts/document, OnlyOffice + x2t WASM) embedded by iframe.
- * Self-hosted fork on GitHub Pages; override with VITE_OFFICE_EDITOR_URL (trailing slash).
+ * Browser-only office editor (ranuts/document, OnlyOffice + x2t WASM), opened in a new tab.
+ * Built by sejongY00/office-editor onto GitHub Pages at a domain root (ranuts uses root-absolute
+ * paths such as /sdkjs/…, so a /office-editor/ sub-path breaks conversion). Override with
+ * VITE_OFFICE_EDITOR_URL (trailing slash).
  */
 export const OFFICE_EDITOR_URL: string =
-  import.meta.env.VITE_OFFICE_EDITOR_URL || "https://sejongy00.github.io/office-editor/";
+  import.meta.env.VITE_OFFICE_EDITOR_URL || "https://editor.sejong.dev/";
 
 export const APP_NAME = "sejong-office";
 
