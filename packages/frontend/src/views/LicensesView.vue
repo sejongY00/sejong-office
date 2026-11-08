@@ -236,18 +236,20 @@ const thirdParty = [
       </section>
 
       <section class="card">
-        <h2>Euro-Office Document Server</h2>
+        <h2>Document (ranuts/document) · ONLYOFFICE 편집기</h2>
         <p>
-          <strong>GNU AGPL v3</strong>로 배포됩니다. 서버에 Document Server를
-          배포·수정하는 경우 AGPL 의무(소스 제공 등)를 확인하세요.
+          오피스·PDF 편집은 브라우저 안에서만 동작하는
+          <strong>ranuts/document</strong>(ONLYOFFICE 편집기 + x2t WebAssembly 개조판)를
+          iframe으로 불러 씁니다. <strong>GNU AGPL v3</strong>이며, 파일은 브라우저에서만
+          처리되고 어떤 서버로도 업로드되지 않습니다.
         </p>
         <ul>
           <li>
             <a
-              href="https://github.com/Euro-Office/DocumentServer"
+              href="https://github.com/ranuts/document"
               target="_blank"
               rel="noopener noreferrer"
-              >Euro-Office DocumentServer (GitHub)</a
+              >ranuts/document (GitHub)</a
             >
           </li>
           <li>
@@ -260,9 +262,8 @@ const thirdParty = [
           </li>
         </ul>
         <p class="muted">
-          Euro-Office Document Server는 ONLYOFFICE Document Server를 기반으로
-          합니다. ONLYOFFICE는 Ascensio System SIA의 상표입니다. 본 프로젝트는
-          Euro-Office·OnlyOffice와 공식 제휴 관계가 없습니다.
+          ranuts/document는 ONLYOFFICE 공식 제품이 아닌 개조판입니다. ONLYOFFICE는 Ascensio
+          System SIA의 상표입니다. 본 프로젝트는 ranuts·ONLYOFFICE와 공식 제휴 관계가 없습니다.
         </p>
       </section>
 

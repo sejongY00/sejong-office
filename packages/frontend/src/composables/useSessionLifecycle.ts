@@ -1,29 +1,16 @@
-import { onMounted, onUnmounted } from 'vue';
-import { createSession, endSession, heartbeat } from '@/api/client';
+// HWP/HWPX hand-off to RhwpEditorView. There is no server session any more: everything stays in
+// this tab (sessionStorage), and leaving the page clears the staged file.
 
 const HWP_FILE_KEY = 'sejong_hwp_file';
 const HWP_OPEN_TOKEN_KEY = 'sejong_hwp_open_token';
 
 let pageHideBound = false;
 
-function onPageHide() {
-  navigator.sendBeacon(
-    '/api/sessions/end',
-    new Blob(['{}'], { type: 'application/json' }),
-  );
-  void fetch('/api/sessions', {
-    method: 'DELETE',
-    credentials: 'include',
-    keepalive: true,
-  });
-  clearHwpFile();
-}
-
 /** Register once for the whole SPA (survives keep-alive editor switches). */
 export function bindSessionPageHideOnce() {
   if (pageHideBound || typeof window === 'undefined') return;
   pageHideBound = true;
-  window.addEventListener('pagehide', onPageHide);
+  window.addEventListener('pagehide', clearHwpFile);
 }
 
 export function storeHwpFile(file: File): Promise<void> {
@@ -81,34 +68,4 @@ export function loadHwpFile(): { name: string; buffer: ArrayBuffer } | null {
 export function clearHwpFile(): void {
   sessionStorage.removeItem(HWP_FILE_KEY);
   sessionStorage.removeItem(HWP_OPEN_TOKEN_KEY);
-}
-
-export function useSessionLifecycle(options?: { enableHeartbeat?: boolean }) {
-  let timer: ReturnType<typeof setInterval> | undefined;
-
-  async function ensureSession() {
-    // Reuses cookie session on the server — does not orphan open documents
-    await createSession();
-  }
-
-  onMounted(async () => {
-    bindSessionPageHideOnce();
-    try {
-      await ensureSession();
-    } catch (err) {
-      console.error('session create failed', err);
-    }
-
-    if (options?.enableHeartbeat !== false) {
-      timer = setInterval(() => {
-        void heartbeat().catch(() => undefined);
-      }, 30_000);
-    }
-  });
-
-  onUnmounted(() => {
-    if (timer) clearInterval(timer);
-  });
-
-  return { ensureSession, endSession, clearHwpFile };
 }

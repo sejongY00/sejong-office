@@ -6,7 +6,7 @@ import AppShell from '@/components/AppShell.vue';
 import DownloadGuideModal from '@/components/DownloadGuideModal.vue';
 import EditorErrorState from '@/components/EditorErrorState.vue';
 import EditorToolbar from '@/components/EditorToolbar.vue';
-import { ApiError } from '@/api/client';
+import { AppError } from '@/utils/appError';
 import { isHwp } from '@/config/app';
 import { usePageTitle } from '@/composables/usePageTitle';
 import {
@@ -14,7 +14,6 @@ import {
   hwpOpenToken,
   loadHwpFile,
   storeHwpFile,
-  useSessionLifecycle,
 } from '@/composables/useSessionLifecycle';
 
 defineOptions({ name: 'RhwpEditorView' });
@@ -29,7 +28,6 @@ let loadedToken = '';
 let loadSeq = 0;
 
 usePageTitle(filename);
-useSessionLifecycle({ enableHeartbeat: true });
 
 const downloadGuideSteps = [
   '편집기 메뉴에서 파일을 누릅니다.',
@@ -43,8 +41,7 @@ async function bootstrapFromStore() {
   const stored = loadHwpFile();
 
   if (!stored) {
-    error.value = new ApiError(
-      404,
+    error.value = new AppError(
       'not_found',
       '열린 HWP 파일이 없습니다. 홈에서 다시 업로드해 주세요.',
     );
@@ -109,8 +106,7 @@ async function onFileSelected(e: Event) {
   if (!file) return;
 
   if (!isHwp(file.name)) {
-    error.value = new ApiError(
-      400,
+    error.value = new AppError(
       'unsupported_type',
       'HWP/HWPX 파일만 열 수 있습니다.',
     );

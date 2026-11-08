@@ -10,9 +10,9 @@ const router = createRouter({
       component: HomeView,
     },
     {
-      path: '/editor/onlyoffice/:docId',
-      name: 'onlyoffice-editor',
-      component: () => import('@/views/OnlyOfficeEditorView.vue'),
+      path: '/editor/office',
+      name: 'office-editor',
+      component: () => import('@/views/OfficeEditorView.vue'),
     },
     {
       path: '/editor/rhwp',

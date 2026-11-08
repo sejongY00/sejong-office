@@ -1,14 +1,14 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { ApiError } from '@/api/client';
+import { AppError } from '@/utils/appError';
 
 const props = defineProps<{
   error: unknown;
-  context?: 'onlyoffice' | 'rhwp';
+  context?: 'rhwp';
 }>();
 
 const code = computed(() => {
-  if (props.error instanceof ApiError) return props.error.code;
+  if (props.error instanceof AppError) return props.error.code;
   return 'unknown';
 });
 
@@ -16,8 +16,6 @@ const title = computed(() => {
   switch (code.value) {
     case 'not_found':
       return '문서를 찾을 수 없습니다';
-    case 'session_required':
-      return '세션이 만료되었습니다';
     case 'unsupported_type':
       return '지원하지 않는 파일 형식입니다';
     default:
@@ -28,9 +26,7 @@ const title = computed(() => {
 const detail = computed(() => {
   switch (code.value) {
     case 'not_found':
-      return '임시 세션이 끝났거나, 다른 탭에서 세션이 바뀌었을 수 있습니다. 서버에는 파일을 영구 보관하지 않으므로 홈에서 다시 열어 주세요. 편집 중이라면 가능하면 에디터의 파일 → 저장으로 먼저 받아 두세요.';
-    case 'session_required':
-      return '브라우저를 오래 두었거나 세션이 초기화되었습니다. 홈으로 돌아가 파일을 다시 선택해 주세요.';
+      return '열린 파일이 없습니다. 홈에서 다시 열어 주세요.';
     default:
       if (props.error instanceof Error && props.error.message) {
         return props.error.message;

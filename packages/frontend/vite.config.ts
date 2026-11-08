@@ -14,15 +14,9 @@ export default defineConfig({
   },
   server: {
     port: 5173,
-    proxy: {
-      '/api': {
-        target: 'http://localhost:3000',
-        changeOrigin: true,
-      },
-    },
   },
   build: {
-    outDir: path.resolve(__dirname, '../backend/public'),
+    outDir: path.resolve(__dirname, 'dist'),
     emptyOutDir: true,
   },
   assetsInclude: ['**/*.onnx', '**/*.ort', '**/*.wasm'],

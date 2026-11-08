@@ -2,17 +2,15 @@
   "name": "sejong-office",
   "version": "0.1.0",
   "private": true,
-  "description": "Ephemeral OnlyOffice + rhwp document editor",
+  "description": "Browser-only document, diagram and viewer web app (static site)",
   "license": "GPL-3.0-only",
   "workspaces": [
     "packages/*"
   ],
   "scripts": {
-    "dev": "npm run dev -w @sejong-office/backend & npm run dev -w @sejong-office/frontend",
-    "dev:backend": "npm run dev -w @sejong-office/backend",
-    "dev:frontend": "npm run dev -w @sejong-office/frontend",
-    "build": "npm run build -w @sejong-office/frontend && npm run build -w @sejong-office/backend",
-    "start": "npm run start -w @sejong-office/backend"
+    "dev": "npm run dev -w @sejong-office/frontend",
+    "build": "npm run build -w @sejong-office/frontend",
+    "preview": "npm run preview -w @sejong-office/frontend"
   },
   "engines": {
     "node": ">=20"

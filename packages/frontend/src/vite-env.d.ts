@@ -1,5 +1,9 @@
 /// <reference types="vite/client" />
 
+interface ImportMetaEnv {
+  readonly VITE_OFFICE_EDITOR_URL?: string;
+}
+
 declare module '@rhwp/editor' {
   export type RhwpEditor = {
     loadFile: (
@@ -25,10 +29,4 @@ declare module '@rhwp/editor' {
 
 interface Window {
   EXCALIDRAW_ASSET_PATH?: string;
-  DocsAPI?: {
-    DocEditor: new (
-      id: string,
-      config: Record<string, unknown>,
-    ) => { destroyEditor?: () => void };
-  };
 }

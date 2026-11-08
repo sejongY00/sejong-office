@@ -6,7 +6,7 @@ import FileTypeIcon from '@/components/FileTypeIcon.vue';
 import { APP_DISPLAY_NAME } from '@/config/app';
 import { useOpenDocument } from '@/composables/useOpenDocument';
 import { usePageTitle } from '@/composables/usePageTitle';
-import type { BlankDocumentType } from '@/api/client';
+import type { BlankDocumentType } from '@/utils/appError';
 
 const dragging = ref(false);
 const router = useRouter();
@@ -22,7 +22,6 @@ const blankTypes: {
   { type: 'docx', title: '문서 (DOCX)', subtitle: '새문서.docx' },
   { type: 'xlsx', title: '스프레드시트 (XLSX)', subtitle: '새문서.xlsx' },
   { type: 'pptx', title: '프레젠테이션 (PPTX)', subtitle: '새문서.pptx' },
-  { type: 'pdf', title: 'PDF', subtitle: '새문서.pdf' },
   { type: 'hwpx', title: '한글 문서 (HWPX)', subtitle: '새문서.hwpx' },
 ];
 
@@ -132,7 +131,7 @@ function onOpenTool(route: string) {
       <section class="section">
         <h2 class="section__title">파일 열기</h2>
         <p class="section__lead">
-          서버에 영구 저장하지 않습니다. 편집 후 저장(다운로드)하세요.
+          파일은 브라우저 안에서만 열리고 어디에도 업로드되지 않습니다. 편집 후 저장(다운로드)하세요.
         </p>
 
         <label
@@ -164,7 +163,7 @@ function onOpenTool(route: string) {
 
       <section class="section">
         <h2 class="section__title">새 문서</h2>
-        <p class="section__lead">빈 문서를 만들어 바로 편집합니다.</p>
+        <p class="section__lead">빈 문서를 만들어 바로 편집합니다. 오피스 문서는 편집기 새 탭에서 열립니다.</p>
 
         <div class="grid">
           <button

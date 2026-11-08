@@ -12,8 +12,9 @@ const route = useRoute();
 
 /** Keep editor instances alive when visiting /licenses etc. */
 const viewKey = computed(() => {
-  if (route.name === 'onlyoffice-editor') {
-    return `onlyoffice-${route.params.docId}`;
+  // `d` changes on every staged office file so the view remounts with the new document.
+  if (route.name === 'office-editor') {
+    return `office-${String(route.query.d ?? '')}`;
   }
   // Token changes on every staged HWP open so the view remounts with the new file.
   if (route.name === 'rhwp-editor') {
@@ -42,7 +43,7 @@ const viewKey = computed(() => {
   <RouterView v-slot="{ Component }">
     <KeepAlive
       :include="[
-        'OnlyOfficeEditorView',
+        'OfficeEditorView',
         'ExcalidrawEditorView',
         'MermaidEditorView',
         'DrawioEditorView',

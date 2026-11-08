@@ -1,5 +1,12 @@
 /** 본 프로젝트 소스 저장소. 공개 후 URL 채우기. 비우면 푸터에서 링크 숨김 */
-export const APP_GIT_URL = "https://git.sejong.dev/ysj7705/sejong-office";
+export const APP_GIT_URL = "https://github.com/sejongY00/sejong-office";
+
+/**
+ * Browser-only office editor (ranuts/document, OnlyOffice + x2t WASM) embedded by iframe.
+ * Self-hosted fork on GitHub Pages; override with VITE_OFFICE_EDITOR_URL (trailing slash).
+ */
+export const OFFICE_EDITOR_URL: string =
+  import.meta.env.VITE_OFFICE_EDITOR_URL || "https://sejongy00.github.io/office-editor/";
 
 export const APP_NAME = "sejong-office";
 
@@ -80,7 +87,7 @@ const VIEWER_EXTENSION_KIND: Record<string, ViewerKind> = {
 /** HWP/HWPX — client-side rhwp */
 export const HWP_EXTENSIONS = new Set(["hwp", "hwpx"]);
 
-/** Office/PDF — OnlyOffice */
+/** Office/PDF — ranuts/document (in-browser ONLYOFFICE) */
 export const OFFICE_EXTENSIONS = new Set([
   "docx",
   "xlsx",
