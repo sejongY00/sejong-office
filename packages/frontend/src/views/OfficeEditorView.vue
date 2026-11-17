@@ -23,6 +23,9 @@ const doc = consumeOfficeDocument();
 const error = ref<unknown>(doc ? null : new AppError('no_document'));
 const filename = ref(doc?.name ?? '문서');
 const saving = ref(false);
+// The editor frame stays blank for 10-25 s while it downloads the OnlyOffice stack; cover it until
+// the document is actually on screen.
+const opened = ref(false);
 const frame = ref<HTMLIFrameElement | null>(null);
 const fileInput = ref<HTMLInputElement | null>(null);
 
@@ -72,6 +75,9 @@ function onMessage(event: MessageEvent) {
     case 'document:ready':
     case 'document:state':
       openStagedDocument();
+      break;
+    case 'document:opened':
+      opened.value = true;
       break;
     case 'document:saved':
       if (id === pendingSaveId) {
@@ -186,6 +192,10 @@ function onClose() {
           allow="clipboard-read; clipboard-write; fullscreen"
           @load="onFrameLoad"
         />
+        <div v-if="!opened" class="editor-loading" role="status" aria-live="polite">
+          <span>편집기를 불러오는 중…</span>
+          <progress />
+        </div>
       </div>
     </div>
   </AppShell>
@@ -226,5 +236,23 @@ function onClose() {
   width: 100%;
   height: 100%;
   border: none;
+}
+
+.editor-loading {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  background: var(--canvas);
+  color: var(--ink);
+  font-size: 0.85rem;
+}
+
+.editor-loading progress {
+  width: min(16rem, calc(100% - 2rem));
+  accent-color: var(--accent);
 }
 </style>
