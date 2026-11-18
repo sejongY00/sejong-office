@@ -5,6 +5,7 @@ import AppShell from '@/components/AppShell.vue';
 import EditorErrorState from '@/components/EditorErrorState.vue';
 import EditorToolbar from '@/components/EditorToolbar.vue';
 import FileChangedBanner from '@/components/FileChangedBanner.vue';
+import SaveHint from '@/components/SaveHint.vue';
 import { useFileChangeWatch } from '@/composables/useFileChangeWatch';
 import { useUnsavedGuard } from '@/composables/useUnsavedGuard';
 import { OFFICE_EDITOR_URL } from '@/config/app';
@@ -44,6 +45,7 @@ const saving = ref(false);
 // The editor frame stays blank for 10-25 s while it downloads the OnlyOffice stack; cover it until
 // the document is actually on screen.
 const opened = ref(false);
+const saveHint = ref(false);
 const frame = ref<HTMLIFrameElement | null>(null);
 const fileInput = ref<HTMLInputElement | null>(null);
 
@@ -88,6 +90,7 @@ function onMessage(event: MessageEvent) {
       break;
     case 'document:opened':
       opened.value = true;
+      saveHint.value = true;
       break;
     case 'document:dirty-changed':
       dirty = payload?.dirty === true;
@@ -213,6 +216,7 @@ function onClose() {
         @close="onClose"
       />
       <FileChangedBanner v-if="diskChanged" @reload="reloadFromDisk" @keep="keepMine" />
+      <SaveHint :open="saveHint" @close="saveHint = false" />
       <input
         ref="fileInput"
         class="sr-only"

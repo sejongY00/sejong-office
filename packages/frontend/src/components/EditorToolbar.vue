@@ -41,6 +41,7 @@ defineEmits<{
         v-if="showSave"
         type="button"
         class="toolbar__btn"
+        data-save-button
         :disabled="busy"
         @click="$emit('save')"
       >

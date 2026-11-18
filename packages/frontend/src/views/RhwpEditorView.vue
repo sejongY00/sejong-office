@@ -6,6 +6,7 @@ import AppShell from '@/components/AppShell.vue';
 import EditorErrorState from '@/components/EditorErrorState.vue';
 import EditorToolbar from '@/components/EditorToolbar.vue';
 import FileChangedBanner from '@/components/FileChangedBanner.vue';
+import SaveHint from '@/components/SaveHint.vue';
 import { useFileChangeWatch } from '@/composables/useFileChangeWatch';
 import { useUnsavedGuard } from '@/composables/useUnsavedGuard';
 import { AppError } from '@/utils/appError';
@@ -27,6 +28,7 @@ const router = useRouter();
 const error = ref<unknown>(null);
 const filename = ref('문서.hwp');
 const saving = ref(false);
+const saveHint = ref(false);
 const fileInput = ref<HTMLInputElement | null>(null);
 let editor: RhwpEditor | null = null;
 let loadedToken = '';
@@ -92,6 +94,7 @@ async function bootstrapFromStore() {
     if (seq !== loadSeq) return;
 
     loadedToken = token;
+    saveHint.value = true;
   } catch (err) {
     if (seq !== loadSeq) return;
     error.value = err;
@@ -205,6 +208,7 @@ async function onClose() {
         @close="onClose"
       />
       <FileChangedBanner v-if="diskChanged" @reload="reloadFromDisk" @keep="keepMine" />
+      <SaveHint :open="saveHint" @close="saveHint = false" />
       <input
         ref="fileInput"
         class="sr-only"
