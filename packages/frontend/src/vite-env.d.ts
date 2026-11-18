@@ -14,6 +14,7 @@ declare module '@rhwp/editor' {
     getPageSvg: (page?: number) => Promise<string>;
     exportHwp: () => Promise<Uint8Array>;
     exportHwpx: () => Promise<Uint8Array>;
+    notifySaved: (fileName?: string) => Promise<{ ok: true; wasDirty: boolean }>;
     destroy: () => void;
   };
 

@@ -1,4 +1,5 @@
 import { ref } from 'vue';
+import { filesFromDrop } from '@/utils/fileAccess';
 
 /** Nested dragenter/leave safe file drop handlers for a page root. */
 export function useFileDropZone(onFiles: (files: File[]) => void) {
@@ -27,8 +28,9 @@ export function useFileDropZone(onFiles: (files: File[]) => void) {
     event.preventDefault();
     depth = 0;
     dropActive.value = false;
-    const files = Array.from(event.dataTransfer?.files ?? []);
-    if (files.length) onFiles(files);
+    void filesFromDrop(event).then((files) => {
+      if (files.length) onFiles(files);
+    });
   }
 
   return {

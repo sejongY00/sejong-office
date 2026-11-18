@@ -1,10 +1,15 @@
 // HWP/HWPX hand-off to RhwpEditorView. There is no server session any more: everything stays in
 // this tab (sessionStorage), and leaving the page clears the staged file.
 
+import { handleOf } from '@/utils/fileAccess';
+
 const HWP_FILE_KEY = 'sejong_hwp_file';
 const HWP_OPEN_TOKEN_KEY = 'sejong_hwp_open_token';
 
 let pageHideBound = false;
+// Disk handle of the staged file. Memory only: a handle can't go into sessionStorage, so after a
+// reload Save asks for a location again.
+let hwpHandle: FileSystemFileHandle | null = null;
 
 /** Register once for the whole SPA (survives keep-alive editor switches). */
 export function bindSessionPageHideOnce() {
@@ -16,7 +21,12 @@ export function bindSessionPageHideOnce() {
 export function storeHwpFile(file: File): Promise<void> {
   return file.arrayBuffer().then((buffer) => {
     storeHwpBuffer(file.name, buffer);
+    hwpHandle = handleOf(file);
   });
+}
+
+export function hwpFileHandle(): FileSystemFileHandle | null {
+  return hwpHandle;
 }
 
 /** Bumps whenever a HWP/HWPX is staged for the editor (forces a fresh view). */
@@ -43,6 +53,7 @@ export function storeHwpBuffer(name: string, buffer: ArrayBuffer): void {
       base64: btoa(binary),
     }),
   );
+  hwpHandle = null;
   bumpHwpOpenToken();
 }
 
@@ -66,6 +77,7 @@ export function loadHwpFile(): { name: string; buffer: ArrayBuffer } | null {
 }
 
 export function clearHwpFile(): void {
+  hwpHandle = null;
   sessionStorage.removeItem(HWP_FILE_KEY);
   sessionStorage.removeItem(HWP_OPEN_TOKEN_KEY);
 }

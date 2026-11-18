@@ -14,12 +14,8 @@ import EditorToolbar from '@/components/EditorToolbar.vue';
 import { consumeDiagramFile } from '@/composables/diagramSession';
 import { usePageTitle } from '@/composables/usePageTitle';
 import { useSystemTheme } from '@/composables/useSystemTheme';
-import {
-  downloadBlob,
-  downloadText,
-  readTextFile,
-  svgToPngBlob,
-} from '@/utils/downloadBlob';
+import { readTextFile, svgToPngBlob } from '@/utils/downloadBlob';
+import { handleOf, pickFiles, saveFile } from '@/utils/fileAccess';
 
 defineOptions({ name: 'MermaidEditorView' });
 
@@ -39,6 +35,8 @@ const busy = ref(false);
 const theme = useSystemTheme();
 let renderTimer: number | null = null;
 let renderVersion = 0;
+// The opened .mmd on disk; Save overwrites it.
+let fileHandle: FileSystemFileHandle | null = null;
 
 usePageTitle(filename);
 
@@ -89,6 +87,8 @@ onMounted(() => {
   void run(async () => {
     code.value = await readTextFile(pending);
     filename.value = pending.name.replace(/\.mermaid$/i, '.mmd');
+    // A .mermaid file is saved as .mmd, so it gets a new file rather than the old one.
+    fileHandle = filename.value === pending.name ? handleOf(pending) : null;
     await renderDiagram();
   });
 });
@@ -117,27 +117,39 @@ async function run(task: () => Promise<void>) {
 }
 
 function onOpen() {
-  fileInput.value?.click();
+  void pickFiles(fileInput.value, (files) => openFile(files[0]));
 }
 
 function onFileSelected(event: Event) {
   const input = event.target as HTMLInputElement;
   const file = input.files?.[0];
   input.value = '';
-  if (!file) return;
-  if (!/\.(?:mmd|mermaid)$/i.test(file.name)) {
+  if (file) openFile(file);
+}
+
+function openFile(file: File) {  if (!/\.(?:mmd|mermaid)$/i.test(file.name)) {
     actionError.value = '.mmd 또는 .mermaid 파일을 선택해 주세요.';
     return;
   }
   void run(async () => {
     code.value = await readTextFile(file);
     filename.value = file.name.replace(/\.mermaid$/i, '.mmd');
+    fileHandle = filename.value === file.name ? handleOf(file) : null;
     await renderDiagram();
   });
 }
 
 function onSave() {
-  downloadText(code.value, filename.value, 'text/plain;charset=utf-8');
+  void run(async () => {
+    const written = await saveFile(
+      { suggestedName: filename.value, handle: fileHandle },
+      () => new Blob([code.value], { type: 'text/plain;charset=utf-8' }),
+    );
+    if (written) {
+      fileHandle = written;
+      filename.value = written.name;
+    }
+  });
 }
 
 function ensureSvg(): string {
@@ -149,20 +161,18 @@ function ensureSvg(): string {
 
 function onExportSvg() {
   void run(async () => {
-    downloadText(
-      ensureSvg(),
-      `${baseName()}.svg`,
-      'image/svg+xml;charset=utf-8',
+    const svg = ensureSvg();
+    await saveFile(
+      { suggestedName: `${baseName()}.svg` },
+      () => new Blob([svg], { type: 'image/svg+xml;charset=utf-8' }),
     );
   });
 }
 
 function onExportPng() {
   void run(async () => {
-    downloadBlob(
-      await svgToPngBlob(ensureSvg()),
-      `${baseName()}.png`,
-    );
+    const svg = ensureSvg();
+    await saveFile({ suggestedName: `${baseName()}.png` }, () => svgToPngBlob(svg));
   });
 }
 
@@ -176,6 +186,7 @@ function onClose() {
     <div class="editor-page">
       <EditorToolbar
         :filename="filename"
+        save-label="저장"
         :show-export-actions="true"
         :busy="busy"
         @open="onOpen"

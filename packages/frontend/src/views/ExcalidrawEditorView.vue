@@ -17,7 +17,7 @@ import {
   mountExcalidraw,
   type ExcalidrawController,
 } from '@/integrations/excalidraw/ExcalidrawHost';
-import { downloadBlob, downloadText } from '@/utils/downloadBlob';
+import { handleOf, pickFiles, saveFile } from '@/utils/fileAccess';
 
 defineOptions({ name: 'ExcalidrawEditorView' });
 
@@ -29,6 +29,8 @@ const busy = ref(false);
 const error = ref('');
 const theme = useSystemTheme();
 let controller: ExcalidrawController | null = null;
+// The opened .excalidraw on disk; Save overwrites it.
+let fileHandle: FileSystemFileHandle | null = null;
 
 usePageTitle(filename);
 
@@ -59,6 +61,7 @@ onMounted(() => {
       if (!controller) throw new Error('편집기가 아직 준비되지 않았습니다.');
       await controller.load(pending);
       filename.value = pending.name;
+      fileHandle = handleOf(pending);
     });
   }
 });
@@ -77,15 +80,17 @@ watch(theme, (value) => {
 });
 
 function onOpen() {
-  fileInput.value?.click();
+  void pickFiles(fileInput.value, (files) => openFile(files[0]));
 }
 
 function onFileSelected(event: Event) {
   const input = event.target as HTMLInputElement;
   const file = input.files?.[0];
   input.value = '';
-  if (!file) return;
-  if (!file.name.toLowerCase().endsWith('.excalidraw')) {
+  if (file) openFile(file);
+}
+
+function openFile(file: File) {  if (!file.name.toLowerCase().endsWith('.excalidraw')) {
     error.value = '.excalidraw 파일을 선택해 주세요.';
     return;
   }
@@ -93,35 +98,48 @@ function onFileSelected(event: Event) {
     if (!controller) throw new Error('편집기가 아직 준비되지 않았습니다.');
     await controller.load(file);
     filename.value = file.name;
+    fileHandle = handleOf(file);
   });
+}
+
+function requireController(): ExcalidrawController {
+  if (!controller) throw new Error('편집기가 아직 준비되지 않았습니다.');
+  return controller;
 }
 
 function onSave() {
   void run(async () => {
-    if (!controller) throw new Error('편집기가 아직 준비되지 않았습니다.');
-    downloadText(
-      await controller.serialize(),
-      filename.value,
-      'application/vnd.excalidraw+json',
+    const written = await saveFile(
+      { suggestedName: filename.value, handle: fileHandle },
+      async () =>
+        new Blob([await requireController().serialize()], {
+          type: 'application/vnd.excalidraw+json',
+        }),
     );
+    if (written) {
+      fileHandle = written;
+      filename.value = written.name;
+    }
   });
 }
 
 function onExportSvg() {
   void run(async () => {
-    if (!controller) throw new Error('편집기가 아직 준비되지 않았습니다.');
-    downloadText(
-      await controller.exportSvg(),
-      `${baseName()}.svg`,
-      'image/svg+xml;charset=utf-8',
+    await saveFile(
+      { suggestedName: `${baseName()}.svg` },
+      async () =>
+        new Blob([await requireController().exportSvg()], {
+          type: 'image/svg+xml;charset=utf-8',
+        }),
     );
   });
 }
 
 function onExportPng() {
   void run(async () => {
-    if (!controller) throw new Error('편집기가 아직 준비되지 않았습니다.');
-    downloadBlob(await controller.exportPng(), `${baseName()}.png`);
+    await saveFile({ suggestedName: `${baseName()}.png` }, () =>
+      requireController().exportPng(),
+    );
   });
 }
 
@@ -135,6 +153,7 @@ function onClose() {
     <div class="editor-page">
       <EditorToolbar
         :filename="filename"
+        save-label="저장"
         :show-export-actions="true"
         :busy="busy"
         @open="onOpen"

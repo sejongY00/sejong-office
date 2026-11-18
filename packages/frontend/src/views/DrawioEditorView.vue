@@ -10,12 +10,8 @@ import {
   type DrawioExportResult,
 } from '@/composables/useDrawioEmbed';
 import { usePageTitle } from '@/composables/usePageTitle';
-import {
-  dataUriToBlob,
-  downloadBlob,
-  downloadText,
-  readTextFile,
-} from '@/utils/downloadBlob';
+import { dataUriToBlob, readTextFile } from '@/utils/downloadBlob';
+import { handleOf, pickFiles, saveFile } from '@/utils/fileAccess';
 
 defineOptions({ name: 'DrawioEditorView' });
 
@@ -25,6 +21,8 @@ const fileInput = ref<HTMLInputElement | null>(null);
 const filename = ref('새다이어그램.drawio');
 const busy = ref(false);
 const actionError = ref('');
+// The opened .drawio on disk; Save overwrites it.
+let fileHandle: FileSystemFileHandle | null = null;
 
 usePageTitle(filename);
 
@@ -41,6 +39,7 @@ onMounted(() => {
   void run(async () => {
     loadXml(await readTextFile(pending), pending.name);
     filename.value = pending.name;
+    fileHandle = handleOf(pending);
   });
 });
 
@@ -73,21 +72,30 @@ async function xmlFromResult(result: DrawioExportResult): Promise<string> {
   throw new Error('draw.io XML 데이터를 받지 못했습니다.');
 }
 
+/** Writes the opened diagram (keeping the handle for the next save). */
+async function saveDiagram(produce: () => Promise<string>) {
+  const written = await saveFile(
+    { suggestedName: filename.value, handle: fileHandle },
+    async () => new Blob([await produce()], { type: 'application/xml;charset=utf-8' }),
+  );
+  if (written) {
+    fileHandle = written;
+    filename.value = written.name;
+  }
+}
+
+// Save/export started from draw.io's own menu inside the frame.
 async function downloadUiExport(result: DrawioExportResult) {
   try {
     if (result.format === 'xml') {
-      downloadText(
-        await xmlFromResult(result),
-        result.filename || filename.value,
-        'application/xml;charset=utf-8',
-      );
+      await saveDiagram(() => xmlFromResult(result));
       return;
     }
     if (result.data) {
       const extension = result.format === 'svg' ? 'svg' : result.format;
-      downloadBlob(
-        dataUriToBlob(result.data),
-        result.filename || `${baseName()}.${extension}`,
+      await saveFile(
+        { suggestedName: result.filename || `${baseName()}.${extension}` },
+        () => requireData(result),
       );
     }
   } catch (error) {
@@ -97,49 +105,43 @@ async function downloadUiExport(result: DrawioExportResult) {
 }
 
 function onOpen() {
-  fileInput.value?.click();
+  void pickFiles(fileInput.value, (files) => openFile(files[0]));
 }
 
 function onFileSelected(event: Event) {
   const input = event.target as HTMLInputElement;
   const file = input.files?.[0];
   input.value = '';
-  if (!file) return;
-  if (!/\.(?:drawio|xml)$/i.test(file.name)) {
+  if (file) openFile(file);
+}
+
+function openFile(file: File) {  if (!/\.(?:drawio|xml)$/i.test(file.name)) {
     actionError.value = '.drawio 또는 .xml 파일을 선택해 주세요.';
     return;
   }
   void run(async () => {
     loadXml(await readTextFile(file), file.name);
     filename.value = file.name;
+    fileHandle = handleOf(file);
   });
 }
 
 function onSave() {
-  void run(async () => {
-    const result = await exportDiagram('xml');
-    downloadText(
-      await xmlFromResult(result),
-      filename.value,
-      'application/xml;charset=utf-8',
-    );
-  });
+  void run(() => saveDiagram(async () => xmlFromResult(await exportDiagram('xml'))));
 }
 
 function onExportSvg() {
   void run(async () => {
-    downloadBlob(
+    await saveFile({ suggestedName: `${baseName()}.svg` }, async () =>
       requireData(await exportDiagram('svg')),
-      `${baseName()}.svg`,
     );
   });
 }
 
 function onExportPng() {
   void run(async () => {
-    downloadBlob(
+    await saveFile({ suggestedName: `${baseName()}.png` }, async () =>
       requireData(await exportDiagram('png')),
-      `${baseName()}.png`,
     );
   });
 }
@@ -154,6 +156,7 @@ function onClose() {
     <div class="editor-page">
       <EditorToolbar
         :filename="filename"
+        save-label="저장"
         :show-export-actions="true"
         :show-filename="false"
         :busy="busy || !ready"

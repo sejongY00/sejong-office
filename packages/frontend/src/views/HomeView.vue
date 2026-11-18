@@ -7,8 +7,10 @@ import { APP_DISPLAY_NAME } from '@/config/app';
 import { useOpenDocument } from '@/composables/useOpenDocument';
 import { usePageTitle } from '@/composables/usePageTitle';
 import type { BlankDocumentType } from '@/utils/appError';
+import { filesFromDrop, pickFiles } from '@/utils/fileAccess';
 
 const dragging = ref(false);
+const fileInput = ref<HTMLInputElement | null>(null);
 const router = useRouter();
 const { busy, error, openDocument, createAndOpenBlank } = useOpenDocument();
 
@@ -102,7 +104,14 @@ const toolTypes = [
 
 function onDrop(e: DragEvent) {
   dragging.value = false;
-  void openDocument(e.dataTransfer?.files);
+  void filesFromDrop(e).then(openDocument);
+}
+
+// The drop zone is a <label>; take over its click so the native picker (with save-in-place) opens.
+function onPick(e: MouseEvent) {
+  if (busy.value || !('showOpenFilePicker' in window)) return;
+  e.preventDefault();
+  void pickFiles(fileInput.value, openDocument);
 }
 
 function onInput(e: Event) {
@@ -131,7 +140,7 @@ function onOpenTool(route: string) {
       <section class="section">
         <h2 class="section__title">파일 열기</h2>
         <p class="section__lead">
-          파일은 브라우저 안에서만 열리고 어디에도 업로드되지 않습니다. 편집 후 저장(다운로드)하세요.
+          파일은 브라우저 안에서만 열리고 어디에도 업로드되지 않습니다. 편집 후 저장하면 연 파일에 그대로 덮어씁니다(크롬·엣지 PC). 그 외 브라우저에서는 다운로드됩니다.
         </p>
 
         <label
@@ -141,8 +150,10 @@ function onOpenTool(route: string) {
           @dragover.prevent="dragging = true"
           @dragleave.prevent="dragging = false"
           @drop.prevent="onDrop"
+          @click="onPick"
         >
           <input
+            ref="fileInput"
             class="drop__input"
             type="file"
             accept=".docx,.xlsx,.pptx,.pdf,.hwp,.hwpx,.odt,.ods,.odp,.doc,.xls,.ppt,.rtf,.txt,.csv,.excalidraw,.mmd,.mermaid,.drawio,.xml,.dxf,.dwg,.ai,.psd,.md,.markdown,.3dm,.3ds,.3mf,.amf,.bim,.brp,.brep,.dae,.fbx,.fcstd,.gltf,.glb,.ifc,.igs,.iges,.stp,.step,.stl,.obj,.off,.ply,.wrl,.zip,.bin,.mtl,.png,.jpg,.jpeg,.webp,.ico"

@@ -10,7 +10,8 @@ import {
   isMarkdownFile,
   renderMarkdown,
 } from '@/integrations/markdown/render';
-import { downloadText, readTextFile } from '@/utils/downloadBlob';
+import { readTextFile } from '@/utils/downloadBlob';
+import { handleOf, pickFiles, saveFile } from '@/utils/fileAccess';
 
 defineOptions({ name: 'MarkdownViewerView' });
 
@@ -32,6 +33,8 @@ const filename = ref('미리보기.md');
 const source = ref(DEFAULT_SOURCE);
 const error = ref('');
 const busy = ref(false);
+// The opened .md on disk; Save overwrites it.
+let fileHandle: FileSystemFileHandle | null = null;
 
 usePageTitle(filename, { faviconKind: 'markdown' });
 
@@ -42,11 +45,28 @@ function onClose() {
 }
 
 function onOpen() {
-  fileInput.value?.click();
+  void pickFiles(fileInput.value, (files) => void loadFile(files[0]));
 }
 
-function onSave() {
-  downloadText(source.value, filename.value, 'text/markdown;charset=utf-8');
+async function onSave() {
+  if (busy.value) return;
+  busy.value = true;
+  error.value = '';
+  try {
+    const written = await saveFile(
+      { suggestedName: filename.value, handle: fileHandle },
+      () => new Blob([source.value], { type: 'text/markdown;charset=utf-8' }),
+    );
+    if (written) {
+      fileHandle = written;
+      filename.value = written.name;
+    }
+  } catch (reason) {
+    error.value =
+      reason instanceof Error ? reason.message : '파일을 저장하지 못했습니다.';
+  } finally {
+    busy.value = false;
+  }
 }
 
 async function loadFile(file: File) {
@@ -59,6 +79,8 @@ async function loadFile(file: File) {
   try {
     source.value = await readTextFile(file);
     filename.value = file.name.replace(/\.markdown$/i, '.md');
+    // A .markdown file is saved as .md, so it gets a new file rather than the old one.
+    fileHandle = filename.value === file.name ? handleOf(file) : null;
   } catch (reason) {
     error.value =
       reason instanceof Error ? reason.message : '파일을 열지 못했습니다.';
@@ -111,7 +133,7 @@ watch(source, () => {
       <EditorToolbar
         :filename="filename"
         :busy="busy"
-        save-label="다운로드"
+        save-label="저장"
         @open="onOpen"
         @save="onSave"
         @close="onClose"

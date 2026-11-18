@@ -14,3 +14,10 @@ router.beforeEach(async (to) => {
 });
 
 app.use(router).mount('#app');
+
+// Production only: a service worker in dev would cache Vite's unhashed modules and serve stale code.
+if (import.meta.env.PROD && 'serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch(() => {});
+  });
+}

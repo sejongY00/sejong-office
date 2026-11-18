@@ -9,6 +9,7 @@ import { consumeOfficeDocument } from '@/composables/officeSession';
 import { useOpenDocument } from '@/composables/useOpenDocument';
 import { usePageTitle } from '@/composables/usePageTitle';
 import { AppError } from '@/utils/appError';
+import { pickFiles, saveFile } from '@/utils/fileAccess';
 
 defineOptions({ name: 'OfficeEditorView' });
 
@@ -22,6 +23,8 @@ const doc = consumeOfficeDocument();
 // Reload or direct link: the file only lived in memory, so there is nothing to open.
 const error = ref<unknown>(doc ? null : new AppError('no_document'));
 const filename = ref(doc?.name ?? '문서');
+// The opened file on disk; Save overwrites it. Null (new document, other browsers) = ask or download.
+let fileHandle = doc?.handle ?? null;
 const saving = ref(false);
 // The editor frame stays blank for 10-25 s while it downloads the OnlyOffice stack; cover it until
 // the document is actually on screen.
@@ -45,21 +48,13 @@ const frameSrc = (() => {
 let seq = 0;
 let openId = '';
 let pendingSaveId = '';
+let pendingSave: { resolve: (file: Blob) => void; reject: (err: Error) => void } | null = null;
 let probeTimer: ReturnType<typeof setInterval> | undefined;
 
 function send(type: string, payload: Record<string, unknown> = {}): string {
   const id = `${Date.now()}-${(seq += 1)}`;
   frame.value?.contentWindow?.postMessage({ id, type, payload }, editorOrigin);
   return id;
-}
-
-function download(file: Blob, name: string) {
-  const url = URL.createObjectURL(file);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = name;
-  a.click();
-  setTimeout(() => URL.revokeObjectURL(url), 10_000);
 }
 
 function onMessage(event: MessageEvent) {
@@ -81,19 +76,20 @@ function onMessage(event: MessageEvent) {
       break;
     case 'document:saved':
       if (id === pendingSaveId) {
-        saving.value = false;
         pendingSaveId = '';
         const file = payload?.file as File | undefined;
-        if (file) download(file, String(payload?.fileName ?? file.name ?? filename.value));
+        if (file) pendingSave?.resolve(file);
+        else pendingSave?.reject(new Error('편집기가 파일을 돌려주지 않았습니다.'));
+        pendingSave = null;
       }
       break;
     case 'document:error': {
       const message = String(payload?.message ?? '편집기 오류');
       if (id && id === pendingSaveId) {
         // Keep the editor (and the user's edits) on screen; only the export failed.
-        saving.value = false;
         pendingSaveId = '';
-        window.alert(`저장하지 못했습니다: ${message}`);
+        pendingSave?.reject(new Error(message));
+        pendingSave = null;
       } else if (id && id === openId) {
         error.value = new AppError('editor_error', message);
       }
@@ -141,14 +137,32 @@ onUnmounted(() => {
   window.removeEventListener('message', onMessage);
 });
 
-function onSave() {
+/** Ask the editor for the current bytes (in the opened file's own format). */
+function exportFromEditor(): Promise<Blob> {
+  return new Promise((resolve, reject) => {
+    pendingSave = { resolve, reject };
+    pendingSaveId = send('document:save');
+  });
+}
+
+async function onSave() {
   if (saving.value) return;
   saving.value = true;
-  pendingSaveId = send('document:save');
+  try {
+    const written = await saveFile({ suggestedName: filename.value, handle: fileHandle }, exportFromEditor);
+    if (written) {
+      fileHandle = written;
+      filename.value = written.name;
+    }
+  } catch (err) {
+    window.alert(`저장하지 못했습니다: ${err instanceof Error ? err.message : String(err)}`);
+  } finally {
+    saving.value = false;
+  }
 }
 
 function onOpen() {
-  fileInput.value?.click();
+  void pickFiles(fileInput.value, (files) => void openDocument(files[0]));
 }
 
 function onFileSelected(e: Event) {
@@ -169,6 +183,7 @@ function onClose() {
         v-if="!error"
         :filename="filename"
         :show-filename="false"
+        save-label="저장"
         :busy="saving"
         @open="onOpen"
         @save="onSave"
