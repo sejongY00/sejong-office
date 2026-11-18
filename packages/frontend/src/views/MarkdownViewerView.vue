@@ -3,6 +3,8 @@ import { computed, onActivated, onMounted, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import AppShell from '@/components/AppShell.vue';
 import EditorToolbar from '@/components/EditorToolbar.vue';
+import FileChangedBanner from '@/components/FileChangedBanner.vue';
+import { useFileChangeWatch } from '@/composables/useFileChangeWatch';
 import { useFileDropZone } from '@/composables/useFileDropZone';
 import { consumeViewerFiles } from '@/composables/viewerSession';
 import { usePageTitle } from '@/composables/usePageTitle';
@@ -35,6 +37,11 @@ const error = ref('');
 const busy = ref(false);
 // The opened .md on disk; Save overwrites it.
 let fileHandle: FileSystemFileHandle | null = null;
+
+const { changed: diskChanged, reloadFromDisk, keepMine } = useFileChangeWatch(
+  () => fileHandle,
+  loadFile,
+);
 
 usePageTitle(filename, { faviconKind: 'markdown' });
 
@@ -138,6 +145,7 @@ watch(source, () => {
         @save="onSave"
         @close="onClose"
       />
+      <FileChangedBanner v-if="diskChanged" @reload="reloadFromDisk" @keep="keepMine" />
       <input
         ref="fileInput"
         class="sr-only"

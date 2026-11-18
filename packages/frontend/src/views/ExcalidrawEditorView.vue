@@ -10,6 +10,8 @@ import {
 import { useRouter } from 'vue-router';
 import AppShell from '@/components/AppShell.vue';
 import EditorToolbar from '@/components/EditorToolbar.vue';
+import FileChangedBanner from '@/components/FileChangedBanner.vue';
+import { useFileChangeWatch } from '@/composables/useFileChangeWatch';
 import { consumeDiagramFile } from '@/composables/diagramSession';
 import { usePageTitle } from '@/composables/usePageTitle';
 import { useSystemTheme } from '@/composables/useSystemTheme';
@@ -31,6 +33,11 @@ const theme = useSystemTheme();
 let controller: ExcalidrawController | null = null;
 // The opened .excalidraw on disk; Save overwrites it.
 let fileHandle: FileSystemFileHandle | null = null;
+
+const { changed: diskChanged, reloadFromDisk, keepMine } = useFileChangeWatch(
+  () => fileHandle,
+  (file) => openFile(file),
+);
 
 usePageTitle(filename);
 
@@ -90,7 +97,8 @@ function onFileSelected(event: Event) {
   if (file) openFile(file);
 }
 
-function openFile(file: File) {  if (!file.name.toLowerCase().endsWith('.excalidraw')) {
+function openFile(file: File) {
+  if (!file.name.toLowerCase().endsWith('.excalidraw')) {
     error.value = '.excalidraw 파일을 선택해 주세요.';
     return;
   }
@@ -162,6 +170,7 @@ function onClose() {
         @export-png="onExportPng"
         @close="onClose"
       />
+      <FileChangedBanner v-if="diskChanged" @reload="reloadFromDisk" @keep="keepMine" />
       <input
         ref="fileInput"
         class="sr-only"

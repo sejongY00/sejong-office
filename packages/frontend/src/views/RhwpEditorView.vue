@@ -5,6 +5,8 @@ import { createEditor, type RhwpEditor } from '@rhwp/editor';
 import AppShell from '@/components/AppShell.vue';
 import EditorErrorState from '@/components/EditorErrorState.vue';
 import EditorToolbar from '@/components/EditorToolbar.vue';
+import FileChangedBanner from '@/components/FileChangedBanner.vue';
+import { useFileChangeWatch } from '@/composables/useFileChangeWatch';
 import { AppError } from '@/utils/appError';
 import { extensionOf, isHwp } from '@/config/app';
 import { pickFiles, saveFile } from '@/utils/fileAccess';
@@ -13,6 +15,7 @@ import {
   clearHwpFile,
   hwpFileHandle,
   hwpOpenToken,
+  setHwpFileHandle,
   loadHwpFile,
   storeHwpFile,
 } from '@/composables/useSessionLifecycle';
@@ -27,6 +30,11 @@ const fileInput = ref<HTMLInputElement | null>(null);
 let editor: RhwpEditor | null = null;
 let loadedToken = '';
 let loadSeq = 0;
+
+const { changed: diskChanged, reloadFromDisk, keepMine } = useFileChangeWatch(
+  hwpFileHandle,
+  openFile,
+);
 
 usePageTitle(filename);
 
@@ -137,6 +145,7 @@ async function onSave() {
       },
     );
     if (written) {
+      setHwpFileHandle(written);
       filename.value = written.name;
       // Clears the studio's unsaved-changes guard; older studios lack it, which is harmless.
       await current.notifySaved(written.name).catch(() => undefined);
@@ -166,6 +175,7 @@ function onClose() {
         @save="onSave"
         @close="onClose"
       />
+      <FileChangedBanner v-if="diskChanged" @reload="reloadFromDisk" @keep="keepMine" />
       <input
         ref="fileInput"
         class="sr-only"

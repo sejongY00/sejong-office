@@ -29,6 +29,10 @@ export function hwpFileHandle(): FileSystemFileHandle | null {
   return hwpHandle;
 }
 
+export function setHwpFileHandle(handle: FileSystemFileHandle): void {
+  hwpHandle = handle;
+}
+
 /** Bumps whenever a HWP/HWPX is staged for the editor (forces a fresh view). */
 export function hwpOpenToken(): string {
   if (typeof sessionStorage === 'undefined') return '0';

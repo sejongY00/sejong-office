@@ -25,6 +25,17 @@ type HandleItem = DataTransferItem & {
 
 const picker = window as PickerWindow;
 const handles = new WeakMap<File, FileSystemFileHandle>();
+// Disk version (lastModified) each handle's contents were last read at or written as. Another app
+// editing the file moves the disk version past this.
+const knownVersion = new WeakMap<FileSystemFileHandle, number>();
+// Handles we are writing right now, so our own save isn't reported as an outside change.
+const writing = new WeakSet<FileSystemFileHandle>();
+
+function remember(file: File, handle: FileSystemFileHandle): File {
+  handles.set(file, handle);
+  knownVersion.set(handle, file.lastModified);
+  return file;
+}
 
 /** The on-disk file this File was read from, if the browser gave us one. */
 export function handleOf(file: File | null | undefined): FileSystemFileHandle | null {
@@ -66,11 +77,7 @@ export async function pickFiles(
       types: pickerTypes(accept.filter((a) => a.startsWith('.'))),
     });
     const files = await Promise.all(
-      picked.map(async (handle) => {
-        const file = await handle.getFile();
-        handles.set(file, handle);
-        return file;
-      }),
+      picked.map(async (handle) => remember(await handle.getFile(), handle)),
     );
     if (files.length) onFiles(files);
   } catch (err) {
@@ -92,13 +99,36 @@ export function filesFromDrop(event: DragEvent): Promise<File[]> {
       const files: File[] = [];
       for (const handle of found) {
         if (handle?.kind !== 'file') continue;
-        const file = await (handle as FileSystemFileHandle).getFile();
-        handles.set(file, handle as FileSystemFileHandle);
-        files.push(file);
+        const fileHandle = handle as FileSystemFileHandle;
+        files.push(remember(await fileHandle.getFile(), fileHandle));
       }
       return files.length ? files : plain;
     })
     .catch(() => plain);
+}
+
+/** True when another app has changed the file since we last read or wrote it. */
+export async function changedOnDisk(handle: FileSystemFileHandle): Promise<boolean> {
+  if (writing.has(handle)) return false;
+  const known = knownVersion.get(handle);
+  if (known === undefined) return false;
+  try {
+    // getFile() only reads metadata here; the contents are not loaded.
+    return (await handle.getFile()).lastModified !== known;
+  } catch {
+    // Moved, deleted or permission lost: nothing to reload from.
+    return false;
+  }
+}
+
+/** Fresh contents from disk (for "reload"), keeping the handle so Save still overwrites it. */
+export async function readFromDisk(handle: FileSystemFileHandle): Promise<File> {
+  return remember(await handle.getFile(), handle);
+}
+
+/** "Keep my version": stop reporting the current disk version as a change. */
+export async function acceptDiskVersion(handle: FileSystemFileHandle): Promise<void> {
+  knownVersion.set(handle, (await handle.getFile()).lastModified);
 }
 
 async function canWrite(handle: FileSystemFileHandle): Promise<boolean> {
@@ -135,13 +165,30 @@ export async function saveFile(
     target = null;
   }
 
+  if (
+    target &&
+    target === options.handle &&
+    (await changedOnDisk(target)) &&
+    !window.confirm(
+      `${target.name} 파일이 다른 곳에서 수정됐습니다.\n덮어쓰면 그 수정 내용이 사라집니다. 덮어쓸까요?`,
+    )
+  ) {
+    return null;
+  }
+
   const blob = await produce();
   if (!target) {
     downloadBlob(blob, options.suggestedName);
     return null;
   }
-  const writable = await target.createWritable();
-  await writable.write(blob);
-  await writable.close();
+  writing.add(target);
+  try {
+    const writable = await target.createWritable();
+    await writable.write(blob);
+    await writable.close();
+    knownVersion.set(target, (await target.getFile()).lastModified);
+  } finally {
+    writing.delete(target);
+  }
   return target;
 }

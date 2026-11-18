@@ -3,6 +3,8 @@ import { onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import AppShell from '@/components/AppShell.vue';
 import EditorToolbar from '@/components/EditorToolbar.vue';
+import FileChangedBanner from '@/components/FileChangedBanner.vue';
+import { useFileChangeWatch } from '@/composables/useFileChangeWatch';
 import { consumeDiagramFile } from '@/composables/diagramSession';
 import {
   DRAWIO_EMBED_URL,
@@ -23,6 +25,11 @@ const busy = ref(false);
 const actionError = ref('');
 // The opened .drawio on disk; Save overwrites it.
 let fileHandle: FileSystemFileHandle | null = null;
+
+const { changed: diskChanged, reloadFromDisk, keepMine } = useFileChangeWatch(
+  () => fileHandle,
+  (file) => openFile(file),
+);
 
 usePageTitle(filename);
 
@@ -115,7 +122,8 @@ function onFileSelected(event: Event) {
   if (file) openFile(file);
 }
 
-function openFile(file: File) {  if (!/\.(?:drawio|xml)$/i.test(file.name)) {
+function openFile(file: File) {
+  if (!/\.(?:drawio|xml)$/i.test(file.name)) {
     actionError.value = '.drawio 또는 .xml 파일을 선택해 주세요.';
     return;
   }
@@ -166,6 +174,7 @@ function onClose() {
         @export-png="onExportPng"
         @close="onClose"
       />
+      <FileChangedBanner v-if="diskChanged" @reload="reloadFromDisk" @keep="keepMine" />
       <input
         ref="fileInput"
         class="sr-only"

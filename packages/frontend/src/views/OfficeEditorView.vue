@@ -4,6 +4,8 @@ import { useRouter } from 'vue-router';
 import AppShell from '@/components/AppShell.vue';
 import EditorErrorState from '@/components/EditorErrorState.vue';
 import EditorToolbar from '@/components/EditorToolbar.vue';
+import FileChangedBanner from '@/components/FileChangedBanner.vue';
+import { useFileChangeWatch } from '@/composables/useFileChangeWatch';
 import { OFFICE_EDITOR_URL } from '@/config/app';
 import { consumeOfficeDocument } from '@/composables/officeSession';
 import { useOpenDocument } from '@/composables/useOpenDocument';
@@ -25,6 +27,11 @@ const error = ref<unknown>(doc ? null : new AppError('no_document'));
 const filename = ref(doc?.name ?? '문서');
 // The opened file on disk; Save overwrites it. Null (new document, other browsers) = ask or download.
 let fileHandle = doc?.handle ?? null;
+
+const { changed: diskChanged, reloadFromDisk, keepMine } = useFileChangeWatch(
+  () => fileHandle,
+  (file) => void openDocument(file),
+);
 const saving = ref(false);
 // The editor frame stays blank for 10-25 s while it downloads the OnlyOffice stack; cover it until
 // the document is actually on screen.
@@ -189,6 +196,7 @@ function onClose() {
         @save="onSave"
         @close="onClose"
       />
+      <FileChangedBanner v-if="diskChanged" @reload="reloadFromDisk" @keep="keepMine" />
       <input
         ref="fileInput"
         class="sr-only"

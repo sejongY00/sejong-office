@@ -11,6 +11,8 @@ import { useRouter } from 'vue-router';
 import mermaid from 'mermaid';
 import AppShell from '@/components/AppShell.vue';
 import EditorToolbar from '@/components/EditorToolbar.vue';
+import FileChangedBanner from '@/components/FileChangedBanner.vue';
+import { useFileChangeWatch } from '@/composables/useFileChangeWatch';
 import { consumeDiagramFile } from '@/composables/diagramSession';
 import { usePageTitle } from '@/composables/usePageTitle';
 import { useSystemTheme } from '@/composables/useSystemTheme';
@@ -37,6 +39,11 @@ let renderTimer: number | null = null;
 let renderVersion = 0;
 // The opened .mmd on disk; Save overwrites it.
 let fileHandle: FileSystemFileHandle | null = null;
+
+const { changed: diskChanged, reloadFromDisk, keepMine } = useFileChangeWatch(
+  () => fileHandle,
+  (file) => openFile(file),
+);
 
 usePageTitle(filename);
 
@@ -127,7 +134,8 @@ function onFileSelected(event: Event) {
   if (file) openFile(file);
 }
 
-function openFile(file: File) {  if (!/\.(?:mmd|mermaid)$/i.test(file.name)) {
+function openFile(file: File) {
+  if (!/\.(?:mmd|mermaid)$/i.test(file.name)) {
     actionError.value = '.mmd 또는 .mermaid 파일을 선택해 주세요.';
     return;
   }
@@ -195,6 +203,7 @@ function onClose() {
         @export-png="onExportPng"
         @close="onClose"
       />
+      <FileChangedBanner v-if="diskChanged" @reload="reloadFromDisk" @keep="keepMine" />
       <input
         ref="fileInput"
         class="sr-only"
