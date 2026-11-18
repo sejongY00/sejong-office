@@ -33,7 +33,12 @@ let loadSeq = 0;
 
 const { changed: diskChanged, reloadFromDisk, keepMine } = useFileChangeWatch(
   hwpFileHandle,
-  openFile,
+  async (file) => {
+    // The banner already warned that unsaved edits are dropped; clear the editor's dirty flag so
+    // it doesn't ask again (its own "save" there would download instead of writing the file).
+    await editor?.notifySaved(file.name).catch(() => undefined);
+    await openFile(file);
+  },
 );
 
 usePageTitle(filename);

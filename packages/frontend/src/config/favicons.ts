@@ -196,6 +196,7 @@ export function iconKindForExtension(ext: string): FaviconKind {
 
 export function faviconHrefForKind(kind: FaviconKind): string {
   if (kind === 'hwp') return HWP_ICON_URL;
+  if (kind === 'home') return '/icons/icon.svg';
   let href = CACHE.get(kind);
   if (!href) {
     href = toDataUri(kind);
