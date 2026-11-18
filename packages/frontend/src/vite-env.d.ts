@@ -15,6 +15,7 @@ declare module '@rhwp/editor' {
     exportHwp: () => Promise<Uint8Array>;
     exportHwpx: () => Promise<Uint8Array>;
     notifySaved: (fileName?: string) => Promise<{ ok: true; wasDirty: boolean }>;
+    getDocumentState: () => Promise<{ dirty: boolean }>;
     destroy: () => void;
   };
 

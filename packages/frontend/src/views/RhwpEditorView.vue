@@ -7,6 +7,7 @@ import EditorErrorState from '@/components/EditorErrorState.vue';
 import EditorToolbar from '@/components/EditorToolbar.vue';
 import FileChangedBanner from '@/components/FileChangedBanner.vue';
 import { useFileChangeWatch } from '@/composables/useFileChangeWatch';
+import { useUnsavedGuard } from '@/composables/useUnsavedGuard';
 import { AppError } from '@/utils/appError';
 import { extensionOf, isHwp } from '@/config/app';
 import { pickFiles, saveFile } from '@/utils/fileAccess';
@@ -30,6 +31,14 @@ const fileInput = ref<HTMLInputElement | null>(null);
 let editor: RhwpEditor | null = null;
 let loadedToken = '';
 let loadSeq = 0;
+// Unsaved edits. The studio can only be asked, so the guard refreshes this periodically.
+let dirty = false;
+const { confirmDiscard, rearm } = useUnsavedGuard(
+  () => dirty,
+  async () => {
+    dirty = editor ? (await editor.getDocumentState()).dirty : false;
+  },
+);
 
 const { changed: diskChanged, reloadFromDisk, keepMine } = useFileChangeWatch(
   hwpFileHandle,
@@ -37,6 +46,7 @@ const { changed: diskChanged, reloadFromDisk, keepMine } = useFileChangeWatch(
     // The banner already warned that unsaved edits are dropped; clear the editor's dirty flag so
     // it doesn't ask again (its own "save" there would download instead of writing the file).
     await editor?.notifySaved(file.name).catch(() => undefined);
+    dirty = false;
     await openFile(file);
   },
 );
@@ -104,14 +114,25 @@ onUnmounted(() => {
 });
 
 function onOpen() {
-  void pickFiles(fileInput.value, (files) => void openFile(files[0]));
+  void pickFiles(fileInput.value, (files) => void openOther(files[0]));
 }
 
 function onFileSelected(e: Event) {
   const input = e.target as HTMLInputElement;
   const file = input.files?.[0];
   input.value = '';
-  if (file) void openFile(file);
+  if (file) void openOther(file);
+}
+
+/** Open another file in place of this one, asking first if there are unsaved edits. */
+async function openOther(file: File) {
+  if (!(await confirmDiscard())) return;
+  // Already confirmed; stop the studio from asking again (its "save" would download).
+  await editor?.notifySaved().catch(() => undefined);
+  dirty = false;
+  await openFile(file);
+  // Same page, new document: guard its edits too.
+  rearm();
 }
 
 async function openFile(file: File) {
@@ -154,6 +175,7 @@ async function onSave() {
       filename.value = written.name;
       // Clears the studio's unsaved-changes guard; older studios lack it, which is harmless.
       await current.notifySaved(written.name).catch(() => undefined);
+      dirty = false;
     }
   } catch (err) {
     window.alert(`저장하지 못했습니다: ${err instanceof Error ? err.message : String(err)}`);
@@ -162,7 +184,9 @@ async function onSave() {
   }
 }
 
-function onClose() {
+async function onClose() {
+  // Ask before clearing the stored file, so "keep editing" really keeps it.
+  if (!(await confirmDiscard())) return;
   clearHwpFile();
   void router.push({ name: 'home' });
 }

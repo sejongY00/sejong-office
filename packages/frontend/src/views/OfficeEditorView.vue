@@ -6,6 +6,7 @@ import EditorErrorState from '@/components/EditorErrorState.vue';
 import EditorToolbar from '@/components/EditorToolbar.vue';
 import FileChangedBanner from '@/components/FileChangedBanner.vue';
 import { useFileChangeWatch } from '@/composables/useFileChangeWatch';
+import { useUnsavedGuard } from '@/composables/useUnsavedGuard';
 import { OFFICE_EDITOR_URL } from '@/config/app';
 import { consumeOfficeDocument } from '@/composables/officeSession';
 import { useOpenDocument } from '@/composables/useOpenDocument';
@@ -28,6 +29,13 @@ const filename = ref(doc?.name ?? '문서');
 // The opened file on disk; Save overwrites it. Null (new document, other browsers) = ask or download.
 let fileHandle = doc?.handle ?? null;
 
+// Unsaved edits, as reported by the editor (it also clears this when we export for Save).
+let dirty = false;
+// Opening a file remounts this page under a new key, so the guard never needs re-arming here.
+const { confirmDiscard } = useUnsavedGuard(() => dirty);
+
+// Reload stays on this route (only the query changes), which the leave guard doesn't see; the
+// banner already warned that unsaved edits are dropped.
 const { changed: diskChanged, reloadFromDisk, keepMine } = useFileChangeWatch(
   () => fileHandle,
   (file) => void openDocument(file),
@@ -80,6 +88,9 @@ function onMessage(event: MessageEvent) {
       break;
     case 'document:opened':
       opened.value = true;
+      break;
+    case 'document:dirty-changed':
+      dirty = payload?.dirty === true;
       break;
     case 'document:saved':
       if (id === pendingSaveId) {
@@ -162,6 +173,8 @@ async function onSave() {
       filename.value = written.name;
     }
   } catch (err) {
+    // The editor may already count the export as saved; the file on disk wasn't written.
+    dirty = true;
     window.alert(`저장하지 못했습니다: ${err instanceof Error ? err.message : String(err)}`);
   } finally {
     saving.value = false;
@@ -169,13 +182,16 @@ async function onSave() {
 }
 
 function onOpen() {
-  void pickFiles(fileInput.value, (files) => void openDocument(files[0]));
+  void pickFiles(fileInput.value, async (files) => {
+    if (await confirmDiscard()) void openDocument(files[0]);
+  });
 }
 
-function onFileSelected(e: Event) {
+async function onFileSelected(e: Event) {
   const input = e.target as HTMLInputElement;
-  void openDocument(input.files?.[0]);
+  const file = input.files?.[0];
   input.value = '';
+  if (file && (await confirmDiscard())) void openDocument(file);
 }
 
 function onClose() {
