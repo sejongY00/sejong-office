@@ -1,15 +1,37 @@
 <script setup lang="ts">
-import { computed } from 'vue';
-import { useRoute } from 'vue-router';
+import { computed, onMounted } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 import UpdateBanner from '@/components/UpdateBanner.vue';
+import { useOpenDocument } from '@/composables/useOpenDocument';
 import {
   bindSessionPageHideOnce,
   hwpOpenToken,
 } from '@/composables/useSessionLifecycle';
+import { registerFileLaunch } from '@/pwa/fileLaunch';
 
 bindSessionPageHideOnce();
 
 const route = useRoute();
+const router = useRouter();
+const { error: launchError, openDocument } = useOpenDocument();
+
+onMounted(() => {
+  registerFileLaunch(
+    window.launchQueue,
+    async (files) => {
+      await router.isReady();
+      const opened = await openDocument(files);
+      if (!opened && launchError.value) {
+        window.alert(launchError.value);
+      }
+    },
+    (err) => {
+      window.alert(
+        `파일을 열 수 없습니다: ${err instanceof Error ? err.message : String(err)}`,
+      );
+    },
+  );
+});
 
 /** Keep editor instances alive when visiting /licenses etc. */
 const viewKey = computed(() => {

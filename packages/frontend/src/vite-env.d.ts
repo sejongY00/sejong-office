@@ -29,6 +29,16 @@ declare module '@rhwp/editor' {
   ): Promise<RhwpEditor>;
 }
 
+interface LaunchParams {
+  readonly targetURL?: string;
+  readonly files: readonly FileSystemHandle[];
+}
+
+interface LaunchQueue {
+  setConsumer(consumer: (launchParams: LaunchParams) => void): void;
+}
+
 interface Window {
   EXCALIDRAW_ASSET_PATH?: string;
+  launchQueue?: LaunchQueue;
 }
