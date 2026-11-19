@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import {
+  computed,
   nextTick,
   onActivated,
   onMounted,
@@ -20,6 +21,11 @@ import {
   mountExcalidraw,
   type ExcalidrawController,
 } from '@/integrations/excalidraw/ExcalidrawHost';
+import {
+  loadThemePreference,
+  saveThemePreference,
+  type CanvasTheme,
+} from '@/integrations/excalidraw/themePreference';
 import { handleOf, pickFiles, saveFile } from '@/utils/fileAccess';
 
 defineOptions({ name: 'ExcalidrawEditorView' });
@@ -30,7 +36,10 @@ const fileInput = ref<HTMLInputElement | null>(null);
 const filename = ref('새그림.excalidraw');
 const busy = ref(false);
 const error = ref('');
-const theme = useSystemTheme();
+const systemTheme = useSystemTheme();
+// Picked in Excalidraw's menu and remembered; null = follow the system theme.
+const chosenTheme = ref<CanvasTheme | null>(loadThemePreference());
+const theme = computed(() => chosenTheme.value ?? systemTheme.value);
 let controller: ExcalidrawController | null = null;
 // The opened .excalidraw on disk; Save overwrites it.
 let fileHandle: FileSystemFileHandle | null = null;
@@ -63,7 +72,10 @@ async function run(task: () => Promise<void>) {
 
 onMounted(() => {
   if (!host.value) return;
-  controller = mountExcalidraw(host.value, theme.value);
+  controller = mountExcalidraw(host.value, theme.value, (picked) => {
+    chosenTheme.value = picked;
+    saveThemePreference(picked);
+  });
   const pending = consumeDiagramFile('excalidraw');
   if (pending) {
     void run(async () => {

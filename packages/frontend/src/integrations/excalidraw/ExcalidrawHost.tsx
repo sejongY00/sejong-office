@@ -46,12 +46,18 @@ function waitForApi(
   });
 }
 
+/**
+ * `onThemeChange` runs when the user switches light/dark in Excalidraw's own menu (or Alt+Shift+D).
+ * That toggle is hidden by default whenever a `theme` is passed in, so it's turned on explicitly.
+ */
 export function mountExcalidraw(
   host: HTMLElement,
   initialTheme: Theme,
+  onThemeChange?: (theme: Theme) => void,
 ): ExcalidrawController {
   let api: ExcalidrawImperativeAPI | null = null;
   let root: Root | null = createRoot(host);
+  let lastTheme = initialTheme;
 
   root.render(
     <Excalidraw
@@ -60,6 +66,13 @@ export function mountExcalidraw(
       }}
       langCode="ko-KR"
       theme={initialTheme}
+      UIOptions={{ canvasActions: { toggleTheme: true } }}
+      onChange={(_elements, appState) => {
+        // onChange fires on every edit; only report an actual switch.
+        if (appState.theme === lastTheme) return;
+        lastTheme = appState.theme;
+        onThemeChange?.(appState.theme);
+      }}
       autoFocus
     />,
   );
@@ -76,7 +89,8 @@ export function mountExcalidraw(
       );
       instance.updateScene({
         elements: restored.elements ?? [],
-        appState: restored.appState ?? undefined,
+        // A saved file carries the theme it was drawn in; keep the one on screen instead.
+        appState: { ...restored.appState, theme: instance.getAppState().theme },
       });
       if (restored.files) {
         instance.addFiles(Object.values(restored.files));
@@ -131,6 +145,8 @@ export function mountExcalidraw(
 
     async setTheme(theme) {
       const instance = await getApi();
+      // Set by us, not picked by the user: don't report it back as a choice.
+      lastTheme = theme;
       instance.updateScene({ appState: { theme } });
     },
 
