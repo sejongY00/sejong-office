@@ -35,9 +35,14 @@ interface PendingExport {
   timer: number;
 }
 
+/**
+ * `onSaveRequest` runs when the user saves inside the frame (Ctrl+S there never reaches this page),
+ * with the diagram as it is right now.
+ */
 export function useDrawioEmbed(
   iframe: Ref<HTMLIFrameElement | null>,
   onUiExport?: (result: DrawioExportResult) => void,
+  onSaveRequest?: (xml: string) => void,
 ) {
   const ready = ref(false);
   const error = ref('');
@@ -104,6 +109,7 @@ export function useDrawioEmbed(
       typeof message.xml === 'string'
     ) {
       currentXml = message.xml;
+      if (message.event === 'save') onSaveRequest?.(message.xml);
       return;
     }
 

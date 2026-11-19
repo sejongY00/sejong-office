@@ -1,9 +1,10 @@
 import { defineConfig } from 'vite';
 import vue from '@vitejs/plugin-vue';
 import path from 'node:path';
+import { serviceWorkerPlugin } from './build/serviceWorker';
 
 export default defineConfig({
-  plugins: [vue()],
+  plugins: [vue(), serviceWorkerPlugin()],
   resolve: {
     alias: {
       '@': path.resolve(__dirname, 'src'),

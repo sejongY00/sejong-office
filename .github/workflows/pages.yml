@@ -32,6 +32,7 @@ jobs:
           VITE_OFFICE_EDITOR_URL: ${{ vars.OFFICE_EDITOR_URL }}
         run: |
           npm ci
+          npm test
           npm run build
 
       # Vue Router uses HTML5 history; Pages serves 404.html for unknown paths.

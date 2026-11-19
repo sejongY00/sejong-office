@@ -14,8 +14,12 @@ import { useOpenDocument } from '@/composables/useOpenDocument';
 import { usePageTitle } from '@/composables/usePageTitle';
 import { AppError } from '@/utils/appError';
 import { pickFiles, saveFile } from '@/utils/fileAccess';
+import { withTimeout } from '@/utils/withTimeout';
 
 defineOptions({ name: 'OfficeEditorView' });
+
+// Large files take a while to convert back, so this is generous; it only catches a dead frame.
+const SAVE_TIMEOUT_MS = 60_000;
 
 // The editor runs entirely in its own iframe (OnlyOffice editors + x2t WASM); this page only hands
 // it the bytes and asks for them back. Protocol: ranuts/document docs/embed-api.md.
@@ -158,11 +162,25 @@ onUnmounted(() => {
   window.removeEventListener('message', onMessage);
 });
 
-/** Ask the editor for the current bytes (in the opened file's own format). */
+/**
+ * Ask the editor for the current bytes (in the opened file's own format). Gives up after
+ * SAVE_TIMEOUT_MS so a frame that never answers can't leave Save stuck; a late answer is ignored.
+ */
 function exportFromEditor(): Promise<Blob> {
-  return new Promise((resolve, reject) => {
+  const exported = new Promise<Blob>((resolve, reject) => {
     pendingSave = { resolve, reject };
     pendingSaveId = send('document:save');
+  });
+  const id = pendingSaveId;
+  return withTimeout(
+    exported,
+    SAVE_TIMEOUT_MS,
+    '편집기가 응답하지 않아 저장하지 못했습니다. 잠시 후 다시 저장해 주세요.',
+  ).finally(() => {
+    if (pendingSaveId === id) {
+      pendingSaveId = '';
+      pendingSave = null;
+    }
   });
 }
 

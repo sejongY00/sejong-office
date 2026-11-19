@@ -12,6 +12,7 @@ import AppShell from '@/components/AppShell.vue';
 import EditorToolbar from '@/components/EditorToolbar.vue';
 import CornerEditor from '@/components/scanner/CornerEditor.vue';
 import { consumeScannerFiles } from '@/composables/scannerSession';
+import { usePasteImages } from '@/composables/usePasteImages';
 import { usePageTitle } from '@/composables/usePageTitle';
 import {
   detectCornersFromImage,
@@ -224,6 +225,11 @@ onMounted(() => {
 });
 
 onActivated(consumePending);
+
+// Pasted images are appended like `파일 추가`.
+usePasteImages((files) => {
+  if (!busy.value) void addFiles(files);
+});
 
 onBeforeUnmount(() => {
   for (const cleanup of mediaQueryCleanups) cleanup();
@@ -911,8 +917,8 @@ const progressPercent = computed(() =>
             <strong>문서 스캐너</strong>
             <span class="empty__copy empty__copy--desktop">
               이미지 또는 PDF를 올리면 페이지를 목록에 추가합니다. 드래그로 순서를
-              바꾼 뒤 보정·OCR·검색 가능 PDF로 저장할 수 있습니다. 처리는 모두
-              브라우저에서 수행됩니다.
+              바꾼 뒤 보정·OCR·검색 가능 PDF로 저장할 수 있습니다. 복사한 이미지는
+              붙여넣기(Ctrl+V)로 추가됩니다. 처리는 모두 브라우저에서 수행됩니다.
             </span>
             <span class="empty__copy empty__copy--mobile">
               사진·PDF를 열고 보정·OCR 후 검색 가능 PDF로 저장하세요. 모두

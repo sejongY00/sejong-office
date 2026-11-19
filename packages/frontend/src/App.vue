@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { useRoute } from 'vue-router';
+import UpdateBanner from '@/components/UpdateBanner.vue';
 import {
   bindSessionPageHideOnce,
   hwpOpenToken,
@@ -61,4 +62,5 @@ const viewKey = computed(() => {
       <component :is="Component" :key="viewKey" />
     </KeepAlive>
   </RouterView>
+  <UpdateBanner />
 </template>

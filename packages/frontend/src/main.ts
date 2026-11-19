@@ -1,6 +1,9 @@
 import { createApp } from 'vue';
 import App from './App.vue';
 import router from './router';
+import { registerServiceWorker } from './pwa/serviceWorkerUpdates';
+// Self-hosted, one ~2 MB file: bundled under /assets/ so the service worker keeps it for offline use.
+import 'pretendard/dist/web/variable/pretendardvariable.css';
 import './styles.css';
 
 const app = createApp(App);
@@ -18,6 +21,6 @@ app.use(router).mount('#app');
 // Production only: a service worker in dev would cache Vite's unhashed modules and serve stale code.
 if (import.meta.env.PROD && 'serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js').catch(() => {});
+    registerServiceWorker(navigator.serviceWorker).catch(() => {});
   });
 }

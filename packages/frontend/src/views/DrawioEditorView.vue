@@ -12,6 +12,7 @@ import {
   type DrawioExportResult,
 } from '@/composables/useDrawioEmbed';
 import { usePageTitle } from '@/composables/usePageTitle';
+import { useSaveShortcut } from '@/composables/useSaveShortcut';
 import { dataUriToBlob, readTextFile } from '@/utils/downloadBlob';
 import { handleOf, pickFiles, saveFile } from '@/utils/fileAccess';
 
@@ -32,11 +33,16 @@ const { changed: diskChanged, reloadFromDisk, keepMine } = useFileChangeWatch(
 );
 
 usePageTitle(filename);
+useSaveShortcut(() => onSave());
 
 const { ready, error: embedError, loadXml, exportDiagram } = useDrawioEmbed(
   iframe,
   (result) => {
     void downloadUiExport(result);
+  },
+  // Ctrl+S pressed inside the draw.io frame.
+  (xml) => {
+    void run(() => saveDiagram(async () => xml));
   },
 );
 

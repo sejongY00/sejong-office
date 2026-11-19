@@ -8,6 +8,7 @@ import { useFileChangeWatch } from '@/composables/useFileChangeWatch';
 import { useFileDropZone } from '@/composables/useFileDropZone';
 import { consumeViewerFiles } from '@/composables/viewerSession';
 import { usePageTitle } from '@/composables/usePageTitle';
+import { useSaveShortcut } from '@/composables/useSaveShortcut';
 import {
   isMarkdownFile,
   renderMarkdown,
@@ -44,6 +45,7 @@ const { changed: diskChanged, reloadFromDisk, keepMine } = useFileChangeWatch(
 );
 
 usePageTitle(filename, { faviconKind: 'markdown' });
+useSaveShortcut(() => onSave());
 
 const html = computed(() => renderMarkdown(source.value));
 

@@ -14,6 +14,7 @@ import FileChangedBanner from '@/components/FileChangedBanner.vue';
 import { useFileChangeWatch } from '@/composables/useFileChangeWatch';
 import { consumeDiagramFile } from '@/composables/diagramSession';
 import { usePageTitle } from '@/composables/usePageTitle';
+import { useSaveShortcut } from '@/composables/useSaveShortcut';
 import { useSystemTheme } from '@/composables/useSystemTheme';
 import {
   mountExcalidraw,
@@ -40,6 +41,7 @@ const { changed: diskChanged, reloadFromDisk, keepMine } = useFileChangeWatch(
 );
 
 usePageTitle(filename);
+useSaveShortcut(() => onSave());
 
 function baseName(): string {
   return filename.value.replace(/\.excalidraw$/i, '') || '새그림';

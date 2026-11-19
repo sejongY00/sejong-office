@@ -79,6 +79,12 @@ const router = createRouter({
       name: 'licenses',
       component: () => import('@/views/LicensesView.vue'),
     },
+    {
+      // Anything else (old links, typos): GitHub Pages serves index.html via 404.html.
+      path: '/:pathMatch(.*)*',
+      name: 'not-found',
+      component: () => import('@/views/NotFoundView.vue'),
+    },
   ],
   scrollBehavior() {
     return { top: 0 };

@@ -14,7 +14,7 @@
 ## 스택
 
 - Vue 3 + Vite + TypeScript, 정적 빌드(`packages/frontend/dist`)
-- 뷰어·OCR·PDF.js worker 등은 `/viewer-assets/`에 **자체 호스팅** (빌드 때 복사·내려받기, 런타임 CDN fetch 없음)
+- 뷰어·OCR·PDF.js worker 등은 `/viewer-assets/`에, Pretendard 글꼴은 빌드에 넣어 **자체 호스팅** (런타임 CDN fetch 없음)
 - 배포: `.github/workflows/pages.yml` — `main` push 시 빌드 → GitHub Pages. 절대 경로(`/viewer-assets/`)를 쓰므로 사용자 도메인 루트(예 `office.sejong.dev`)에 둔다
 
 ## 오피스 편집기 연결

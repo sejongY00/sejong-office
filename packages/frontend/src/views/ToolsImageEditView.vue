@@ -6,6 +6,7 @@ import EditorToolbar from '@/components/EditorToolbar.vue';
 import CropEditor from '@/components/imageedit/CropEditor.vue';
 import { consumeImageEditFile } from '@/composables/imageEditSession';
 import { useFileDropZone } from '@/composables/useFileDropZone';
+import { usePasteImages } from '@/composables/usePasteImages';
 import { usePageTitle } from '@/composables/usePageTitle';
 import { decodeIcoToPng, isIcoFile } from '@/integrations/imageedit/ico';
 import {
@@ -325,6 +326,8 @@ const {
   if (file) void loadFile(file);
 });
 
+usePasteImages((files) => void loadFile(files[0]));
+
 function resetCrop() {
   if (!imageWidth.value) return;
   if (fit.value === 'crop' && cropAspect.value) {
@@ -499,7 +502,8 @@ onBeforeUnmount(() => {
           <strong>이미지 편집</strong>
           <p>
             사진을 열거나 끌어다 놓은 뒤 크롭, 축소, 경량화, 비율 변경을 적용해
-            JPEG·WebP·PNG·ICO로 저장합니다. 서버에 업로드하지 않습니다.
+            JPEG·WebP·PNG·ICO로 저장합니다. 복사한 이미지는 붙여넣기(Ctrl+V)로
+            넣을 수 있습니다. 서버에 업로드하지 않습니다.
           </p>
           <button
             type="button"

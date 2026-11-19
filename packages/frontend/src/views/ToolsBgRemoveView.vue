@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router';
 import AppShell from '@/components/AppShell.vue';
 import EditorToolbar from '@/components/EditorToolbar.vue';
 import { useFileDropZone } from '@/composables/useFileDropZone';
+import { usePasteImages } from '@/composables/usePasteImages';
 import { usePageTitle } from '@/composables/usePageTitle';
 import {
   DEFAULT_BG_REMOVE_OPTIONS,
@@ -159,6 +160,8 @@ const {
   if (file) void loadFile(file);
 });
 
+usePasteImages((files) => void loadFile(files[0]));
+
 async function processImage() {
   if (!sourceUrl.value) return;
   busy.value = true;
@@ -238,7 +241,8 @@ onBeforeUnmount(() => {
           <strong>배경 제거</strong>
           <p>
             단색 배경 로고 이미지를 열거나 끌어다 놓으면 모서리 색을 기준으로
-            배경을 투명하게 만듭니다. 흰 배경·검은 배경 모두 처리됩니다.
+            배경을 투명하게 만듭니다. 흰 배경·검은 배경 모두 처리됩니다. 복사한
+            이미지는 붙여넣기(Ctrl+V)로 넣을 수 있습니다.
           </p>
           <button
             type="button"

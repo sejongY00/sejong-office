@@ -10,6 +10,7 @@
   "scripts": {
     "dev": "npm run dev -w @sejong-office/frontend",
     "build": "npm run build -w @sejong-office/frontend",
+    "test": "npm run test -w @sejong-office/frontend",
     "preview": "npm run preview -w @sejong-office/frontend"
   },
   "engines": {
