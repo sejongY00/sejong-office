@@ -4,15 +4,14 @@ import { useRouter } from 'vue-router';
 import { createEditor, type RhwpEditor } from '@rhwp/editor';
 import AppShell from '@/components/AppShell.vue';
 import EditorErrorState from '@/components/EditorErrorState.vue';
-import EditorToolbar from '@/components/EditorToolbar.vue';
 import FileChangedBanner from '@/components/FileChangedBanner.vue';
-import SaveHint from '@/components/SaveHint.vue';
 import { useFileChangeWatch } from '@/composables/useFileChangeWatch';
 import { useUnsavedGuard } from '@/composables/useUnsavedGuard';
 import { AppError } from '@/utils/appError';
-import { extensionOf, isHwp } from '@/config/app';
-import { pickFiles, saveFile } from '@/utils/fileAccess';
+import { extensionOf, isHwp, RHWP_STUDIO_URL } from '@/config/app';
+import { saveFile } from '@/utils/fileAccess';
 import { usePageTitle } from '@/composables/usePageTitle';
+import { useSaveShortcut } from '@/composables/useSaveShortcut';
 import {
   clearHwpFile,
   hwpFileHandle,
@@ -28,14 +27,12 @@ const router = useRouter();
 const error = ref<unknown>(null);
 const filename = ref('문서.hwp');
 const saving = ref(false);
-const saveHint = ref(false);
-const fileInput = ref<HTMLInputElement | null>(null);
 let editor: RhwpEditor | null = null;
 let loadedToken = '';
 let loadSeq = 0;
 // Unsaved edits. The studio can only be asked, so the guard refreshes this periodically.
 let dirty = false;
-const { confirmDiscard, rearm } = useUnsavedGuard(
+const { confirmDiscard } = useUnsavedGuard(
   () => dirty,
   async () => {
     dirty = editor ? (await editor.getDocumentState()).dirty : false;
@@ -54,6 +51,19 @@ const { changed: diskChanged, reloadFromDisk, keepMine } = useFileChangeWatch(
 );
 
 usePageTitle(filename);
+useSaveShortcut(() => void onSave());
+
+const studioOrigin = new URL(RHWP_STUDIO_URL, window.location.href).origin;
+
+function onStudioMessage(event: MessageEvent) {
+  if (event.origin !== studioOrigin || event.source !== editor?.element.contentWindow) return;
+  const data = event.data as { type?: string } | null;
+  if (data?.type === 'rhwp:save-requested') {
+    void onSave();
+  } else if (data?.type === 'rhwp:close-requested') {
+    void onClose();
+  }
+}
 
 async function bootstrapFromStore() {
   const seq = ++loadSeq;
@@ -84,6 +94,7 @@ async function bootstrapFromStore() {
 
     if (!editor) {
       editor = await createEditor('#rhwp-host', {
+        studioUrl: RHWP_STUDIO_URL,
         width: '100%',
         height: '100%',
       });
@@ -94,7 +105,6 @@ async function bootstrapFromStore() {
     if (seq !== loadSeq) return;
 
     loadedToken = token;
-    saveHint.value = true;
   } catch (err) {
     if (seq !== loadSeq) return;
     error.value = err;
@@ -102,6 +112,7 @@ async function bootstrapFromStore() {
 }
 
 onMounted(() => {
+  window.addEventListener('message', onStudioMessage);
   void bootstrapFromStore();
 });
 
@@ -110,33 +121,12 @@ onActivated(() => {
 });
 
 onUnmounted(() => {
+  window.removeEventListener('message', onStudioMessage);
   loadSeq += 1;
   editor?.destroy();
   editor = null;
   loadedToken = '';
 });
-
-function onOpen() {
-  void pickFiles(fileInput.value, (files) => void openOther(files[0]));
-}
-
-function onFileSelected(e: Event) {
-  const input = e.target as HTMLInputElement;
-  const file = input.files?.[0];
-  input.value = '';
-  if (file) void openOther(file);
-}
-
-/** Open another file in place of this one, asking first if there are unsaved edits. */
-async function openOther(file: File) {
-  if (!(await confirmDiscard())) return;
-  // Already confirmed; stop the studio from asking again (its "save" would download).
-  await editor?.notifySaved().catch(() => undefined);
-  dirty = false;
-  await openFile(file);
-  // Same page, new document: guard its edits too.
-  rearm();
-}
 
 async function openFile(file: File) {
   if (!isHwp(file.name)) {
@@ -198,24 +188,7 @@ async function onClose() {
 <template>
   <AppShell :editor="true">
     <div class="editor-page">
-      <EditorToolbar
-        v-if="!error"
-        :filename="filename"
-        save-label="저장"
-        :busy="saving"
-        @open="onOpen"
-        @save="onSave"
-        @close="onClose"
-      />
       <FileChangedBanner v-if="diskChanged" @reload="reloadFromDisk" @keep="keepMine" />
-      <SaveHint :open="saveHint" @close="saveHint = false" />
-      <input
-        ref="fileInput"
-        class="sr-only"
-        type="file"
-        accept=".hwp,.hwpx"
-        @change="onFileSelected"
-      />
 
       <EditorErrorState v-if="error" :error="error" context="rhwp" />
       <div v-show="!error" id="rhwp-host" class="editor-frame" />
@@ -231,18 +204,6 @@ async function onClose() {
   min-height: 0;
   height: 100%;
   background: var(--canvas);
-}
-
-.sr-only {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  margin: -1px;
-  overflow: hidden;
-  clip: rect(0, 0, 0, 0);
-  white-space: nowrap;
-  border: 0;
 }
 
 .editor-frame {

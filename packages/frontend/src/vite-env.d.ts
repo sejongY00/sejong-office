@@ -2,10 +2,12 @@
 
 interface ImportMetaEnv {
   readonly VITE_OFFICE_EDITOR_URL?: string;
+  readonly VITE_RHWP_STUDIO_URL?: string;
 }
 
 declare module '@rhwp/editor' {
   export type RhwpEditor = {
+    readonly element: HTMLIFrameElement;
     loadFile: (
       data: ArrayBuffer | Uint8Array,
       fileName?: string,

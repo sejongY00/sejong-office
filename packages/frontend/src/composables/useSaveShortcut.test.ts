@@ -1,29 +1,46 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { defineComponent, h, KeepAlive, nextTick, ref } from 'vue';
 import { mount, type VueWrapper } from '@vue/test-utils';
-import { isSaveShortcut, useSaveShortcut } from './useSaveShortcut';
+import { isApplePlatform, isSaveShortcut, useSaveShortcut } from './useSaveShortcut';
 
 function key(init: KeyboardEventInit) {
   return new KeyboardEvent('keydown', { bubbles: true, cancelable: true, ...init });
 }
 
+function primarySaveKey(extra: KeyboardEventInit = {}): KeyboardEvent {
+  const apple = isApplePlatform();
+  return key({
+    key: 's',
+    code: 'KeyS',
+    ctrlKey: !apple,
+    metaKey: apple,
+    ...extra,
+  });
+}
+
 describe('isSaveShortcut', () => {
   it.each([
-    ['Ctrl+S', { key: 's', code: 'KeyS', ctrlKey: true }],
-    ['Cmd+S', { key: 's', code: 'KeyS', metaKey: true }],
-    ['Ctrl+S with Caps Lock', { key: 'S', code: 'KeyS', ctrlKey: true }],
-    ['Ctrl+S on a Korean layout', { key: 'ㄴ', code: 'KeyS', ctrlKey: true }],
-  ])('accepts %s', (_, init) => {
-    expect(isSaveShortcut(key(init))).toBe(true);
+    ['Ctrl+S on Windows/Linux', { key: 's', code: 'KeyS', ctrlKey: true }, false],
+    ['Ctrl+S with Caps Lock on Windows/Linux', { key: 'S', code: 'KeyS', ctrlKey: true }, false],
+    ['Ctrl+S on a Korean layout on Windows/Linux', { key: 'ㄴ', code: 'KeyS', ctrlKey: true }, false],
+    ['Cmd+S on macOS', { key: 's', code: 'KeyS', metaKey: true }, true],
+    ['Cmd+S with Caps Lock on macOS', { key: 'S', code: 'KeyS', metaKey: true }, true],
+    ['Cmd+S on a Korean layout on macOS', { key: 'ㄴ', code: 'KeyS', metaKey: true }, true],
+  ])('accepts %s', (_, init, apple) => {
+    expect(isSaveShortcut(key(init), apple)).toBe(true);
   });
 
   it.each([
-    ['plain S', { key: 's', code: 'KeyS' }],
-    ['Ctrl+Shift+S (save as elsewhere)', { key: 'S', code: 'KeyS', ctrlKey: true, shiftKey: true }],
-    ['Ctrl+Alt+S', { key: 's', code: 'KeyS', ctrlKey: true, altKey: true }],
-    ['Ctrl+D', { key: 'd', code: 'KeyD', ctrlKey: true }],
-  ])('ignores %s', (_, init) => {
-    expect(isSaveShortcut(key(init))).toBe(false);
+    ['plain S', { key: 's', code: 'KeyS' }, false],
+    ['Cmd+S on Windows/Linux', { key: 's', code: 'KeyS', metaKey: true }, false],
+    ['Ctrl+S on macOS', { key: 's', code: 'KeyS', ctrlKey: true }, true],
+    ['Ctrl+Cmd+S together', { key: 's', code: 'KeyS', ctrlKey: true, metaKey: true }, true],
+    ['Ctrl+Shift+S (save as elsewhere)', { key: 'S', code: 'KeyS', ctrlKey: true, shiftKey: true }, false],
+    ['Cmd+Shift+S on macOS', { key: 'S', code: 'KeyS', metaKey: true, shiftKey: true }, true],
+    ['Ctrl+Alt+S', { key: 's', code: 'KeyS', ctrlKey: true, altKey: true }, false],
+    ['Ctrl+D', { key: 'd', code: 'KeyD', ctrlKey: true }, false],
+  ])('ignores %s', (_, init, apple) => {
+    expect(isSaveShortcut(key(init), apple)).toBe(false);
   });
 });
 
@@ -46,7 +63,7 @@ describe('useSaveShortcut', () => {
     wrapper = mount(Page, { props: { onSave }, attachTo: document.body });
     document.addEventListener('keydown', inner);
 
-    const event = key({ key: 's', code: 'KeyS', ctrlKey: true });
+    const event = primarySaveKey();
     wrapper.find('textarea').element.dispatchEvent(event);
 
     expect(onSave).toHaveBeenCalledTimes(1);
@@ -58,7 +75,7 @@ describe('useSaveShortcut', () => {
   it('ignores auto-repeat while the keys are held', () => {
     const onSave = vi.fn();
     wrapper = mount(Page, { props: { onSave } });
-    window.dispatchEvent(key({ key: 's', code: 'KeyS', ctrlKey: true, repeat: true }));
+    window.dispatchEvent(primarySaveKey({ repeat: true }));
     expect(onSave).not.toHaveBeenCalled();
   });
 
@@ -76,7 +93,7 @@ describe('useSaveShortcut', () => {
     wrapper = mount(Page, { props: { onSave } });
     wrapper.unmount();
     wrapper = undefined;
-    window.dispatchEvent(key({ key: 's', code: 'KeyS', ctrlKey: true }));
+    window.dispatchEvent(primarySaveKey());
     expect(onSave).not.toHaveBeenCalled();
   });
 
@@ -88,7 +105,7 @@ describe('useSaveShortcut', () => {
         setup: () => () => h(KeepAlive, null, show.value ? h(Page, { onSave }) : h('div')),
       }),
     );
-    const press = () => window.dispatchEvent(key({ key: 's', code: 'KeyS', ctrlKey: true }));
+    const press = () => window.dispatchEvent(primarySaveKey());
 
     show.value = false;
     await nextTick();

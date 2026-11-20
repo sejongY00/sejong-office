@@ -10,6 +10,14 @@ export const APP_GIT_URL = "https://github.com/sejongY00/sejong-office";
 export const OFFICE_EDITOR_URL: string =
   import.meta.env.VITE_OFFICE_EDITOR_URL || "https://editor.sejong.dev/";
 
+/**
+ * Browser-only HWP/HWPX editor (rhwp-studio), embedded by @rhwp/editor iframe.
+ * Built by sejongY00/rhwp onto GitHub Pages at /rhwp/. Override with
+ * VITE_RHWP_STUDIO_URL (trailing slash).
+ */
+export const RHWP_STUDIO_URL: string =
+  import.meta.env.VITE_RHWP_STUDIO_URL || "https://sejongy00.github.io/rhwp/";
+
 export const APP_NAME = "sejong-office";
 
 export const APP_DISPLAY_NAME = "Sejong Office";

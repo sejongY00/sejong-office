@@ -3,17 +3,16 @@ import { onMounted, onUnmounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import AppShell from '@/components/AppShell.vue';
 import EditorErrorState from '@/components/EditorErrorState.vue';
-import EditorToolbar from '@/components/EditorToolbar.vue';
 import FileChangedBanner from '@/components/FileChangedBanner.vue';
-import SaveHint from '@/components/SaveHint.vue';
 import { useFileChangeWatch } from '@/composables/useFileChangeWatch';
 import { useUnsavedGuard } from '@/composables/useUnsavedGuard';
 import { OFFICE_EDITOR_URL } from '@/config/app';
 import { consumeOfficeDocument } from '@/composables/officeSession';
 import { useOpenDocument } from '@/composables/useOpenDocument';
 import { usePageTitle } from '@/composables/usePageTitle';
+import { useSaveShortcut } from '@/composables/useSaveShortcut';
 import { AppError } from '@/utils/appError';
-import { pickFiles, saveFile } from '@/utils/fileAccess';
+import { saveFile } from '@/utils/fileAccess';
 import { withTimeout } from '@/utils/withTimeout';
 
 defineOptions({ name: 'OfficeEditorView' });
@@ -37,7 +36,7 @@ let fileHandle = doc?.handle ?? null;
 // Unsaved edits, as reported by the editor (it also clears this when we export for Save).
 let dirty = false;
 // Opening a file remounts this page under a new key, so the guard never needs re-arming here.
-const { confirmDiscard } = useUnsavedGuard(() => dirty);
+useUnsavedGuard(() => dirty);
 
 // Reload stays on this route (only the query changes), which the leave guard doesn't see; the
 // banner already warned that unsaved edits are dropped.
@@ -49,12 +48,11 @@ const saving = ref(false);
 // The editor frame stays blank for 10-25 s while it downloads the OnlyOffice stack; cover it until
 // the document is actually on screen.
 const opened = ref(false);
-const saveHint = ref(false);
 const frame = ref<HTMLIFrameElement | null>(null);
-const fileInput = ref<HTMLInputElement | null>(null);
 
 const { openDocument } = useOpenDocument();
 usePageTitle(filename);
+useSaveShortcut(() => void onSave());
 
 const editorOrigin = new URL(OFFICE_EDITOR_URL).origin;
 const frameSrc = (() => {
@@ -94,10 +92,15 @@ function onMessage(event: MessageEvent) {
       break;
     case 'document:opened':
       opened.value = true;
-      saveHint.value = true;
       break;
     case 'document:dirty-changed':
       dirty = payload?.dirty === true;
+      break;
+    case 'document:save-requested':
+      void onSave();
+      break;
+    case 'document:close-requested':
+      onClose();
       break;
     case 'document:saved':
       if (id === pendingSaveId) {
@@ -202,19 +205,6 @@ async function onSave() {
   }
 }
 
-function onOpen() {
-  void pickFiles(fileInput.value, async (files) => {
-    if (await confirmDiscard()) void openDocument(files[0]);
-  });
-}
-
-async function onFileSelected(e: Event) {
-  const input = e.target as HTMLInputElement;
-  const file = input.files?.[0];
-  input.value = '';
-  if (file && (await confirmDiscard())) void openDocument(file);
-}
-
 function onClose() {
   void router.push({ name: 'home' });
 }
@@ -223,25 +213,7 @@ function onClose() {
 <template>
   <AppShell :editor="true">
     <div class="editor-page">
-      <EditorToolbar
-        v-if="!error"
-        :filename="filename"
-        :show-filename="false"
-        save-label="저장"
-        :busy="saving"
-        @open="onOpen"
-        @save="onSave"
-        @close="onClose"
-      />
       <FileChangedBanner v-if="diskChanged" @reload="reloadFromDisk" @keep="keepMine" />
-      <SaveHint :open="saveHint" @close="saveHint = false" />
-      <input
-        ref="fileInput"
-        class="sr-only"
-        type="file"
-        accept=".docx,.xlsx,.pptx,.pdf,.hwp,.hwpx,.odt,.ods,.odp,.doc,.xls,.ppt,.rtf,.txt,.csv"
-        @change="onFileSelected"
-      />
 
       <EditorErrorState v-if="error" :error="error" context="office" />
       <div v-else class="editor-frame">
@@ -270,18 +242,6 @@ function onClose() {
   min-height: 0;
   height: 100%;
   background: var(--canvas);
-}
-
-.sr-only {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  margin: -1px;
-  overflow: hidden;
-  clip: rect(0, 0, 0, 0);
-  white-space: nowrap;
-  border: 0;
 }
 
 .editor-frame {
