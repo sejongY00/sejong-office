@@ -10,7 +10,7 @@ import { useUnsavedGuard } from '@/composables/useUnsavedGuard';
 import { AppError } from '@/utils/appError';
 import { extensionOf, isHwp, RHWP_STUDIO_URL } from '@/config/app';
 import { saveFile } from '@/utils/fileAccess';
-import { usePageTitle } from '@/composables/usePageTitle';
+import { usePageTitle, type DocumentSaveStatus } from '@/composables/usePageTitle';
 import { useSaveShortcut } from '@/composables/useSaveShortcut';
 import {
   clearHwpFile,
@@ -27,6 +27,8 @@ const router = useRouter();
 const error = ref<unknown>(null);
 const filename = ref('문서.hwp');
 const saving = ref(false);
+const saveStatus = ref<DocumentSaveStatus>('pristine');
+const saveError = ref('');
 let editor: RhwpEditor | null = null;
 let loadedToken = '';
 let loadSeq = 0;
@@ -35,7 +37,11 @@ let dirty = false;
 const { confirmDiscard } = useUnsavedGuard(
   () => dirty,
   async () => {
-    dirty = editor ? (await editor.getDocumentState()).dirty : false;
+    const nextDirty = editor ? (await editor.getDocumentState()).dirty : false;
+    dirty = nextDirty;
+    if (nextDirty) {
+      saveStatus.value = 'modified';
+    }
   },
 );
 
@@ -46,22 +52,34 @@ const { changed: diskChanged, reloadFromDisk, keepMine } = useFileChangeWatch(
     // it doesn't ask again (its own "save" there would download instead of writing the file).
     await editor?.notifySaved(file.name).catch(() => undefined);
     dirty = false;
+    saveStatus.value = 'pristine';
     await openFile(file);
   },
 );
 
-usePageTitle(filename);
+usePageTitle(filename, { status: saveStatus });
 useSaveShortcut(() => void onSave());
 
 const studioOrigin = new URL(RHWP_STUDIO_URL, window.location.href).origin;
 
 function onStudioMessage(event: MessageEvent) {
   if (event.origin !== studioOrigin || event.source !== editor?.element.contentWindow) return;
-  const data = event.data as { type?: string } | null;
+  const data = event.data as { type?: string; status?: DocumentSaveStatus } | null;
   if (data?.type === 'rhwp:save-requested') {
     void onSave();
   } else if (data?.type === 'rhwp:close-requested') {
     void onClose();
+  } else if (data?.type === 'rhwp:save-status-changed') {
+    if (data.status === 'modified') {
+      dirty = true;
+      saveStatus.value = 'modified';
+    } else if (data.status === 'saved') {
+      dirty = false;
+      saveStatus.value = 'saved';
+    } else if (data.status === 'pristine') {
+      dirty = false;
+      saveStatus.value = 'pristine';
+    }
   }
 }
 
@@ -105,6 +123,9 @@ async function bootstrapFromStore() {
     if (seq !== loadSeq) return;
 
     loadedToken = token;
+    dirty = false;
+    saveStatus.value = 'pristine';
+    saveError.value = '';
   } catch (err) {
     if (seq !== loadSeq) return;
     error.value = err;
@@ -151,6 +172,7 @@ async function onSave() {
   if (saving.value || !editor) return;
   const current = editor;
   saving.value = true;
+  saveError.value = '';
   try {
     const written = await saveFile(
       { suggestedName: filename.value, handle: hwpFileHandle() },
@@ -166,12 +188,13 @@ async function onSave() {
     if (written) {
       setHwpFileHandle(written);
       filename.value = written.name;
-      // Clears the studio's unsaved-changes guard; older studios lack it, which is harmless.
-      await current.notifySaved(written.name).catch(() => undefined);
-      dirty = false;
     }
+    // Clears the studio's unsaved-changes guard and updates its top title to "- 저장됨".
+    await current.notifySaved(filename.value).catch(() => undefined);
+    dirty = false;
+    saveStatus.value = 'saved';
   } catch (err) {
-    window.alert(`저장하지 못했습니다: ${err instanceof Error ? err.message : String(err)}`);
+    saveError.value = `저장하지 못했습니다: ${err instanceof Error ? err.message : String(err)}`;
   } finally {
     saving.value = false;
   }
@@ -189,6 +212,7 @@ async function onClose() {
   <AppShell :editor="true">
     <div class="editor-page">
       <FileChangedBanner v-if="diskChanged" @reload="reloadFromDisk" @keep="keepMine" />
+      <p v-if="saveError" class="editor-error" role="alert">{{ saveError }}</p>
 
       <EditorErrorState v-if="error" :error="error" context="rhwp" />
       <div v-show="!error" id="rhwp-host" class="editor-frame" />
@@ -204,6 +228,16 @@ async function onClose() {
   min-height: 0;
   height: 100%;
   background: var(--canvas);
+}
+
+.editor-error {
+  flex: 0 0 auto;
+  margin: 0;
+  padding: 0.45rem 0.75rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--danger) 35%, var(--border));
+  background: color-mix(in srgb, var(--danger) 10%, var(--surface));
+  color: var(--danger);
+  font-size: 0.8rem;
 }
 
 .editor-frame {

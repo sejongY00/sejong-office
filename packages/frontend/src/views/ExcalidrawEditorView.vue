@@ -14,7 +14,7 @@ import EditorToolbar from '@/components/EditorToolbar.vue';
 import FileChangedBanner from '@/components/FileChangedBanner.vue';
 import { useFileChangeWatch } from '@/composables/useFileChangeWatch';
 import { consumeDiagramFile } from '@/composables/diagramSession';
-import { usePageTitle } from '@/composables/usePageTitle';
+import { usePageTitle, type DocumentSaveStatus } from '@/composables/usePageTitle';
 import { useSaveShortcut } from '@/composables/useSaveShortcut';
 import { useSystemTheme } from '@/composables/useSystemTheme';
 import {
@@ -34,6 +34,7 @@ const router = useRouter();
 const host = ref<HTMLElement | null>(null);
 const fileInput = ref<HTMLInputElement | null>(null);
 const filename = ref('새그림.excalidraw');
+const saveStatus = ref<DocumentSaveStatus>('pristine');
 const busy = ref(false);
 const error = ref('');
 const systemTheme = useSystemTheme();
@@ -49,7 +50,7 @@ const { changed: diskChanged, reloadFromDisk, keepMine } = useFileChangeWatch(
   (file) => openFile(file),
 );
 
-usePageTitle(filename);
+usePageTitle(filename, { status: saveStatus });
 useSaveShortcut(() => onSave());
 
 function baseName(): string {
@@ -72,10 +73,17 @@ async function run(task: () => Promise<void>) {
 
 onMounted(() => {
   if (!host.value) return;
-  controller = mountExcalidraw(host.value, theme.value, (picked) => {
-    chosenTheme.value = picked;
-    saveThemePreference(picked);
-  });
+  controller = mountExcalidraw(
+    host.value,
+    theme.value,
+    (picked) => {
+      chosenTheme.value = picked;
+      saveThemePreference(picked);
+    },
+    () => {
+      saveStatus.value = 'modified';
+    },
+  );
   const pending = consumeDiagramFile('excalidraw');
   if (pending) {
     void run(async () => {
@@ -83,6 +91,7 @@ onMounted(() => {
       await controller.load(pending);
       filename.value = pending.name;
       fileHandle = handleOf(pending);
+      saveStatus.value = 'pristine';
     });
   }
 });
@@ -121,6 +130,7 @@ function openFile(file: File) {
     await controller.load(file);
     filename.value = file.name;
     fileHandle = handleOf(file);
+    saveStatus.value = 'pristine';
   });
 }
 
@@ -142,6 +152,7 @@ function onSave() {
       fileHandle = written;
       filename.value = written.name;
     }
+    saveStatus.value = 'saved';
   });
 }
 
@@ -175,6 +186,7 @@ function onClose() {
     <div class="editor-page">
       <EditorToolbar
         :filename="filename"
+        :save-status="saveStatus"
         save-label="저장"
         :show-export-actions="true"
         :busy="busy"

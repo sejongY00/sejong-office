@@ -11,7 +11,7 @@ import {
   useDrawioEmbed,
   type DrawioExportResult,
 } from '@/composables/useDrawioEmbed';
-import { usePageTitle } from '@/composables/usePageTitle';
+import { usePageTitle, type DocumentSaveStatus } from '@/composables/usePageTitle';
 import { useSaveShortcut } from '@/composables/useSaveShortcut';
 import { dataUriToBlob, readTextFile } from '@/utils/downloadBlob';
 import { handleOf, pickFiles, saveFile } from '@/utils/fileAccess';
@@ -22,6 +22,7 @@ const router = useRouter();
 const iframe = ref<HTMLIFrameElement | null>(null);
 const fileInput = ref<HTMLInputElement | null>(null);
 const filename = ref('새다이어그램.drawio');
+const saveStatus = ref<DocumentSaveStatus>('pristine');
 const busy = ref(false);
 const actionError = ref('');
 // The opened .drawio on disk; Save overwrites it.
@@ -32,7 +33,7 @@ const { changed: diskChanged, reloadFromDisk, keepMine } = useFileChangeWatch(
   (file) => openFile(file),
 );
 
-usePageTitle(filename);
+usePageTitle(filename, { status: saveStatus });
 useSaveShortcut(() => onSave());
 
 const { ready, error: embedError, loadXml, exportDiagram } = useDrawioEmbed(
@@ -44,6 +45,9 @@ const { ready, error: embedError, loadXml, exportDiagram } = useDrawioEmbed(
   (xml) => {
     void run(() => saveDiagram(async () => xml));
   },
+  () => {
+    saveStatus.value = 'modified';
+  },
 );
 
 onMounted(() => {
@@ -53,6 +57,7 @@ onMounted(() => {
     loadXml(await readTextFile(pending), pending.name);
     filename.value = pending.name;
     fileHandle = handleOf(pending);
+    saveStatus.value = 'pristine';
   });
 });
 
@@ -95,6 +100,7 @@ async function saveDiagram(produce: () => Promise<string>) {
     fileHandle = written;
     filename.value = written.name;
   }
+  saveStatus.value = 'saved';
 }
 
 // Save/export started from draw.io's own menu inside the frame.
@@ -137,6 +143,7 @@ function openFile(file: File) {
     loadXml(await readTextFile(file), file.name);
     filename.value = file.name;
     fileHandle = handleOf(file);
+    saveStatus.value = 'pristine';
   });
 }
 
@@ -170,9 +177,10 @@ function onClose() {
     <div class="editor-page">
       <EditorToolbar
         :filename="filename"
+        :save-status="saveStatus"
         save-label="저장"
         :show-export-actions="true"
-        :show-filename="false"
+        :show-filename="true"
         :busy="busy || !ready"
         @open="onOpen"
         @save="onSave"

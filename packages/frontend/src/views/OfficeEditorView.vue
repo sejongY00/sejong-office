@@ -9,7 +9,7 @@ import { useUnsavedGuard } from '@/composables/useUnsavedGuard';
 import { OFFICE_EDITOR_URL } from '@/config/app';
 import { consumeOfficeDocument } from '@/composables/officeSession';
 import { useOpenDocument } from '@/composables/useOpenDocument';
-import { usePageTitle } from '@/composables/usePageTitle';
+import { usePageTitle, type DocumentSaveStatus } from '@/composables/usePageTitle';
 import { useSaveShortcut } from '@/composables/useSaveShortcut';
 import { AppError } from '@/utils/appError';
 import { saveFile } from '@/utils/fileAccess';
@@ -45,13 +45,15 @@ const { changed: diskChanged, reloadFromDisk, keepMine } = useFileChangeWatch(
   (file) => void openDocument(file),
 );
 const saving = ref(false);
+const saveStatus = ref<DocumentSaveStatus>('pristine');
+const saveError = ref('');
 // The editor frame stays blank for 10-25 s while it downloads the OnlyOffice stack; cover it until
 // the document is actually on screen.
 const opened = ref(false);
 const frame = ref<HTMLIFrameElement | null>(null);
 
 const { openDocument } = useOpenDocument();
-usePageTitle(filename);
+usePageTitle(filename, { status: saveStatus });
 useSaveShortcut(() => void onSave());
 
 const editorOrigin = new URL(OFFICE_EDITOR_URL).origin;
@@ -92,10 +94,19 @@ function onMessage(event: MessageEvent) {
       break;
     case 'document:opened':
       opened.value = true;
+      saveStatus.value = 'pristine';
+      send('document:save-status', { status: 'pristine' });
       break;
-    case 'document:dirty-changed':
-      dirty = payload?.dirty === true;
+    case 'document:dirty-changed': {
+      const isDirty = payload?.dirty === true;
+      dirty = isDirty;
+      if (isDirty) {
+        saveStatus.value = 'modified';
+      } else if (!saving.value && saveStatus.value !== 'saved') {
+        saveStatus.value = 'pristine';
+      }
       break;
+    }
     case 'document:save-requested':
       void onSave();
       break;
@@ -190,16 +201,22 @@ function exportFromEditor(): Promise<Blob> {
 async function onSave() {
   if (saving.value) return;
   saving.value = true;
+  saveError.value = '';
   try {
     const written = await saveFile({ suggestedName: filename.value, handle: fileHandle }, exportFromEditor);
     if (written) {
       fileHandle = written;
       filename.value = written.name;
     }
+    dirty = false;
+    saveStatus.value = 'saved';
+    send('document:save-status', { status: 'saved' });
   } catch (err) {
     // The editor may already count the export as saved; the file on disk wasn't written.
     dirty = true;
-    window.alert(`저장하지 못했습니다: ${err instanceof Error ? err.message : String(err)}`);
+    saveStatus.value = 'modified';
+    send('document:save-status', { status: 'modified' });
+    saveError.value = `저장하지 못했습니다: ${err instanceof Error ? err.message : String(err)}`;
   } finally {
     saving.value = false;
   }
@@ -214,6 +231,7 @@ function onClose() {
   <AppShell :editor="true">
     <div class="editor-page">
       <FileChangedBanner v-if="diskChanged" @reload="reloadFromDisk" @keep="keepMine" />
+      <p v-if="saveError" class="editor-error" role="alert">{{ saveError }}</p>
 
       <EditorErrorState v-if="error" :error="error" context="office" />
       <div v-else class="editor-frame">
@@ -242,6 +260,16 @@ function onClose() {
   min-height: 0;
   height: 100%;
   background: var(--canvas);
+}
+
+.editor-error {
+  flex: 0 0 auto;
+  margin: 0;
+  padding: 0.45rem 0.75rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--danger) 35%, var(--border));
+  background: color-mix(in srgb, var(--danger) 10%, var(--surface));
+  color: var(--danger);
+  font-size: 0.8rem;
 }
 
 .editor-frame {

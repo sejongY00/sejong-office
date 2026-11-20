@@ -1,7 +1,14 @@
 <script setup lang="ts">
-withDefaults(
+import { computed } from 'vue';
+import {
+  formatFilenameWithStatus,
+  type DocumentSaveStatus,
+} from '@/composables/usePageTitle';
+
+const props = withDefaults(
   defineProps<{
     filename: string;
+    saveStatus?: DocumentSaveStatus;
     saveLabel?: string;
     showSave?: boolean;
     showExportActions?: boolean;
@@ -9,12 +16,17 @@ withDefaults(
     busy?: boolean;
   }>(),
   {
+    saveStatus: 'pristine',
     saveLabel: '다운로드',
     showSave: true,
     showExportActions: false,
     showFilename: true,
     busy: false,
   },
+);
+
+const displayFilename = computed(() =>
+  formatFilenameWithStatus(props.filename, props.saveStatus),
 );
 
 defineEmits<{
@@ -68,10 +80,10 @@ defineEmits<{
     </div>
     <p
       class="toolbar__title"
-      :title="showFilename ? filename : undefined"
+      :title="showFilename ? displayFilename : undefined"
       :aria-hidden="!showFilename"
     >
-      {{ showFilename ? filename : '' }}
+      {{ showFilename ? displayFilename : '' }}
     </p>
     <div class="toolbar__right">
       <RouterLink class="toolbar__link" to="/licenses">라이선스</RouterLink>

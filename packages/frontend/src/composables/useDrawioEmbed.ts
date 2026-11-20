@@ -43,6 +43,7 @@ export function useDrawioEmbed(
   iframe: Ref<HTMLIFrameElement | null>,
   onUiExport?: (result: DrawioExportResult) => void,
   onSaveRequest?: (xml: string) => void,
+  onDirty?: () => void,
 ) {
   const ready = ref(false);
   const error = ref('');
@@ -108,8 +109,13 @@ export function useDrawioEmbed(
       (message.event === 'autosave' || message.event === 'save') &&
       typeof message.xml === 'string'
     ) {
+      const changed = message.xml !== currentXml;
       currentXml = message.xml;
-      if (message.event === 'save') onSaveRequest?.(message.xml);
+      if (message.event === 'save') {
+        onSaveRequest?.(message.xml);
+      } else if (changed) {
+        onDirty?.();
+      }
       return;
     }
 

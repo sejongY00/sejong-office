@@ -14,7 +14,7 @@ import EditorToolbar from '@/components/EditorToolbar.vue';
 import FileChangedBanner from '@/components/FileChangedBanner.vue';
 import { useFileChangeWatch } from '@/composables/useFileChangeWatch';
 import { consumeDiagramFile } from '@/composables/diagramSession';
-import { usePageTitle } from '@/composables/usePageTitle';
+import { usePageTitle, type DocumentSaveStatus } from '@/composables/usePageTitle';
 import { useSaveShortcut } from '@/composables/useSaveShortcut';
 import { useSystemTheme } from '@/composables/useSystemTheme';
 import { readTextFile, svgToPngBlob } from '@/utils/downloadBlob';
@@ -30,6 +30,7 @@ const DEFAULT_CODE = `flowchart TD
 const router = useRouter();
 const fileInput = ref<HTMLInputElement | null>(null);
 const filename = ref('새다이어그램.mmd');
+const saveStatus = ref<DocumentSaveStatus>('pristine');
 const code = ref(DEFAULT_CODE);
 const renderedSvg = ref('');
 const renderError = ref('');
@@ -46,7 +47,7 @@ const { changed: diskChanged, reloadFromDisk, keepMine } = useFileChangeWatch(
   (file) => openFile(file),
 );
 
-usePageTitle(filename);
+usePageTitle(filename, { status: saveStatus });
 useSaveShortcut(() => onSave());
 
 function baseName(): string {
@@ -98,6 +99,7 @@ onMounted(() => {
     filename.value = pending.name.replace(/\.mermaid$/i, '.mmd');
     // A .mermaid file is saved as .mmd, so it gets a new file rather than the old one.
     fileHandle = filename.value === pending.name ? handleOf(pending) : null;
+    saveStatus.value = 'pristine';
     await renderDiagram();
   });
 });
@@ -145,6 +147,7 @@ function openFile(file: File) {
     code.value = await readTextFile(file);
     filename.value = file.name.replace(/\.mermaid$/i, '.mmd');
     fileHandle = filename.value === file.name ? handleOf(file) : null;
+    saveStatus.value = 'pristine';
     await renderDiagram();
   });
 }
@@ -159,6 +162,7 @@ function onSave() {
       fileHandle = written;
       filename.value = written.name;
     }
+    saveStatus.value = 'saved';
   });
 }
 
@@ -196,6 +200,7 @@ function onClose() {
     <div class="editor-page">
       <EditorToolbar
         :filename="filename"
+        :save-status="saveStatus"
         save-label="저장"
         :show-export-actions="true"
         :busy="busy"
@@ -224,6 +229,7 @@ function onClose() {
             class="source"
             spellcheck="false"
             aria-label="Mermaid 코드"
+            @input="saveStatus = 'modified'"
           />
         </section>
         <section class="preview-pane" aria-label="Mermaid 미리보기">

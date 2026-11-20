@@ -54,10 +54,24 @@ export function mountExcalidraw(
   host: HTMLElement,
   initialTheme: Theme,
   onThemeChange?: (theme: Theme) => void,
+  onContentChange?: () => void,
 ): ExcalidrawController {
   let api: ExcalidrawImperativeAPI | null = null;
   let root: Root | null = createRoot(host);
   let lastTheme = initialTheme;
+  let lastSceneKey = '';
+  let initialized = false;
+
+  function sceneKey(
+    elements: readonly { id: string; version: number; versionNonce: number; isDeleted?: boolean }[],
+  ): string {
+    let key = `${elements.length}:`;
+    for (const el of elements) {
+      if (el.isDeleted) continue;
+      key += `${el.id}:${el.version}:${el.versionNonce}|`;
+    }
+    return key;
+  }
 
   root.render(
     <Excalidraw
@@ -67,11 +81,22 @@ export function mountExcalidraw(
       langCode="ko-KR"
       theme={initialTheme}
       UIOptions={{ canvasActions: { toggleTheme: true } }}
-      onChange={(_elements, appState) => {
-        // onChange fires on every edit; only report an actual switch.
-        if (appState.theme === lastTheme) return;
-        lastTheme = appState.theme;
-        onThemeChange?.(appState.theme);
+      onChange={(elements, appState) => {
+        // onChange fires on every edit; only report an actual theme switch.
+        if (appState.theme !== lastTheme) {
+          lastTheme = appState.theme;
+          onThemeChange?.(appState.theme);
+        }
+        const nextKey = sceneKey(elements);
+        if (!initialized) {
+          initialized = true;
+          lastSceneKey = nextKey;
+          return;
+        }
+        if (nextKey !== lastSceneKey) {
+          lastSceneKey = nextKey;
+          onContentChange?.();
+        }
       }}
       autoFocus
     />,
@@ -87,8 +112,11 @@ export function mountExcalidraw(
         instance.getAppState(),
         instance.getSceneElements(),
       );
+      const nextElements = restored.elements ?? [];
+      lastSceneKey = sceneKey(nextElements);
+      initialized = true;
       instance.updateScene({
-        elements: restored.elements ?? [],
+        elements: nextElements,
         // A saved file carries the theme it was drawn in; keep the one on screen instead.
         appState: { ...restored.appState, theme: instance.getAppState().theme },
       });

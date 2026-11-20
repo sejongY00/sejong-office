@@ -7,7 +7,7 @@ import FileChangedBanner from '@/components/FileChangedBanner.vue';
 import { useFileChangeWatch } from '@/composables/useFileChangeWatch';
 import { useFileDropZone } from '@/composables/useFileDropZone';
 import { consumeViewerFiles } from '@/composables/viewerSession';
-import { usePageTitle } from '@/composables/usePageTitle';
+import { usePageTitle, type DocumentSaveStatus } from '@/composables/usePageTitle';
 import { useSaveShortcut } from '@/composables/useSaveShortcut';
 import {
   isMarkdownFile,
@@ -33,6 +33,7 @@ console.log('hello');
 const router = useRouter();
 const fileInput = ref<HTMLInputElement | null>(null);
 const filename = ref('미리보기.md');
+const saveStatus = ref<DocumentSaveStatus>('pristine');
 const source = ref(DEFAULT_SOURCE);
 const error = ref('');
 const busy = ref(false);
@@ -44,7 +45,7 @@ const { changed: diskChanged, reloadFromDisk, keepMine } = useFileChangeWatch(
   loadFile,
 );
 
-usePageTitle(filename, { faviconKind: 'markdown' });
+usePageTitle(filename, { faviconKind: 'markdown', status: saveStatus });
 useSaveShortcut(() => onSave());
 
 const html = computed(() => renderMarkdown(source.value));
@@ -70,6 +71,7 @@ async function onSave() {
       fileHandle = written;
       filename.value = written.name;
     }
+    saveStatus.value = 'saved';
   } catch (reason) {
     error.value =
       reason instanceof Error ? reason.message : '파일을 저장하지 못했습니다.';
@@ -90,6 +92,7 @@ async function loadFile(file: File) {
     filename.value = file.name.replace(/\.markdown$/i, '.md');
     // A .markdown file is saved as .md, so it gets a new file rather than the old one.
     fileHandle = filename.value === file.name ? handleOf(file) : null;
+    saveStatus.value = 'pristine';
   } catch (reason) {
     error.value =
       reason instanceof Error ? reason.message : '파일을 열지 못했습니다.';
@@ -141,6 +144,7 @@ watch(source, () => {
     >
       <EditorToolbar
         :filename="filename"
+        :save-status="saveStatus"
         :busy="busy"
         save-label="저장"
         @open="onOpen"
@@ -168,6 +172,7 @@ watch(source, () => {
             :disabled="busy"
             aria-label="마크다운 원문"
             placeholder="# 제목&#10;&#10;여기에 마크다운을 입력하세요."
+            @input="saveStatus = 'modified'"
           />
         </section>
         <section class="preview-pane" aria-label="마크다운 미리보기">
