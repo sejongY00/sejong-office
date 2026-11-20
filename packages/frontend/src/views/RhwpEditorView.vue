@@ -173,9 +173,16 @@ async function onSave() {
   const current = editor;
   saving.value = true;
   saveError.value = '';
+  let completed = false;
   try {
     const written = await saveFile(
-      { suggestedName: filename.value, handle: hwpFileHandle() },
+      {
+        suggestedName: filename.value,
+        handle: hwpFileHandle(),
+        onSaved: () => {
+          completed = true;
+        },
+      },
       async () => {
         // Save in the opened file's own format; a new document is .hwpx.
         const bytes =
@@ -189,10 +196,12 @@ async function onSave() {
       setHwpFileHandle(written);
       filename.value = written.name;
     }
-    // Clears the studio's unsaved-changes guard and updates its top title to "- 저장됨".
-    await current.notifySaved(filename.value).catch(() => undefined);
-    dirty = false;
-    saveStatus.value = 'saved';
+    if (completed) {
+      // Clears the studio's unsaved-changes guard and updates its top title to "- 저장됨".
+      await current.notifySaved(filename.value).catch(() => undefined);
+      dirty = false;
+      saveStatus.value = 'saved';
+    }
   } catch (err) {
     saveError.value = `저장하지 못했습니다: ${err instanceof Error ? err.message : String(err)}`;
   } finally {

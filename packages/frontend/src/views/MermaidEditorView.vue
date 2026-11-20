@@ -154,15 +154,24 @@ function openFile(file: File) {
 
 function onSave() {
   void run(async () => {
+    let completed = false;
     const written = await saveFile(
-      { suggestedName: filename.value, handle: fileHandle },
+      {
+        suggestedName: filename.value,
+        handle: fileHandle,
+        onSaved: () => {
+          completed = true;
+        },
+      },
       () => new Blob([code.value], { type: 'text/plain;charset=utf-8' }),
     );
     if (written) {
       fileHandle = written;
       filename.value = written.name;
     }
-    saveStatus.value = 'saved';
+    if (completed) {
+      saveStatus.value = 'saved';
+    }
   });
 }
 

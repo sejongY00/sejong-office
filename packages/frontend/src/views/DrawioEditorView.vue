@@ -92,15 +92,24 @@ async function xmlFromResult(result: DrawioExportResult): Promise<string> {
 
 /** Writes the opened diagram (keeping the handle for the next save). */
 async function saveDiagram(produce: () => Promise<string>) {
+  let completed = false;
   const written = await saveFile(
-    { suggestedName: filename.value, handle: fileHandle },
+    {
+      suggestedName: filename.value,
+      handle: fileHandle,
+      onSaved: () => {
+        completed = true;
+      },
+    },
     async () => new Blob([await produce()], { type: 'application/xml;charset=utf-8' }),
   );
   if (written) {
     fileHandle = written;
     filename.value = written.name;
   }
-  saveStatus.value = 'saved';
+  if (completed) {
+    saveStatus.value = 'saved';
+  }
 }
 
 // Save/export started from draw.io's own menu inside the frame.

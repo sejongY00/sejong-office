@@ -202,15 +202,27 @@ async function onSave() {
   if (saving.value) return;
   saving.value = true;
   saveError.value = '';
+  let completed = false;
   try {
-    const written = await saveFile({ suggestedName: filename.value, handle: fileHandle }, exportFromEditor);
+    const written = await saveFile(
+      {
+        suggestedName: filename.value,
+        handle: fileHandle,
+        onSaved: () => {
+          completed = true;
+        },
+      },
+      exportFromEditor,
+    );
     if (written) {
       fileHandle = written;
       filename.value = written.name;
     }
-    dirty = false;
-    saveStatus.value = 'saved';
-    send('document:save-status', { status: 'saved' });
+    if (completed) {
+      dirty = false;
+      saveStatus.value = 'saved';
+      send('document:save-status', { status: 'saved' });
+    }
   } catch (err) {
     // The editor may already count the export as saved; the file on disk wasn't written.
     dirty = true;

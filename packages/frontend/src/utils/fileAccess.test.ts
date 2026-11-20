@@ -65,56 +65,66 @@ describe('saveFile', () => {
     expect(await changedOnDisk(asHandle(handle))).toBe(false);
   });
 
-  it('overwrites unconditionally without prompting even when the file changed on disk', async () => {
+  it('asks before overwriting a file another app changed, and keeps it on "no"', async () => {
     const handle = new FakeHandle('a.docx');
     await saveFile({ suggestedName: 'a.docx', handle: asHandle(handle) }, () => blob);
     handle.lastModified = 5000; // edited elsewhere
     expect(await changedOnDisk(asHandle(handle))).toBe(true);
 
+    confirmSpy.mockReturnValue(false);
     const produce = vi.fn(() => blob);
-    const written = await saveFile({ suggestedName: 'a.docx', handle: asHandle(handle) }, produce);
+    const onSaved = vi.fn();
+    const written = await saveFile({ suggestedName: 'a.docx', handle: asHandle(handle), onSaved }, produce);
 
-    expect(confirmSpy).not.toHaveBeenCalled();
-    expect(written).toBe(asHandle(handle));
-    expect(produce).toHaveBeenCalledTimes(1);
-    expect(handle.written).toHaveLength(2);
+    expect(confirmSpy).toHaveBeenCalledTimes(1);
+    expect(written).toBeNull();
+    expect(produce).not.toHaveBeenCalled();
+    expect(onSaved).not.toHaveBeenCalled();
+    expect(handle.written).toHaveLength(1);
   });
 
-  it('downloads a new file directly without opening showSaveFilePicker', async () => {
+  it('asks where to save a new file when the browser can', async () => {
     const target = new FakeHandle('새문서.docx');
     const picker = vi.fn(async () => asHandle(target));
+    const onSaved = vi.fn();
     (window as PickerWindow).showSaveFilePicker = picker;
 
-    const written = await saveFile({ suggestedName: '새문서.docx' }, () => blob);
+    const written = await saveFile({ suggestedName: '새문서.docx', onSaved }, () => blob);
 
-    expect(picker).not.toHaveBeenCalled();
-    expect(written).toBeNull();
-    expect(downloadBlob).toHaveBeenCalledWith(blob, '새문서.docx');
+    expect(picker).toHaveBeenCalledWith(expect.objectContaining({ suggestedName: '새문서.docx' }));
+    expect(written).toBe(asHandle(target));
+    expect(onSaved).toHaveBeenCalledWith(asHandle(target));
+    expect(target.written).toEqual([blob]);
   });
 
-  it('downloads directly when write permission to the opened file is refused', async () => {
+  it('does nothing when the save dialog is cancelled', async () => {
+    (window as PickerWindow).showSaveFilePicker = vi.fn(async () => {
+      throw new DOMException('cancelled', 'AbortError');
+    });
+    const produce = vi.fn(() => blob);
+    const onSaved = vi.fn();
+    expect(await saveFile({ suggestedName: 'a.md', onSaved }, produce)).toBeNull();
+    expect(produce).not.toHaveBeenCalled();
+    expect(onSaved).not.toHaveBeenCalled();
+    expect(downloadBlob).not.toHaveBeenCalled();
+  });
+
+  it('downloads instead on browsers without a save dialog', async () => {
+    const onSaved = vi.fn();
+    expect(await saveFile({ suggestedName: 'a.md', onSaved }, () => blob)).toBeNull();
+    expect(downloadBlob).toHaveBeenCalledWith(blob, 'a.md');
+    expect(onSaved).toHaveBeenCalledWith(null);
+  });
+
+  it('asks for a new place when write permission to the opened file is refused', async () => {
     const opened = new FakeHandle('a.md');
     opened.permission = 'denied';
-    const picker = vi.fn(async () => asHandle(new FakeHandle('b.md')));
-    (window as PickerWindow).showSaveFilePicker = picker;
+    const other = new FakeHandle('b.md');
+    (window as PickerWindow).showSaveFilePicker = vi.fn(async () => asHandle(other));
 
     const written = await saveFile({ suggestedName: 'a.md', handle: asHandle(opened) }, () => blob);
 
-    expect(picker).not.toHaveBeenCalled();
-    expect(written).toBeNull();
+    expect(written).toBe(asHandle(other));
     expect(opened.written).toEqual([]);
-    expect(downloadBlob).toHaveBeenCalledWith(blob, 'a.md');
-  });
-
-  it('falls back to direct download when writing to the file handle throws', async () => {
-    const opened = new FakeHandle('a.docx');
-    opened.createWritable = async () => {
-      throw new DOMException('locked', 'NoModificationAllowedError');
-    };
-
-    const written = await saveFile({ suggestedName: 'a.docx', handle: asHandle(opened) }, () => blob);
-
-    expect(written).toBeNull();
-    expect(downloadBlob).toHaveBeenCalledWith(blob, 'a.docx');
   });
 });

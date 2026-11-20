@@ -62,16 +62,25 @@ async function onSave() {
   if (busy.value) return;
   busy.value = true;
   error.value = '';
+  let completed = false;
   try {
     const written = await saveFile(
-      { suggestedName: filename.value, handle: fileHandle },
+      {
+        suggestedName: filename.value,
+        handle: fileHandle,
+        onSaved: () => {
+          completed = true;
+        },
+      },
       () => new Blob([source.value], { type: 'text/markdown;charset=utf-8' }),
     );
     if (written) {
       fileHandle = written;
       filename.value = written.name;
     }
-    saveStatus.value = 'saved';
+    if (completed) {
+      saveStatus.value = 'saved';
+    }
   } catch (reason) {
     error.value =
       reason instanceof Error ? reason.message : '파일을 저장하지 못했습니다.';

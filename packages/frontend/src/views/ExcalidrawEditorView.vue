@@ -141,8 +141,15 @@ function requireController(): ExcalidrawController {
 
 function onSave() {
   void run(async () => {
+    let completed = false;
     const written = await saveFile(
-      { suggestedName: filename.value, handle: fileHandle },
+      {
+        suggestedName: filename.value,
+        handle: fileHandle,
+        onSaved: () => {
+          completed = true;
+        },
+      },
       async () =>
         new Blob([await requireController().serialize()], {
           type: 'application/vnd.excalidraw+json',
@@ -152,7 +159,9 @@ function onSave() {
       fileHandle = written;
       filename.value = written.name;
     }
-    saveStatus.value = 'saved';
+    if (completed) {
+      saveStatus.value = 'saved';
+    }
   });
 }
 

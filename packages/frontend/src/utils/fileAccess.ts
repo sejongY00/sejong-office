@@ -139,31 +139,52 @@ async function canWrite(handle: FileSystemFileHandle): Promise<boolean> {
 }
 
 /**
- * Save handler: overwrite `handle` when write access is available, otherwise download directly
- * without popping up a "Save As" or overwrite confirmation dialog.
- * Call it straight from the user action so any first-time write permission check has user gesture,
+ * Save button handler: overwrite `handle` if given, else ask where to save, else download.
+ * Call it straight from the click: the permission prompt and save dialog need that user gesture,
  * which is why the bytes come from `produce` only after the target is settled.
- * Returns the file handle written to (keep it for the next save), or null when saved via download.
+ * Returns the file written to (keep it for the next save), or null when cancelled or downloaded.
+ * Pass `onSaved` when callers need to distinguish a completed download from cancellation.
  */
 export async function saveFile(
-  options: { suggestedName: string; handle?: FileSystemFileHandle | null },
+  options: {
+    suggestedName: string;
+    handle?: FileSystemFileHandle | null;
+    onSaved?: (handle: FileSystemFileHandle | null) => void;
+  },
   produce: () => Blob | Promise<Blob>,
 ): Promise<FileSystemFileHandle | null> {
   let target: FileSystemFileHandle | null = null;
-  if (options.handle) {
-    try {
-      if (await canWrite(options.handle)) {
-        target = options.handle;
-      }
-    } catch {
-      // Lost user activation (SecurityError) or permission denied: save immediately via download.
-      target = null;
+  try {
+    if (options.handle && (await canWrite(options.handle))) {
+      target = options.handle;
+    } else if (picker.showSaveFilePicker) {
+      const ext = /\.[^.]+$/.exec(options.suggestedName)?.[0];
+      target = await picker.showSaveFilePicker({
+        suggestedName: options.suggestedName,
+        types: pickerTypes(ext ? [ext] : []),
+      });
     }
+  } catch (err) {
+    if (isAbort(err)) return null;
+    // Lost user activation (SecurityError) or similar: still give the user the file.
+    target = null;
+  }
+
+  if (
+    target &&
+    target === options.handle &&
+    (await changedOnDisk(target)) &&
+    !window.confirm(
+      `${target.name} 파일이 다른 곳에서 수정됐습니다.\n덮어쓰면 그 수정 내용이 사라집니다. 덮어쓸까요?`,
+    )
+  ) {
+    return null;
   }
 
   const blob = await produce();
   if (!target) {
     downloadBlob(blob, options.suggestedName);
+    options.onSaved?.(null);
     return null;
   }
   writing.add(target);
@@ -172,12 +193,9 @@ export async function saveFile(
     await writable.write(blob);
     await writable.close();
     knownVersion.set(target, (await target.getFile()).lastModified);
-  } catch {
-    // Handle write failed (e.g. file moved/locked/permission revoked): still save via download.
-    downloadBlob(blob, options.suggestedName);
-    return null;
   } finally {
     writing.delete(target);
   }
+  options.onSaved?.(target);
   return target;
 }
