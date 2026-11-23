@@ -162,11 +162,20 @@ async function bundleOfflineOffice() {
     }
   }
   rmSync(path.join(offlineOfficeDir, 'web-apps/apps/visioeditor'), { recursive: true, force: true });
+  rmSync(path.join(offlineOfficeDir, 'web-apps/apps/common/embed'), { recursive: true, force: true });
   for (const appName of ['documenteditor', 'presentationeditor', 'spreadsheeteditor', 'pdfeditor']) {
-    rmSync(path.join(offlineOfficeDir, 'web-apps/apps', appName, 'mobile'), {
-      recursive: true,
-      force: true,
-    });
+    const appDir = path.join(offlineOfficeDir, 'web-apps/apps', appName);
+    rmSync(path.join(appDir, 'mobile'), { recursive: true, force: true });
+    rmSync(path.join(appDir, 'embed'), { recursive: true, force: true });
+    rmSync(path.join(appDir, 'main/ie'), { recursive: true, force: true });
+    const localeDir = path.join(appDir, 'main/locale');
+    if (existsSync(localeDir)) {
+      for (const file of readdirSync(localeDir)) {
+        if (file.endsWith('.json') && !/^(?:ko|en)(?:[-_].+)?\.json$/i.test(file)) {
+          rmSync(path.join(localeDir, file), { force: true });
+        }
+      }
+    }
   }
 
   const sdkDirs = ['common', 'word', 'cell', 'slide', 'pdf'];

@@ -3,6 +3,9 @@ const fs = require('node:fs');
 const fsp = require('node:fs/promises');
 const path = require('node:path');
 const {
+  createDesktopUpdater,
+} = require('./autoUpdater.cjs');
+const {
   extractFilePathsFromArgv,
   mimeTypeForPath,
   resolveDistAsset,
@@ -178,7 +181,12 @@ function dispatchFileToWindow(filePath) {
   createAppWindow([filePath]);
 }
 
-function registerIpcHandlers() {
+function registerIpcHandlers(updater) {
+  ipcMain.handle('sejong:update-get-state', () => updater.getState());
+  ipcMain.handle('sejong:update-check', () => updater.checkForUpdates({ silent: false }));
+  ipcMain.handle('sejong:update-download', () => updater.downloadUpdate());
+  ipcMain.handle('sejong:update-install', () => updater.installUpdate());
+
   ipcMain.handle('sejong:consume-launch-files', (event) => {
     const state = windowStates.get(event.sender.id);
     if (!state) return [];
@@ -358,7 +366,31 @@ app.whenReady().then(async () => {
     void offlineManager.warmOfflineEditorsInBackground();
   }, 2500);
 
-  registerIpcHandlers();
+  let electronAutoUpdater = null;
+  try {
+    ({ autoUpdater: electronAutoUpdater } = require('electron-updater'));
+  } catch {
+    // electron-updater optional fallback
+  }
+
+  const updater = createDesktopUpdater({
+    app,
+    BrowserWindow,
+    net,
+    shell,
+    autoUpdater: electronAutoUpdater,
+    onBeforeQuitForUpdate: () => {
+      confirmedAppExit = true;
+    },
+  });
+
+  registerIpcHandlers(updater);
+
+  if (app.isPackaged) {
+    setTimeout(() => {
+      void updater.checkForUpdates({ silent: true });
+    }, 5000);
+  }
 
   const cliFiles = extractFilePathsFromArgv(process.argv, process.cwd(), __filename);
   for (const file of cliFiles) {

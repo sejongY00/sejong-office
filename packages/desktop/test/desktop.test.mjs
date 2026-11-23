@@ -31,6 +31,11 @@ const {
   createOfflineAssetManager,
   resolveBundledOfficeAsset,
 } = require('../src/offlineCache.cjs');
+const {
+  compareSemver,
+  createDesktopUpdater,
+  selectReleaseAsset,
+} = require('../src/autoUpdater.cjs');
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const desktopRoot = path.resolve(__dirname, '..');
@@ -395,5 +400,69 @@ test('padFontThumbnailSpriteBin pads sprite tile count and offline manager serve
   } finally {
     rmSync(tmpRoot, { recursive: true, force: true });
   }
+});
+
+test('autoUpdater compares semver, selects OS/arch installer assets, and handles offline and online checks', async () => {
+  assert.equal(compareSemver('v0.1.1', '0.1.0'), 1);
+  assert.equal(compareSemver('0.1.0', 'v0.1.0'), 0);
+  assert.equal(compareSemver('0.1.0-beta.1', '0.1.0'), -1);
+
+  const sampleAssets = [
+    { name: 'Sejong-Office-0.2.0-mac-arm64.dmg', browser_download_url: 'https://example.com/arm64.dmg' },
+    { name: 'Sejong-Office-0.2.0-mac-arm64.dmg.blockmap', browser_download_url: 'https://example.com/arm64.blockmap' },
+    { name: 'Sejong-Office-0.2.0-mac-x64.dmg', browser_download_url: 'https://example.com/x64.dmg' },
+    { name: 'Sejong-Office-0.2.0-win-x64.__uninstaller.exe', browser_download_url: 'https://example.com/uninst.exe' },
+    { name: 'Sejong-Office-0.2.0-win-x64.exe', browser_download_url: 'https://example.com/win.exe' },
+  ];
+
+  assert.equal(selectReleaseAsset(sampleAssets, 'darwin', 'arm64')?.name, 'Sejong-Office-0.2.0-mac-arm64.dmg');
+  assert.equal(selectReleaseAsset(sampleAssets, 'darwin', 'x64')?.name, 'Sejong-Office-0.2.0-mac-x64.dmg');
+  assert.equal(selectReleaseAsset(sampleAssets, 'win32', 'x64')?.name, 'Sejong-Office-0.2.0-win-x64.exe');
+
+  // Offline silent check stays idle; manual check surfaces error cleanly
+  const offlineUpdater = createDesktopUpdater({
+    app: { isPackaged: true, getVersion: () => '0.1.0', getPath: () => os.tmpdir() },
+    BrowserWindow: { getAllWindows: () => [] },
+    net: {
+      fetch: async () => {
+        throw new Error('ERR_INTERNET_DISCONNECTED');
+      },
+    },
+    shell: { openExternal: async () => {}, openPath: async () => '' },
+    platform: 'darwin',
+    arch: 'arm64',
+  });
+
+  const silentRes = await offlineUpdater.checkForUpdates({ silent: true });
+  assert.equal(silentRes.status, 'idle');
+
+  const manualRes = await offlineUpdater.checkForUpdates({ silent: false });
+  assert.equal(manualRes.status, 'error');
+
+  // Online GitHub release check detects newer version and picks matching macOS arm64 dmg
+  const onlineUpdater = createDesktopUpdater({
+    app: { isPackaged: true, getVersion: () => '0.1.0', getPath: () => os.tmpdir() },
+    BrowserWindow: { getAllWindows: () => [] },
+    net: {
+      fetch: async () =>
+        new Response(
+          JSON.stringify({
+            tag_name: 'v0.2.0',
+            html_url: 'https://github.com/sejongY00/sejong-office/releases/tag/v0.2.0',
+            assets: sampleAssets,
+          }),
+          { status: 200, headers: { 'content-type': 'application/json' } },
+        ),
+    },
+    shell: { openExternal: async () => {}, openPath: async () => '' },
+    platform: 'darwin',
+    arch: 'arm64',
+  });
+
+  const avail = await onlineUpdater.checkForUpdates({ silent: true });
+  assert.equal(avail.status, 'available');
+  assert.equal(avail.latestVersion, '0.2.0');
+  assert.equal(avail.mode, 'manual-dmg');
+  assert.equal(avail.downloadUrl, 'https://example.com/arm64.dmg');
 });
 

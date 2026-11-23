@@ -41,4 +41,17 @@ contextBridge.exposeInMainWorld('sejongDesktop', {
   moveWindowDrag: (screenX, screenY) =>
     ipcRenderer.send('sejong:window-drag-move', screenX, screenY),
   endWindowDrag: () => ipcRenderer.send('sejong:window-drag-end'),
+  getUpdateState: () => ipcRenderer.invoke('sejong:update-get-state'),
+  checkForUpdates: () => ipcRenderer.invoke('sejong:update-check'),
+  downloadUpdate: () => ipcRenderer.invoke('sejong:update-download'),
+  installUpdate: () => ipcRenderer.invoke('sejong:update-install'),
+  onUpdateStateChange: (callback) => {
+    const listener = (_event, nextState) => {
+      if (nextState && typeof nextState === 'object') {
+        callback(nextState);
+      }
+    };
+    ipcRenderer.on('sejong:update-state', listener);
+    return () => ipcRenderer.removeListener('sejong:update-state', listener);
+  },
 });

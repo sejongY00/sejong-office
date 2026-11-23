@@ -10,6 +10,7 @@
     "dev": "vite",
     "prebuild": "npm run assets:viewers",
     "build": "vue-tsc --noEmit && vite build",
+    "build:desktop": "vue-tsc --noEmit && vite build --mode desktop",
     "test": "vitest run",
     "test:watch": "vitest",
     "preview": "vite preview"

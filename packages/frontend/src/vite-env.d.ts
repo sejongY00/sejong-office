@@ -1,5 +1,7 @@
 /// <reference types="vite/client" />
 
+declare const __DESKTOP_ONLY__: boolean;
+
 interface ImportMetaEnv {
   readonly VITE_OFFICE_EDITOR_URL?: string;
   readonly VITE_RHWP_STUDIO_URL?: string;
@@ -47,6 +49,27 @@ interface SejongDesktopFileSnapshot {
   readonly lastModified: number;
 }
 
+interface SejongDesktopUpdateState {
+  readonly status:
+    | 'idle'
+    | 'checking'
+    | 'available'
+    | 'not-available'
+    | 'downloading'
+    | 'downloaded'
+    | 'error';
+  readonly currentVersion: string;
+  readonly latestVersion?: string;
+  readonly percent?: number;
+  readonly mode: 'auto' | 'manual-dmg';
+  readonly assetName?: string;
+  readonly downloadUrl?: string;
+  readonly releaseUrl?: string;
+  readonly downloadedPath?: string;
+  readonly message?: string;
+  readonly silent?: boolean;
+}
+
 interface SejongDesktopBridge {
   readonly isDesktop?: boolean;
   getFilePath?(file: File): string;
@@ -63,6 +86,11 @@ interface SejongDesktopBridge {
   startWindowDrag?(screenX: number, screenY: number): void;
   moveWindowDrag?(screenX: number, screenY: number): void;
   endWindowDrag?(): void;
+  getUpdateState?(): Promise<SejongDesktopUpdateState>;
+  checkForUpdates?(): Promise<SejongDesktopUpdateState>;
+  downloadUpdate?(): Promise<SejongDesktopUpdateState>;
+  installUpdate?(): Promise<boolean>;
+  onUpdateStateChange?(callback: (state: SejongDesktopUpdateState) => void): () => void;
 }
 
 interface Window {

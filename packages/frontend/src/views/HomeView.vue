@@ -5,6 +5,7 @@ import AppShell from '@/components/AppShell.vue';
 import DesktopWindowControls from '@/components/DesktopWindowControls.vue';
 import FileTypeIcon from '@/components/FileTypeIcon.vue';
 import { APP_DISPLAY_NAME, APP_WEB_URL, extensionOf } from '@/config/app';
+import { useDesktopUpdate } from '@/composables/useDesktopUpdate';
 import { useOpenDocument } from '@/composables/useOpenDocument';
 import { usePageTitle } from '@/composables/usePageTitle';
 import { useRecentFiles, type RecentFileEntry } from '@/composables/useRecentFiles';
@@ -22,6 +23,7 @@ const {
   clearRecentFiles,
   setRecentFilesDisabled,
 } = useRecentFiles();
+const { isChecking: checkingUpdate, checkForUpdates } = useDesktopUpdate();
 const isDesktop = Boolean(window.sejongDesktop);
 const logoUrl = '/icons/icon.svg';
 
@@ -172,6 +174,21 @@ function formatRecentMeta(entry: RecentFileEntry): string {
   <AppShell>
     <header class="home__topbar">
       <div class="home__actions">
+        <button
+          v-if="isDesktop"
+          type="button"
+          class="home__icon-btn"
+          :class="{ 'home__icon-btn--spin': checkingUpdate }"
+          :disabled="checkingUpdate"
+          title="업데이트 확인"
+          aria-label="업데이트 확인"
+          @click="checkForUpdates"
+        >
+          <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M13.5 8a5.5 5.5 0 1 1-1.4-3.65" />
+            <path d="M13.5 2.5v2.75h-2.75" />
+          </svg>
+        </button>
         <RouterLink
           class="home__icon-btn"
           to="/licenses"
@@ -266,7 +283,7 @@ function formatRecentMeta(entry: RecentFileEntry): string {
         </div>
       </section>
 
-      <section class="section recent-section" aria-label="최근 파일">
+      <section v-if="isDesktop" class="section recent-section" aria-label="최근 파일">
         <div class="recent-section__header">
           <h2 class="section__title recent-section__title">최근 파일</h2>
           <div class="recent-section__actions">
@@ -489,9 +506,12 @@ function formatRecentMeta(entry: RecentFileEntry): string {
   justify-content: center;
   width: 30px;
   height: 26px;
+  border: 0;
   border-radius: 4px;
+  background: transparent;
   color: var(--ink);
   opacity: 0.78;
+  cursor: pointer;
   text-decoration: none;
   transition: background-color 0.12s ease, opacity 0.12s ease;
   -webkit-app-region: no-drag;
@@ -500,6 +520,16 @@ function formatRecentMeta(entry: RecentFileEntry): string {
 .home__icon-btn:hover {
   opacity: 1;
   background: color-mix(in srgb, var(--ink) 8%, transparent);
+}
+
+.home__icon-btn--spin svg {
+  animation: home-spin 0.9s linear infinite;
+}
+
+@keyframes home-spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .section {

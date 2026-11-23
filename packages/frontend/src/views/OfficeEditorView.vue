@@ -234,7 +234,9 @@ async function onSave() {
     if (written) {
       fileHandle = written;
       filename.value = written.name;
-      recordRecentFile({ name: written.name, handle: written });
+      if (window.sejongDesktop) {
+        recordRecentFile({ name: written.name, handle: written });
+      }
     }
     if (completed) {
       dirty = false;

@@ -214,7 +214,9 @@ async function onSave() {
     if (written) {
       setHwpFileHandle(written);
       filename.value = written.name;
-      recordRecentFile({ name: written.name, handle: written });
+      if (window.sejongDesktop) {
+        recordRecentFile({ name: written.name, handle: written });
+      }
     }
     if (completed) {
       // Clears the studio's unsaved-changes guard and updates its top title to "- 저장됨".

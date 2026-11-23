@@ -77,7 +77,7 @@ jobs:
             packages/desktop/release/*.exe
             !packages/desktop/release/*.__uninstaller.exe
             packages/desktop/release/*.blockmap
-            packages/desktop/release/*.yml
+            packages/desktop/release/latest*.yml
           if-no-files-found: warn
 
   publish-release:

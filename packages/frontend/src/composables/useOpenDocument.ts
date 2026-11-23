@@ -63,7 +63,6 @@ export function useOpenDocument() {
       if (!isDesktop) {
         const viewerKind = viewerKindFor(file.name);
         if (viewerKind) {
-          recordRecentFile({ name: file.name, file, handle: handleOf(file) });
           stageViewerFiles(viewerKind, files);
           await router.push({ name: `${viewerKind}-viewer` });
           return true;
@@ -72,13 +71,11 @@ export function useOpenDocument() {
         const toolKind = toolKindFor(file.name);
         if (toolKind === 'scanner') {
           const images = files.filter((candidate) => toolKindFor(candidate.name) === 'scanner');
-          recordRecentFile({ name: file.name, file, handle: handleOf(file) });
           stageScannerFiles(images.length ? images : [file]);
           await router.push({ name: 'tools-scanner' });
           return true;
         }
         if (toolKind === 'imageedit') {
-          recordRecentFile({ name: file.name, file, handle: handleOf(file) });
           stageImageEditFile(file);
           await router.push({ name: 'tools-image-edit' });
           return true;
@@ -86,7 +83,6 @@ export function useOpenDocument() {
 
         const diagramKind = diagramKindFor(file.name);
         if (diagramKind) {
-          recordRecentFile({ name: file.name, file, handle: handleOf(file) });
           stageDiagramFile(diagramKind, file);
           await router.push({ name: `${diagramKind}-editor` });
           return true;
@@ -94,7 +90,9 @@ export function useOpenDocument() {
       }
 
       if (isHwp(file.name)) {
-        recordRecentFile({ name: file.name, file, handle: handleOf(file) });
+        if (isDesktop) {
+          recordRecentFile({ name: file.name, file, handle: handleOf(file) });
+        }
         await storeHwpFile(file);
         await router.push({ name: 'rhwp-editor' });
         return true;
@@ -107,7 +105,9 @@ export function useOpenDocument() {
         return false;
       }
 
-      recordRecentFile({ name: file.name, file, handle: handleOf(file) });
+      if (isDesktop) {
+        recordRecentFile({ name: file.name, file, handle: handleOf(file) });
+      }
       await stageOfficeFile(file);
       await router.push({ name: 'office-editor', query: { d: String(officeOpenToken()) } });
       return true;
