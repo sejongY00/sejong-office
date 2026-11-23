@@ -1,6 +1,9 @@
 /** 본 프로젝트 소스 저장소. 공개 후 URL 채우기. 비우면 푸터에서 링크 숨김 */
 export const APP_GIT_URL = "https://github.com/sejongY00/sejong-office";
 
+/** 최신 데스크톱 앱 릴리즈 다운로드 페이지 (GitHub Releases latest) */
+export const APP_LATEST_RELEASE_URL = `${APP_GIT_URL}/releases/latest`;
+
 /** 온라인 웹 버전 주소 (다이어그램·뷰어·도구 전체 지원) */
 export const APP_WEB_URL = "https://office.sejong.dev";
 

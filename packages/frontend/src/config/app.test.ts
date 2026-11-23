@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
+  APP_GIT_URL,
+  APP_LATEST_RELEASE_URL,
   diagramKindFor,
   extensionOf,
   isHwp,
@@ -8,6 +10,15 @@ import {
   toolKindFor,
   viewerKindFor,
 } from './app';
+
+describe('release URL config', () => {
+  it('points APP_LATEST_RELEASE_URL to the latest GitHub release page', () => {
+    expect(APP_GIT_URL).toBe('https://github.com/sejongY00/sejong-office');
+    expect(APP_LATEST_RELEASE_URL).toBe(
+      'https://github.com/sejongY00/sejong-office/releases/latest',
+    );
+  });
+});
 
 describe('extensionOf', () => {
   it.each([

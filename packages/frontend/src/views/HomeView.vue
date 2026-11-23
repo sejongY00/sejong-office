@@ -4,7 +4,12 @@ import { useRouter } from 'vue-router';
 import AppShell from '@/components/AppShell.vue';
 import DesktopWindowControls from '@/components/DesktopWindowControls.vue';
 import FileTypeIcon from '@/components/FileTypeIcon.vue';
-import { APP_DISPLAY_NAME, APP_WEB_URL, extensionOf } from '@/config/app';
+import {
+  APP_DISPLAY_NAME,
+  APP_LATEST_RELEASE_URL,
+  APP_WEB_URL,
+  extensionOf,
+} from '@/config/app';
 import { useDesktopUpdate } from '@/composables/useDesktopUpdate';
 import { useOpenDocument } from '@/composables/useOpenDocument';
 import { usePageTitle } from '@/composables/usePageTitle';
@@ -222,6 +227,26 @@ function formatRecentMeta(entry: RecentFileEntry): string {
           <span class="home__tooltip" role="tooltip">
             <strong>{{ checkingUpdate ? '업데이트 확인 중…' : '업데이트 확인' }}</strong>
             <span v-if="versionMetaLine">{{ versionMetaLine }}</span>
+          </span>
+        </span>
+        <span v-else class="home__tooltip-wrap">
+          <a
+            class="home__icon-btn"
+            :href="APP_LATEST_RELEASE_URL"
+            target="_blank"
+            rel="noopener noreferrer"
+            data-download-release-link
+            aria-label="데스크톱 앱 다운로드"
+          >
+            <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M8 2.5v7" />
+              <path d="M5.25 7.25L8 10l2.75-2.75" />
+              <path d="M2.5 11.25v1.25a1 1 0 0 0 1 1h9a1 1 0 0 0 1-1v-1.25" />
+            </svg>
+          </a>
+          <span class="home__tooltip" role="tooltip">
+            <strong>데스크톱 앱 다운로드</strong>
+            <span>GitHub 최신 릴리즈 페이지</span>
           </span>
         </span>
         <span class="home__tooltip-wrap">

@@ -1,10 +1,13 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import DesktopWindowControls from '@/components/DesktopWindowControls.vue';
+import { APP_LATEST_RELEASE_URL } from '@/config/app';
 import {
   formatFilenameWithStatus,
   type DocumentSaveStatus,
 } from '@/composables/usePageTitle';
+
+const isDesktop = computed(() => Boolean(window.sejongDesktop));
 
 const props = withDefaults(
   defineProps<{
@@ -97,6 +100,22 @@ function onRequestHome() {
       {{ showFilename ? displayFilename : '' }}
     </p>
     <div class="toolbar__right">
+      <a
+        v-if="!isDesktop"
+        class="toolbar__icon-link"
+        :href="APP_LATEST_RELEASE_URL"
+        target="_blank"
+        rel="noopener noreferrer"
+        data-download-release-link
+        title="데스크톱 앱 다운로드 (GitHub 최신 릴리즈)"
+        aria-label="데스크톱 앱 다운로드"
+      >
+        <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M8 2.5v7" />
+          <path d="M5.25 7.25L8 10l2.75-2.75" />
+          <path d="M2.5 11.25v1.25a1 1 0 0 0 1 1h9a1 1 0 0 0 1-1v-1.25" />
+        </svg>
+      </a>
       <RouterLink
         class="toolbar__icon-link"
         to="/licenses"
