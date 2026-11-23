@@ -23,6 +23,7 @@ const {
   setRecentFilesDisabled,
 } = useRecentFiles();
 const isDesktop = Boolean(window.sejongDesktop);
+const logoUrl = '/icons/icon.svg';
 
 const DESKTOP_ACCEPT =
   '.docx,.xlsx,.pptx,.pdf,.hwp,.hwpx,.odt,.ods,.odp,.doc,.xls,.ppt,.rtf,.txt,.csv,.dotx,.xltx,.potx';
@@ -190,7 +191,7 @@ function formatRecentMeta(entry: RecentFileEntry): string {
         <div class="home__brand-wrap">
           <img
             class="home__logo"
-            src="/icons/icon.svg"
+            :src="logoUrl"
             alt=""
             width="34"
             height="34"
