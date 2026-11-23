@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
 import { isHwp, isOffice } from '@/config/app';
@@ -112,23 +112,34 @@ describe('registerFileLaunch', () => {
 });
 
 describe('manifest.webmanifest file handling', () => {
-  const manifestPath = path.resolve(__dirname, '../../public/manifest.webmanifest');
+  const publicDir = path.resolve(__dirname, '../../public');
+  const manifestPath = path.join(publicDir, 'manifest.webmanifest');
   const manifest = JSON.parse(readFileSync(manifestPath, 'utf8')) as {
     scope: string;
     launch_handler?: { client_mode?: string };
     file_handlers?: Array<{
       action: string;
+      name?: string;
       launch_type?: string;
       accept: Record<string, string[]>;
+      icons?: Array<{ src: string; sizes?: string; type?: string }>;
     }>;
   };
 
-  it('opens a new window per launched file', () => {
+  it('opens a new window per launched file and assigns an existing icon to each handler', () => {
     expect(manifest.launch_handler?.client_mode).toBe('navigate-new');
     expect(manifest.file_handlers?.length).toBeGreaterThan(0);
     for (const handler of manifest.file_handlers ?? []) {
       expect(handler.action).toBe('/');
       expect(handler.launch_type).toBe('multiple-clients');
+      expect(handler.name?.trim().length).toBeGreaterThan(0);
+      expect(handler.icons?.length).toBeGreaterThan(0);
+      for (const icon of handler.icons ?? []) {
+        expect(icon.src).toMatch(/^\/icons\/file-[a-z]+\.png$/);
+        expect(icon.type).toBe('image/png');
+        const iconDiskPath = path.join(publicDir, icon.src.replace(/^\//, ''));
+        expect(existsSync(iconDiskPath)).toBe(true);
+      }
     }
   });
 

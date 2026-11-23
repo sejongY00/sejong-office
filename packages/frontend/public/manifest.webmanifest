@@ -20,26 +20,80 @@
   "file_handlers": [
     {
       "action": "/",
+      "name": "Word 문서",
       "launch_type": "multiple-clients",
       "accept": {
         "application/vnd.openxmlformats-officedocument.wordprocessingml.document": [".docx"],
         "application/vnd.openxmlformats-officedocument.wordprocessingml.template": [".dotx"],
         "application/msword": [".doc"],
         "application/vnd.oasis.opendocument.text": [".odt"],
-        "application/rtf": [".rtf"],
+        "application/rtf": [".rtf"]
+      },
+      "icons": [
+        { "src": "/icons/file-word.png", "sizes": "256x256", "type": "image/png" }
+      ]
+    },
+    {
+      "action": "/",
+      "name": "Excel 스프레드시트",
+      "launch_type": "multiple-clients",
+      "accept": {
         "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": [".xlsx"],
         "application/vnd.openxmlformats-officedocument.spreadsheetml.template": [".xltx"],
         "application/vnd.ms-excel": [".xls"],
-        "application/vnd.oasis.opendocument.spreadsheet": [".ods"],
-        "text/csv": [".csv"],
+        "application/vnd.oasis.opendocument.spreadsheet": [".ods"]
+      },
+      "icons": [
+        { "src": "/icons/file-excel.png", "sizes": "256x256", "type": "image/png" }
+      ]
+    },
+    {
+      "action": "/",
+      "name": "CSV 표",
+      "launch_type": "multiple-clients",
+      "accept": {
+        "text/csv": [".csv"]
+      },
+      "icons": [
+        { "src": "/icons/file-csv.png", "sizes": "256x256", "type": "image/png" }
+      ]
+    },
+    {
+      "action": "/",
+      "name": "PowerPoint 프레젠테이션",
+      "launch_type": "multiple-clients",
+      "accept": {
         "application/vnd.openxmlformats-officedocument.presentationml.presentation": [".pptx"],
         "application/vnd.openxmlformats-officedocument.presentationml.template": [".potx"],
         "application/vnd.ms-powerpoint": [".ppt"],
-        "application/vnd.oasis.opendocument.presentation": [".odp"],
-        "application/pdf": [".pdf"],
+        "application/vnd.oasis.opendocument.presentation": [".odp"]
+      },
+      "icons": [
+        { "src": "/icons/file-powerpoint.png", "sizes": "256x256", "type": "image/png" }
+      ]
+    },
+    {
+      "action": "/",
+      "name": "PDF 문서",
+      "launch_type": "multiple-clients",
+      "accept": {
+        "application/pdf": [".pdf"]
+      },
+      "icons": [
+        { "src": "/icons/file-pdf.png", "sizes": "256x256", "type": "image/png" }
+      ]
+    },
+    {
+      "action": "/",
+      "name": "한글 문서",
+      "launch_type": "multiple-clients",
+      "accept": {
         "application/x-hwp": [".hwp"],
         "application/vnd.hancom.hwpx": [".hwpx"]
-      }
+      },
+      "icons": [
+        { "src": "/icons/file-hwp.png", "sizes": "256x256", "type": "image/png" }
+      ]
     }
   ]
 }
