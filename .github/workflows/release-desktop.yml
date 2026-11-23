@@ -64,7 +64,6 @@ jobs:
       - name: Build and package Electron desktop app
         shell: bash
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CSC_IDENTITY_AUTO_DISCOVERY: "false"
         run: npx --workspace @sejong-office/desktop electron-builder ${{ matrix.platform_flag }} --publish never
 
@@ -76,6 +75,7 @@ jobs:
             packages/desktop/release/*.dmg
             packages/desktop/release/*.zip
             packages/desktop/release/*.exe
+            !packages/desktop/release/*.__uninstaller.exe
             packages/desktop/release/*.blockmap
             packages/desktop/release/*.yml
           if-no-files-found: warn

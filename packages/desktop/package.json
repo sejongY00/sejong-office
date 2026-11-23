@@ -5,6 +5,7 @@
   "description": "Sejong Office desktop application (macOS & Windows)",
   "license": "GPL-3.0-only",
   "author": "Sejong Office",
+  "repository": "https://github.com/sejongY00/sejong-office.git",
   "main": "src/main.cjs",
   "scripts": {
     "icons": "node scripts/generate-desktop-icons.mjs",
@@ -24,6 +25,7 @@
     "appId": "dev.sejong.office",
     "productName": "Sejong Office",
     "electronVersion": "35.7.5",
+    "publish": null,
     "artifactName": "Sejong-Office-${version}-${os}-${arch}.${ext}",
     "directories": {
       "buildResources": "build",
