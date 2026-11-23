@@ -1,5 +1,7 @@
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
+import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -72,15 +74,64 @@ export function buildIcoFromPngs(pngBuffers) {
   return out;
 }
 
+/**
+ * Apple PNG-in-ICNS OSTypes that macOS IconServices/iconutil decode natively as PNG.
+ * Note: `icp4` (16x16) and `icp5` (32x32) are NOT safe for raw PNG payloads in macOS Finder
+ * (macOS treats them as PackBits ARGB, causing rainbow static in 16px list views).
+ */
 const ICNS_TYPES_BY_SIZE = {
-  16: ['icp4'],
-  32: ['icp5', 'ic11'],
-  64: ['icp6', 'ic12'],
+  32: ['ic11'],
+  64: ['ic12'],
   128: ['ic07'],
   256: ['ic08', 'ic13'],
   512: ['ic09', 'ic14'],
   1024: ['ic10'],
 };
+
+const ICONSET_FILES_BY_SIZE = [
+  { file: 'icon_16x16.png', size: 16 },
+  { file: 'icon_16x16@2x.png', size: 32 },
+  { file: 'icon_32x32.png', size: 32 },
+  { file: 'icon_32x32@2x.png', size: 64 },
+  { file: 'icon_128x128.png', size: 128 },
+  { file: 'icon_128x128@2x.png', size: 256 },
+  { file: 'icon_256x256.png', size: 256 },
+  { file: 'icon_256x256@2x.png', size: 512 },
+  { file: 'icon_512x512.png', size: 512 },
+  { file: 'icon_512x512@2x.png', size: 1024 },
+];
+
+/**
+ * On macOS, use Apple's native `iconutil` so 16x16 (`ic04`) and 32x32 (`ic05`) are encoded
+ * in Apple's native ARGB format alongside PNG Retina chunks. Falls back to `buildIcnsFromPngs`
+ * on non-macOS hosts.
+ */
+function buildNativeOrPortableIcns(sizeMap, icnsSizes) {
+  if (process.platform === 'darwin' && sizeMap.has(16) && sizeMap.has(32) && sizeMap.has(128)) {
+    const tmpRoot = mkdtempSync(path.join(os.tmpdir(), 'sejong-iconutil-'));
+    try {
+      const iconsetDir = path.join(tmpRoot, 'app.iconset');
+      const outIcns = path.join(tmpRoot, 'app.icns');
+      mkdirSync(iconsetDir, { recursive: true });
+      for (const { file, size } of ICONSET_FILES_BY_SIZE) {
+        const buf = sizeMap.get(size);
+        if (buf) writeFileSync(path.join(iconsetDir, file), buf);
+      }
+      execFileSync('iconutil', ['-c', 'icns', iconsetDir, '-o', outIcns], { stdio: 'ignore' });
+      return readFileSync(outIcns);
+    } catch {
+      // Fall back to pure-JS portable PNG-in-ICNS builder below
+    } finally {
+      rmSync(tmpRoot, { recursive: true, force: true });
+    }
+  }
+  return buildIcnsFromPngs(
+    icnsSizes
+      .filter((s) => ICNS_TYPES_BY_SIZE[s])
+      .map((s) => sizeMap.get(s))
+      .filter(Boolean),
+  );
+}
 
 /**
  * Wrap one or more square PNG buffers into an Apple .icns container.
@@ -174,7 +225,7 @@ export async function generateDesktopIcons(srcDir = iconsSrcDir, outDir = buildD
   );
   writeFileSync(
     path.join(outDir, 'icon.icns'),
-    buildIcnsFromPngs(icnsSizes.map((s) => appMap.get(s)).filter(Boolean)),
+    buildNativeOrPortableIcns(appMap, icnsSizes),
   );
 
   const fileIconNames = [
@@ -195,7 +246,7 @@ export async function generateDesktopIcons(srcDir = iconsSrcDir, outDir = buildD
     );
     writeFileSync(
       path.join(outDir, `${name}.icns`),
-      buildIcnsFromPngs(icnsSizes.map((s) => sizeMap.get(s)).filter(Boolean)),
+      buildNativeOrPortableIcns(sizeMap, icnsSizes),
     );
   }
 }

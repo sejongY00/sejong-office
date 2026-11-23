@@ -78,10 +78,16 @@ test('generateDesktopIcons builds valid multi-resolution .ico and .icns files fo
         chunkTypes.push(icnsBytes.subarray(off, off + 4).toString('ascii'));
         off += icnsBytes.readUInt32BE(off + 4);
       }
-      assert.ok(chunkTypes.includes('icp4'), `${name}.icns missing 16px icp4`);
+      assert.equal(chunkTypes.includes('icp4'), false, `${name}.icns must not contain raw-PNG icp4`);
+      assert.equal(chunkTypes.includes('icp5'), false, `${name}.icns must not contain raw-PNG icp5`);
+      assert.ok(chunkTypes.includes('ic11'), `${name}.icns missing 32px ic11`);
       assert.ok(chunkTypes.includes('ic12'), `${name}.icns missing 64px ic12`);
       assert.ok(chunkTypes.includes('ic08'), `${name}.icns missing 256px ic08`);
       assert.ok(chunkTypes.includes('ic09'), `${name}.icns missing 512px ic09`);
+      if (process.platform === 'darwin') {
+        assert.ok(chunkTypes.includes('ic04'), `${name}.icns missing native 16px ic04`);
+        assert.ok(chunkTypes.includes('ic05'), `${name}.icns missing native 32px ic05`);
+      }
     }
   } finally {
     rmSync(tmpOut, { recursive: true, force: true });
