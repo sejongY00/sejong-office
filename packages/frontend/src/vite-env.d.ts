@@ -1,6 +1,8 @@
 /// <reference types="vite/client" />
 
 declare const __DESKTOP_ONLY__: boolean;
+declare const __APP_VERSION__: string;
+declare const __APP_UPDATED_AT__: string;
 
 interface ImportMetaEnv {
   readonly VITE_OFFICE_EDITOR_URL?: string;

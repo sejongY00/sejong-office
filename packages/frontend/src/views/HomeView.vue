@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import AppShell from '@/components/AppShell.vue';
 import DesktopWindowControls from '@/components/DesktopWindowControls.vue';
@@ -23,9 +23,40 @@ const {
   clearRecentFiles,
   setRecentFilesDisabled,
 } = useRecentFiles();
-const { isChecking: checkingUpdate, checkForUpdates } = useDesktopUpdate();
+const {
+  updateState,
+  isChecking: checkingUpdate,
+  checkForUpdates,
+} = useDesktopUpdate();
 const isDesktop = Boolean(window.sejongDesktop);
 const logoUrl = '/icons/icon.svg';
+
+const appVersion = computed(() => {
+  const raw = updateState.value?.currentVersion || (typeof __APP_VERSION__ === 'string' ? __APP_VERSION__ : '');
+  const trimmed = raw.trim().replace(/^v/i, '');
+  return trimmed ? `v${trimmed}` : '';
+});
+
+function formatDateYmd(value: string | number): string {
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return '';
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}.${pad(d.getMonth() + 1)}.${pad(d.getDate())}`;
+}
+
+const lastUpdatedDate = computed(() =>
+  typeof __APP_UPDATED_AT__ === 'string' ? formatDateYmd(__APP_UPDATED_AT__) : '',
+);
+
+const versionMetaLine = computed(() =>
+  [appVersion.value, lastUpdatedDate.value ? `마지막 배포 ${lastUpdatedDate.value}` : '']
+    .filter(Boolean)
+    .join(' · '),
+);
+
+const updateButtonAriaLabel = computed(() =>
+  versionMetaLine.value ? `업데이트 확인 (${versionMetaLine.value})` : '업데이트 확인',
+);
 
 const DESKTOP_ACCEPT =
   '.docx,.xlsx,.pptx,.pdf,.hwp,.hwpx,.odt,.ods,.odp,.doc,.xls,.ppt,.rtf,.txt,.csv,.dotx,.xltx,.potx';
@@ -165,7 +196,7 @@ function onToggleRecentDisabled() {
 function formatRecentMeta(entry: RecentFileEntry): string {
   const d = new Date(entry.openedAt);
   const pad = (n: number) => String(n).padStart(2, '0');
-  const timeStr = `${d.getFullYear()}.${pad(d.getMonth() + 1)}.${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  const timeStr = `${formatDateYmd(entry.openedAt)} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
   return entry.path ? `${entry.path} · ${timeStr}` : timeStr;
 }
 </script>
@@ -174,32 +205,41 @@ function formatRecentMeta(entry: RecentFileEntry): string {
   <AppShell>
     <header class="home__topbar">
       <div class="home__actions">
-        <button
-          v-if="isDesktop"
-          type="button"
-          class="home__icon-btn"
-          :class="{ 'home__icon-btn--spin': checkingUpdate }"
-          :disabled="checkingUpdate"
-          title="업데이트 확인"
-          aria-label="업데이트 확인"
-          @click="checkForUpdates"
-        >
-          <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <path d="M13.5 8a5.5 5.5 0 1 1-1.4-3.65" />
-            <path d="M13.5 2.5v2.75h-2.75" />
-          </svg>
-        </button>
-        <RouterLink
-          class="home__icon-btn"
-          to="/licenses"
-          title="오픈소스 라이선스"
-          aria-label="라이선스"
-        >
-          <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <circle cx="8" cy="8" r="6" />
-            <path d="M8 7.2v3.6M8 4.9h.01" />
-          </svg>
-        </RouterLink>
+        <span v-if="isDesktop" class="home__tooltip-wrap">
+          <button
+            type="button"
+            class="home__icon-btn"
+            :class="{ 'home__icon-btn--spin': checkingUpdate }"
+            :disabled="checkingUpdate"
+            :aria-label="updateButtonAriaLabel"
+            @click="checkForUpdates"
+          >
+            <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M13.5 8a5.5 5.5 0 1 1-1.4-3.65" />
+              <path d="M13.5 2.5v2.75h-2.75" />
+            </svg>
+          </button>
+          <span class="home__tooltip" role="tooltip">
+            <strong>{{ checkingUpdate ? '업데이트 확인 중…' : '업데이트 확인' }}</strong>
+            <span v-if="versionMetaLine">{{ versionMetaLine }}</span>
+          </span>
+        </span>
+        <span class="home__tooltip-wrap">
+          <RouterLink
+            class="home__icon-btn"
+            to="/licenses"
+            aria-label="오픈소스 라이선스"
+          >
+            <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <circle cx="8" cy="8" r="6" />
+              <path d="M8 7.2v3.6M8 4.9h.01" />
+            </svg>
+          </RouterLink>
+          <span class="home__tooltip" role="tooltip">
+            <strong>오픈소스 라이선스</strong>
+            <span v-if="!isDesktop && versionMetaLine">{{ versionMetaLine }}</span>
+          </span>
+        </span>
         <DesktopWindowControls :show-home="false" :show-browser-close="false" />
       </div>
     </header>
@@ -467,6 +507,50 @@ function formatRecentMeta(entry: RecentFileEntry): string {
   justify-content: space-between;
   gap: 1rem;
   margin-bottom: 1.5rem;
+}
+
+.home__tooltip-wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.home__tooltip {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  padding: 0.45rem 0.65rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--card);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.14);
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(-2px);
+  transition: opacity 0.14s ease, transform 0.14s ease;
+  font-variant-numeric: tabular-nums;
+}
+
+.home__tooltip strong {
+  font-size: 0.76rem;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.home__tooltip span {
+  font-size: 0.72rem;
+  color: var(--muted);
+}
+
+.home__tooltip-wrap:hover .home__tooltip,
+.home__tooltip-wrap:focus-within .home__tooltip {
+  opacity: 1;
+  transform: translateY(0);
 }
 
 .home__actions {
