@@ -17,12 +17,13 @@
     "test": "node --test test/*.test.mjs"
   },
   "devDependencies": {
-    "electron": "^35.0.0",
+    "electron": "35.7.5",
     "electron-builder": "^26.0.12"
   },
   "build": {
     "appId": "dev.sejong.office",
     "productName": "Sejong Office",
+    "electronVersion": "35.7.5",
     "artifactName": "Sejong-Office-${version}-${os}-${arch}.${ext}",
     "directories": {
       "buildResources": "build",
