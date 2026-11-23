@@ -170,13 +170,13 @@ describe('registerFileLaunch', () => {
   });
 
   it('notifies onInitialEmpty when no startup files exist and onIncoming when files arrive later', async () => {
-    let listener: ((paths: string[]) => void) | null = null;
+    const openListeners: Array<(paths: string[]) => void> = [];
     const onIncoming = vi.fn();
     const onInitialEmpty = vi.fn();
     const bridge: DesktopBridge = {
       consumeLaunchFiles: vi.fn(async () => []),
       onOpenFiles: vi.fn((cb) => {
-        listener = cb;
+        openListeners.push(cb);
         return () => {};
       }),
       readFile: vi.fn(async (p) => ({
@@ -200,7 +200,7 @@ describe('registerFileLaunch', () => {
     expect(onInitialEmpty).toHaveBeenCalledTimes(1);
     expect(onIncoming).not.toHaveBeenCalled();
 
-    listener?.(['/tmp/late.docx']);
+    for (const cb of openListeners) cb(['/tmp/late.docx']);
     expect(onIncoming).toHaveBeenCalledTimes(1);
     await flush();
     expect(opened).toHaveLength(1);
