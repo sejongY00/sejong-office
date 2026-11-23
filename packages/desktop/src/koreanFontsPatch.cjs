@@ -20,13 +20,17 @@ const KOREAN_FONT_ALIASES = [
   { name: '나눔스퀘어', target: 'NanumSquare', reg: 187, bold: 186 },
   { name: 'Nanum Square', target: 'NanumSquare', reg: 187, bold: 186 },
 
-  // 나눔명조 (slot 185 Regular)
-  { name: '나눔명조', target: 'NanumMyeongjo', reg: 185, bold: 185 },
-  { name: 'Nanum Myeongjo', target: 'NanumMyeongjo', reg: 185, bold: 185 },
+  // 나눔명조 (slot 185 Regular; leave bold = -1 so OnlyOffice synthesizes bold cleanly)
+  { name: '나눔명조', target: 'NanumMyeongjo', reg: 185, bold: -1 },
+  { name: 'Nanum Myeongjo', target: 'NanumMyeongjo', reg: 185, bold: -1 },
 
   // Automatic fallback mappings for standard Korean document fonts
   { name: '맑은 고딕', target: 'NanumGothic', reg: 183, bold: 184 },
   { name: 'Malgun Gothic', target: 'NanumGothic', reg: 183, bold: 184 },
+  { name: 'Pretendard', target: 'NanumGothic', reg: 183, bold: 184 },
+  { name: 'Apple SD Gothic Neo', target: 'NanumGothic', reg: 183, bold: 184 },
+  { name: 'AppleGothic', target: 'NanumGothic', reg: 183, bold: 184 },
+  { name: 'Noto Sans KR', target: 'NanumGothic', reg: 183, bold: 184 },
   { name: '굴림', target: 'NanumGothic', reg: 183, bold: 184 },
   { name: '굴림체', target: 'NanumGothic', reg: 183, bold: 184 },
   { name: 'Gulim', target: 'NanumGothic', reg: 183, bold: 184 },
@@ -41,20 +45,36 @@ const KOREAN_FONT_ALIASES = [
   { name: 'HCR Dotum', target: 'NanumBarunGothic', reg: 181, bold: 182 },
   { name: '한컴돋움', target: 'NanumBarunGothic', reg: 181, bold: 182 },
 
-  { name: '바탕', target: 'NanumMyeongjo', reg: 185, bold: 185 },
-  { name: '바탕체', target: 'NanumMyeongjo', reg: 185, bold: 185 },
-  { name: 'Batang', target: 'NanumMyeongjo', reg: 185, bold: 185 },
-  { name: 'BatangChe', target: 'NanumMyeongjo', reg: 185, bold: 185 },
-  { name: '함초롬바탕', target: 'NanumMyeongjo', reg: 185, bold: 185 },
-  { name: 'HCR Batang', target: 'NanumMyeongjo', reg: 185, bold: 185 },
-  { name: '한컴바탕', target: 'NanumMyeongjo', reg: 185, bold: 185 },
-  { name: '신명조', target: 'NanumMyeongjo', reg: 185, bold: 185 },
-  { name: '휴먼명조', target: 'NanumMyeongjo', reg: 185, bold: 185 },
-  { name: 'HY신명조', target: 'NanumMyeongjo', reg: 185, bold: 185 },
-  { name: '궁서', target: 'NanumMyeongjo', reg: 185, bold: 185 },
-  { name: '궁서체', target: 'NanumMyeongjo', reg: 185, bold: 185 },
-  { name: 'Gungsuh', target: 'NanumMyeongjo', reg: 185, bold: 185 },
-  { name: 'GungsuhChe', target: 'NanumMyeongjo', reg: 185, bold: 185 },
+  { name: '바탕', target: 'NanumMyeongjo', reg: 185, bold: -1 },
+  { name: '바탕체', target: 'NanumMyeongjo', reg: 185, bold: -1 },
+  { name: 'Batang', target: 'NanumMyeongjo', reg: 185, bold: -1 },
+  { name: 'BatangChe', target: 'NanumMyeongjo', reg: 185, bold: -1 },
+  { name: '함초롬바탕', target: 'NanumMyeongjo', reg: 185, bold: -1 },
+  { name: 'HCR Batang', target: 'NanumMyeongjo', reg: 185, bold: -1 },
+  { name: '한컴바탕', target: 'NanumMyeongjo', reg: 185, bold: -1 },
+  { name: '신명조', target: 'NanumMyeongjo', reg: 185, bold: -1 },
+  { name: '휴먼명조', target: 'NanumMyeongjo', reg: 185, bold: -1 },
+  { name: 'HY신명조', target: 'NanumMyeongjo', reg: 185, bold: -1 },
+  { name: '궁서', target: 'NanumMyeongjo', reg: 185, bold: -1 },
+  { name: '궁서체', target: 'NanumMyeongjo', reg: 185, bold: -1 },
+  { name: 'Gungsuh', target: 'NanumMyeongjo', reg: 185, bold: -1 },
+  { name: 'GungsuhChe', target: 'NanumMyeongjo', reg: 185, bold: -1 },
+];
+
+/**
+ * Office Latin font aliases wired to metric-compatible bundled open-source fonts with full
+ * Regular / Italic / Bold / BoldItalic coverage (fixes unbolded digits/ASCII in Calibri/Word DOCX).
+ */
+const LATIN_FONT_ALIASES = [
+  // Calibri & modern Word sans-serif defaults -> Carlito (indices 115, 114, 112, 113 -> files 112, 111, 109, 110)
+  { name: 'Calibri', target: 'Carlito', reg: 115, ital: 114, bold: 112, boldItal: 113 },
+  { name: 'Calibri Light', target: 'Carlito', reg: 115, ital: 114, bold: 112, boldItal: 113 },
+  { name: 'Aptos', target: 'Carlito', reg: 115, ital: 114, bold: 112, boldItal: 113 },
+  { name: 'Segoe UI', target: 'Carlito', reg: 115, ital: 114, bold: 112, boldItal: 113 },
+  // Cambria -> Caladea (indices 111, 110, 108, 109 -> files 108, 107, 105, 106)
+  { name: 'Cambria', target: 'Caladea', reg: 111, ital: 110, bold: 108, boldItal: 109 },
+  // Consolas -> Liberation Mono (indices 61, 60, 58, 59 -> files 058, 057, 055, 056)
+  { name: 'Consolas', target: 'Liberation Mono', reg: 61, ital: 60, bold: 58, boldItal: 59 },
 ];
 
 /** Slots in OnlyOffice's font catalog that back the Korean fonts above. */
@@ -207,20 +227,61 @@ function patchAllFontsSource(source) {
   const infos = JSON.parse(`[${source.slice(infosBodyStart, infosBodyEnd).replace(/\n/g, '')}]`);
   const existingNames = new Set(infos.map((r) => r[0]));
 
-  // Wire Bold slot for NanumSquare (187 -> Bold 186) and NanumMyeongjo (185 -> Bold 185)
+  const latinAliasByName = new Map(LATIN_FONT_ALIASES.map((entry) => [entry.name, entry]));
+
+  // Wire full Bold/Italic slots for existing rows (Calibri -> Carlito, NanumSquare -> Bold 186, Noto Sans KR -> NanumGothic)
   for (const row of infos) {
     if (row[0] === 'NanumSquare' && row[5] < 0) {
       row[5] = 186;
       row[6] = 0;
-    } else if (row[0] === 'NanumMyeongjo' && row[5] < 0) {
-      row[5] = 185;
+    } else if (row[0] === 'Noto Sans KR') {
+      row[1] = 183;
+      row[2] = 0;
+      row[5] = 184;
       row[6] = 0;
+    } else if (latinAliasByName.has(row[0])) {
+      const alias = latinAliasByName.get(row[0]);
+      row[1] = alias.reg;
+      row[2] = 0;
+      row[3] = alias.ital;
+      row[4] = alias.ital >= 0 ? 0 : -1;
+      row[5] = alias.bold;
+      row[6] = alias.bold >= 0 ? 0 : -1;
+      row[7] = alias.boldItal;
+      row[8] = alias.boldItal >= 0 ? 0 : -1;
     }
   }
 
   for (const entry of KOREAN_FONT_ALIASES) {
     if (!existingNames.has(entry.name)) {
-      infos.push([entry.name, entry.reg, 0, -1, -1, entry.bold, 0, -1, -1]);
+      infos.push([
+        entry.name,
+        entry.reg,
+        0,
+        -1,
+        -1,
+        entry.bold,
+        entry.bold >= 0 ? 0 : -1,
+        -1,
+        -1,
+      ]);
+      existingNames.add(entry.name);
+    }
+  }
+
+  for (const entry of LATIN_FONT_ALIASES) {
+    if (!existingNames.has(entry.name)) {
+      infos.push([
+        entry.name,
+        entry.reg,
+        0,
+        entry.ital,
+        entry.ital >= 0 ? 0 : -1,
+        entry.bold,
+        entry.bold >= 0 ? 0 : -1,
+        entry.boldItal,
+        entry.boldItal >= 0 ? 0 : -1,
+      ]);
       existingNames.add(entry.name);
     }
   }
@@ -228,14 +289,18 @@ function patchAllFontsSource(source) {
   // Enrich g_fonts_selection_bin altNames so OnlyOffice CFontSelectFormat matches with 0 penalty
   const parsedSel = decodeSelectionBin(source.slice(selBodyStart, selBodyEnd));
   const aliasesByTarget = new Map();
-  for (const entry of KOREAN_FONT_ALIASES) {
+  for (const entry of [...KOREAN_FONT_ALIASES, ...LATIN_FONT_ALIASES]) {
     const list = aliasesByTarget.get(entry.target) || [];
     list.push(entry.name);
     aliasesByTarget.set(entry.target, list);
   }
-  aliasesByTarget.set('NanumSquare Bold', ['나눔스퀘어 Bold', '나눔스퀘어', 'Nanum Square']);
+  aliasesByTarget.set('NanumSquare Bold', ['나눔스퀘어 Bold']);
 
   for (const rec of parsedSel.records) {
+    // NanumSquareB.ttf ships with bold=0 in upstream selection_bin; mark bold=1 so Regular NanumSquare picks NanumSquareR.ttf
+    if (rec.name === 'NanumSquare Bold') {
+      rec.bold = 1;
+    }
     const extras = aliasesByTarget.get(rec.name);
     if (!extras) continue;
     for (const alias of extras) {
@@ -258,7 +323,7 @@ function patchAllFontsSource(source) {
  * Pad `fonts_thumbnail*.png.bin` sprite buffer so its tile count covers all rows in `__fonts_infos`
  * (preventing RangeError when scrolling the font picker after adding Korean alias rows).
  */
-function padFontThumbnailSpriteBin(binBuffer, requiredCount = 260) {
+function padFontThumbnailSpriteBin(binBuffer, requiredCount = 280) {
   const buf = Buffer.isBuffer(binBuffer) ? binBuffer : Buffer.from(binBuffer);
   if (buf.byteLength < 12) return buf;
   const width = buf.readUInt32BE(0);
@@ -291,6 +356,7 @@ function padFontThumbnailSpriteBin(binBuffer, requiredCount = 260) {
 module.exports = {
   KOREAN_CATALOG_SLOTS,
   KOREAN_FONT_ALIASES,
+  LATIN_FONT_ALIASES,
   decodeSelectionBin,
   encodeSelectionBin,
   padFontThumbnailSpriteBin,

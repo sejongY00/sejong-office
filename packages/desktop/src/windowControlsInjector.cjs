@@ -126,6 +126,17 @@ function buildIframeWindowControlsScript() {
       style.id = 'sejong-win-controls-style';
       style.textContent = [
         '#rhwp-embed-close-btn, #slot-btn-close { display: none !important; }',
+        '/* Allow dragging the frameless window directly from the document title area */',
+        '#box-document-title #title-doc-name:disabled,',
+        '#id-box-doc-name #title-doc-name:disabled,',
+        '#oo-embed-save-status,',
+        '#rhwp-embed-doc-title {',
+        '  pointer-events: none !important;',
+        '  user-select: none !important;',
+        '}',
+        '#id-box-doc-name {',
+        '  cursor: default;',
+        '}',
         '.sejong-win-controls {',
         '  display: inline-flex;',
         '  align-items: stretch;',
@@ -133,6 +144,15 @@ function buildIframeWindowControlsScript() {
         '  flex: 0 0 auto;',
         '  z-index: 1005;',
         '  user-select: none;',
+        '}',
+        '/* Place RHWP toolbar collapse/expand chevron right next to the left of Home */',
+        '#menu-bar > #toolbox-basic-toggle {',
+        '  margin-left: auto !important;',
+        '  margin-right: 2px;',
+        '}',
+        '#menu-bar > #toolbox-basic-toggle + .sejong-win-controls--rhwp {',
+        '  margin-left: 0 !important;',
+        '  padding-left: 2px;',
         '}',
         '.sejong-win-btn {',
         '  display: inline-flex;',
@@ -241,10 +261,15 @@ function buildIframeWindowControlsScript() {
       const rhwpMenuBar = doc.getElementById('menu-bar');
       if (rhwpMenuBar) {
         installHeaderDrag(rhwpMenuBar);
-        if (!doc.getElementById('sejong-rhwp-win-controls')) {
-          const bar = createControlsBar('sejong-win-controls--rhwp');
+        let bar = doc.getElementById('sejong-rhwp-win-controls');
+        if (!bar) {
+          bar = createControlsBar('sejong-win-controls--rhwp');
           bar.id = 'sejong-rhwp-win-controls';
           rhwpMenuBar.appendChild(bar);
+        }
+        const toggleBtn = doc.getElementById('toolbox-basic-toggle');
+        if (toggleBtn && toggleBtn.parentElement === rhwpMenuBar && toggleBtn.nextElementSibling !== bar) {
+          rhwpMenuBar.insertBefore(toggleBtn, bar);
         }
       }
 

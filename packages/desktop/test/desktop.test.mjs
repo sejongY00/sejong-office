@@ -29,6 +29,7 @@ const {
 } = require('../src/koreanFontsPatch.cjs');
 const {
   createOfflineAssetManager,
+  patchRhwpOriginCheck,
   resolveBundledOfficeAsset,
 } = require('../src/offlineCache.cjs');
 const {
@@ -36,15 +37,16 @@ const {
   createDesktopUpdater,
   selectReleaseAsset,
 } = require('../src/autoUpdater.cjs');
+const { enrichMacInfoPlist } = require('../scripts/after-pack.cjs');
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const desktopRoot = path.resolve(__dirname, '..');
 const frontendPublic = path.resolve(desktopRoot, '../frontend/public');
 
-test('generateDesktopIcons builds valid .ico and .icns files for app and all 6 file types', () => {
+test('generateDesktopIcons builds valid multi-resolution .ico and .icns files for app and all 6 file types', async () => {
   const tmpOut = mkdtempSync(path.join(os.tmpdir(), 'sejong-icons-'));
   try {
-    generateDesktopIcons(path.join(frontendPublic, 'icons'), tmpOut);
+    await generateDesktopIcons(path.join(frontendPublic, 'icons'), tmpOut);
 
     const expectedBaseNames = [
       'icon',
@@ -65,15 +67,46 @@ test('generateDesktopIcons builds valid .ico and .icns files for app and all 6 f
       const icoBytes = readFileSync(icoPath);
       assert.equal(icoBytes.readUInt16LE(0), 0);
       assert.equal(icoBytes.readUInt16LE(2), 1);
-      assert.ok(icoBytes.readUInt16LE(4) >= 1);
+      assert.ok(icoBytes.readUInt16LE(4) >= 7, `${name}.ico should contain multiple sizes`);
 
       const icnsBytes = readFileSync(icnsPath);
       assert.equal(icnsBytes.subarray(0, 4).toString('ascii'), 'icns');
       assert.equal(icnsBytes.readUInt32BE(4), icnsBytes.byteLength);
+      const chunkTypes = [];
+      let off = 8;
+      while (off + 8 <= icnsBytes.byteLength) {
+        chunkTypes.push(icnsBytes.subarray(off, off + 4).toString('ascii'));
+        off += icnsBytes.readUInt32BE(off + 4);
+      }
+      assert.ok(chunkTypes.includes('icp4'), `${name}.icns missing 16px icp4`);
+      assert.ok(chunkTypes.includes('ic12'), `${name}.icns missing 64px ic12`);
+      assert.ok(chunkTypes.includes('ic08'), `${name}.icns missing 256px ic08`);
+      assert.ok(chunkTypes.includes('ic09'), `${name}.icns missing 512px ic09`);
     }
   } finally {
     rmSync(tmpOut, { recursive: true, force: true });
   }
+});
+
+test('enrichMacInfoPlist adds LSItemContentTypes and HWP UTIs for Finder icons', () => {
+  const enriched = enrichMacInfoPlist({
+    CFBundleDocumentTypes: [
+      { CFBundleTypeExtensions: ['csv'], CFBundleTypeIconFile: 'file-csv.icns' },
+      { CFBundleTypeExtensions: ['docx'], CFBundleTypeIconFile: 'file-word.icns' },
+      { CFBundleTypeExtensions: ['hwp', 'hwpx'], CFBundleTypeIconFile: 'file-hwp.icns' },
+    ],
+  });
+  const csvDoc = enriched.CFBundleDocumentTypes[0];
+  assert.deepEqual(csvDoc.LSItemContentTypes, ['public.comma-separated-values-text']);
+  assert.equal(csvDoc.CFBundleTypeIconSystemGenerated, 0);
+  assert.ok(
+    enriched.CFBundleDocumentTypes[1].LSItemContentTypes.includes(
+      'org.openxmlformats.wordprocessingml.document',
+    ),
+  );
+  assert.ok(
+    enriched.UTImportedTypeDeclarations.some((u) => u.UTTypeIdentifier === 'com.hancom.hwp'),
+  );
 });
 
 test('desktop package.json fileAssociations match manifest.webmanifest file_handlers', () => {
@@ -168,6 +201,16 @@ test('buildIframeWindowControlsScript injects [홈 최소화 최대화 닫기] i
   assert.ok(script.includes('<svg'));
   assert.ok(script.includes('#rhwp-embed-close-btn'));
   assert.ok(script.includes('#slot-btn-close'));
+  assert.ok(script.includes('#title-doc-name:disabled'));
+  assert.ok(script.includes('#toolbox-basic-toggle'));
+  assert.ok(script.includes('insertBefore(toggleBtn, bar)'));
+});
+
+test('patchRhwpOriginCheck allows app:// parent origin in RHWP Studio bridge and is idempotent', () => {
+  const sample = 'function dw(e){if(!e||e===`null`)return!1;try{let t=new URL(e).protocol;return t===`http:`||t===`https:`}catch{return!1}}';
+  const once = patchRhwpOriginCheck(sample);
+  assert.ok(once.includes('t===`http:`||t===`https:`||t===`app:`'));
+  assert.equal(patchRhwpOriginCheck(once), once);
 });
 
 test('patchAllFontsSource registers 나눔고딕, 나눔바른고딕, 나눔스퀘어 and automatic Korean aliases', () => {
@@ -245,6 +288,54 @@ test('patchAllFontsSource registers 나눔고딕, 나눔바른고딕, 나눔스�
       trailing: Buffer.alloc(0),
     },
     {
+      name: 'NanumSquare Bold',
+      altNames: [],
+      path: '/fonts/NanumSquareB.ttf',
+      index: 0,
+      italic: 0,
+      bold: 0,
+      fixed: 0,
+      panose: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      unicodeRange: [0, 0, 0, 0],
+      codePageRange: [524288, 0],
+      weight: 700,
+      width: 5,
+      familyClass: 0,
+      format: 1,
+      avgCharWidth: 500,
+      ascent: 800,
+      descent: 200,
+      lineGap: 0,
+      xHeight: 500,
+      capHeight: 700,
+      type: 0,
+      trailing: Buffer.alloc(0),
+    },
+    {
+      name: 'Carlito',
+      altNames: [],
+      path: '/fonts/Carlito-Bold.ttf',
+      index: 0,
+      italic: 0,
+      bold: 1,
+      fixed: 0,
+      panose: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      unicodeRange: [0, 0, 0, 0],
+      codePageRange: [1, 0],
+      weight: 700,
+      width: 5,
+      familyClass: 0,
+      format: 1,
+      avgCharWidth: 500,
+      ascent: 800,
+      descent: 200,
+      lineGap: 0,
+      xHeight: 500,
+      capHeight: 700,
+      type: 0,
+      trailing: Buffer.alloc(0),
+    },
+    {
       name: 'NanumMyeongjo',
       altNames: ['나눔명조'],
       path: '/fonts/NanumMyeongjo.ttf',
@@ -274,17 +365,23 @@ test('patchAllFontsSource registers 나눔고딕, 나눔바른고딕, 나눔스�
   const fakeAllFonts = [
     'window["__fonts_files"] = ["181","182","183","184","185","186","187"];',
     'window["__fonts_infos"] = [',
+    '["Calibri",115,0,-1,-1,-1,-1,-1,-1],',
     '["NanumBarunGothic",181,0,-1,-1,182,0,-1,-1],',
     '["NanumGothic",183,0,-1,-1,184,0,-1,-1],',
     '["NanumMyeongjo",185,0,-1,-1,-1,-1,-1,-1],',
-    '["NanumSquare",187,0,-1,-1,-1,-1,-1,-1]',
+    '["NanumSquare",187,0,-1,-1,-1,-1,-1,-1],',
+    '["Noto Sans KR",231,0,-1,-1,228,0,-1,-1]',
     '];',
     `window["g_fonts_selection_bin"] = "${base64}";`,
   ].join('\n');
 
   const patched = patchAllFontsSource(fakeAllFonts);
   assert.ok(patched.includes('__SEJONG_KR_FONTS_PATCHED__'));
+  assert.ok(patched.includes('["Calibri",115,0,114,0,112,0,113,0]'));
+  assert.ok(patched.includes('["Noto Sans KR",183,0,-1,-1,184,0,-1,-1]'));
   assert.ok(patched.includes('["NanumSquare",187,0,-1,-1,186,0,-1,-1]'));
+  assert.ok(patched.includes('["NanumMyeongjo",185,0,-1,-1,-1,-1,-1,-1]'));
+  assert.ok(patched.includes('["바탕",185,0,-1,-1,-1,-1,-1,-1]'));
   for (const name of [
     '나눔고딕',
     '나눔바른고딕',
@@ -297,6 +394,8 @@ test('patchAllFontsSource registers 나눔고딕, 나눔바른고딕, 나눔스�
     '궁서',
     '함초롬바탕',
     '함초롬돋움',
+    'Aptos',
+    'Cambria',
   ]) {
     assert.ok(patched.includes(`["${name}",`), `Missing __fonts_infos row for ${name}`);
   }
@@ -308,9 +407,14 @@ test('patchAllFontsSource registers 나눔고딕, 나눔바른고딕, 나눔스�
   const gothicRec = decoded.records.find((r) => r.name === 'NanumGothic');
   const barunRec = decoded.records.find((r) => r.name === 'NanumBarunGothic');
   const myeongjoRec = decoded.records.find((r) => r.name === 'NanumMyeongjo');
+  const squareBoldRec = decoded.records.find((r) => r.name === 'NanumSquare Bold');
+  const carlitoRec = decoded.records.find((r) => r.name === 'Carlito');
   assert.ok(gothicRec.altNames.includes('맑은 고딕'));
   assert.ok(barunRec.altNames.includes('함초롬돋움'));
   assert.ok(myeongjoRec.altNames.includes('함초롬바탕'));
+  assert.equal(squareBoldRec.bold, 1);
+  assert.ok(carlitoRec.altNames.includes('Calibri'));
+  assert.ok(carlitoRec.altNames.includes('Aptos'));
 });
 
 test('padFontThumbnailSpriteBin pads sprite tile count and offline manager serves cached assets when offline', async () => {

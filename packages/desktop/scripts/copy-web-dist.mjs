@@ -20,6 +20,7 @@ const {
   padFontThumbnailSpriteBin,
   patchAllFontsSource,
 } = require('../src/koreanFontsPatch.cjs');
+const { patchRhwpOriginCheck } = require('../src/offlineCache.cjs');
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const desktopRoot = path.resolve(__dirname, '..');
@@ -229,7 +230,7 @@ async function bundleOfflineOffice() {
     for (const name of readdirSync(imagesDir)) {
       if (/^fonts_thumbnail[^/]*\.png\.bin$/.test(name)) {
         const binPath = path.join(imagesDir, name);
-        const padded = padFontThumbnailSpriteBin(readFileSync(binPath), 260);
+        const padded = padFontThumbnailSpriteBin(readFileSync(binPath), 280);
         writeFileSync(binPath, padded);
       }
     }
@@ -387,6 +388,18 @@ async function bundleOfflineRhwp() {
         'try { delete Navigator.prototype.serviceWorker; } catch (e) {}\n' + rawInit,
         'utf8',
       );
+    }
+  }
+
+  // Allow Electron's `app://bundle` parent origin in RHWP Studio's embed message bridge
+  const rhwpAssetsDir = path.join(offlineRhwpDir, 'assets');
+  if (existsSync(rhwpAssetsDir)) {
+    for (const name of readdirSync(rhwpAssetsDir)) {
+      if (/^index-[^/]+\.js$/.test(name)) {
+        const jsPath = path.join(rhwpAssetsDir, name);
+        const patched = patchRhwpOriginCheck(readFileSync(jsPath, 'utf8'));
+        writeFileSync(jsPath, patched, 'utf8');
+      }
     }
   }
 }

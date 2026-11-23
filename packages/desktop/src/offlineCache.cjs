@@ -169,6 +169,20 @@ function resolveBundledOfficeAsset(distRoot, rawUrl) {
   return null;
 }
 
+/**
+ * Patch RHWP Studio's embed origin validator so the Electron desktop shell (`app://bundle`)
+ * can complete the `@rhwp/editor` handshake (`rhwp-connect` / `loadFile`) and save shortcuts.
+ */
+function patchRhwpOriginCheck(source) {
+  if (typeof source !== 'string') {
+    return source;
+  }
+  return source.replace(
+    /new URL\(([A-Za-z_$][\w$]*)\)\.protocol;return ([A-Za-z_$][\w$]*)===([`'"])http:\3\|\|\2===\3https:\3(?!\|\|\2===\3app:\3)/g,
+    'new URL($1).protocol;return $2===$3http:$3||$2===$3https:$3||$2===$3app:$3',
+  );
+}
+
 function transformOfficePayload(rawUrl, bodyBuffer, contentType) {
   try {
     const u = new URL(rawUrl);
@@ -179,9 +193,16 @@ function transformOfficePayload(rawUrl, bodyBuffer, contentType) {
         contentType: 'text/javascript; charset=utf-8',
       };
     }
+    if (/^\/rhwp\/assets\/index-[^/]+\.js$/.test(u.pathname)) {
+      const patched = patchRhwpOriginCheck(bodyBuffer.toString('utf8'));
+      return {
+        body: Buffer.from(patched, 'utf8'),
+        contentType: 'text/javascript; charset=utf-8',
+      };
+    }
     if (/\/sdkjs\/common\/Images\/fonts_thumbnail[^/]*\.png\.bin$/.test(u.pathname)) {
       return {
-        body: padFontThumbnailSpriteBin(bodyBuffer, 260),
+        body: padFontThumbnailSpriteBin(bodyBuffer, 280),
         contentType: contentType || 'application/octet-stream',
       };
     }
@@ -363,6 +384,7 @@ module.exports = {
   OFFICE_CORE_PATHS,
   cacheKeyForUrl,
   createOfflineAssetManager,
+  patchRhwpOriginCheck,
   resolveBundledOfficeAsset,
   transformOfficePayload,
 };

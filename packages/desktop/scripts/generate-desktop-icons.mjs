@@ -1,7 +1,9 @@
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { createRequire } from 'node:module';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+const require = createRequire(import.meta.url);
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const desktopRoot = path.resolve(__dirname, '..');
 const iconsSrcDir = path.resolve(desktopRoot, '../frontend/public/icons');
@@ -70,36 +72,40 @@ export function buildIcoFromPngs(pngBuffers) {
   return out;
 }
 
-const ICNS_TYPE_BY_SIZE = {
-  16: 'icp4',
-  32: 'icp5',
-  64: 'icp6',
-  128: 'ic07',
-  256: 'ic08',
-  512: 'ic09',
-  1024: 'ic10',
+const ICNS_TYPES_BY_SIZE = {
+  16: ['icp4'],
+  32: ['icp5', 'ic11'],
+  64: ['icp6', 'ic12'],
+  128: ['ic07'],
+  256: ['ic08', 'ic13'],
+  512: ['ic09', 'ic14'],
+  1024: ['ic10'],
 };
 
 /**
  * Wrap one or more square PNG buffers into an Apple .icns container.
- * Modern macOS supports raw PNG data inside ic07/ic08/ic09/ic10 chunks.
+ * Emits both standard (1x) and Retina (2x: ic11/ic12/ic13/ic14) PNG-in-ICNS chunks so
+ * macOS Finder & IconServices have exact pixel representations at every display scale.
  */
 export function buildIcnsFromPngs(pngBuffers) {
   if (!pngBuffers.length) {
     throw new Error('ICNS 생성에 최소 1개의 PNG가 필요합니다.');
   }
-  const chunks = pngBuffers.map((buf) => {
+  const chunks = [];
+  for (const buf of pngBuffers) {
     const bytes = buf instanceof Uint8Array ? buf : new Uint8Array(buf);
     const { width, height } = readPngDimensions(bytes);
     if (width !== height) {
       throw new Error(`정사각형 PNG만 ICNS로 변환할 수 있습니다 (${width}x${height}).`);
     }
-    const osType = ICNS_TYPE_BY_SIZE[width];
-    if (!osType) {
+    const osTypes = ICNS_TYPES_BY_SIZE[width];
+    if (!osTypes) {
       throw new Error(`지원하지 않는 ICNS 해상도입니다: ${width}x${height}`);
     }
-    return { osType, bytes };
-  });
+    for (const osType of osTypes) {
+      chunks.push({ osType, bytes });
+    }
+  }
 
   const totalSize =
     8 + chunks.reduce((sum, chunk) => sum + 8 + chunk.bytes.byteLength, 0);
@@ -123,14 +129,53 @@ export function buildIcnsFromPngs(pngBuffers) {
   return out;
 }
 
-export function generateDesktopIcons(srcDir = iconsSrcDir, outDir = buildDir) {
+function loadSharp() {
+  try {
+    return require('sharp');
+  } catch {
+    return null;
+  }
+}
+
+async function resizePngMap(sourcePng, sizes) {
+  const sharp = loadSharp();
+  const { width: srcWidth } = readPngDimensions(sourcePng);
+  const map = new Map();
+  map.set(srcWidth, sourcePng);
+
+  if (!sharp) {
+    return map;
+  }
+
+  for (const size of sizes) {
+    if (map.has(size)) continue;
+    const resized = await sharp(sourcePng)
+      .resize(size, size, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } })
+      .png()
+      .toBuffer();
+    map.set(size, resized);
+  }
+  return map;
+}
+
+export async function generateDesktopIcons(srcDir = iconsSrcDir, outDir = buildDir) {
   mkdirSync(outDir, { recursive: true });
 
-  const app256 = readFileSync(path.join(srcDir, 'icon-256.png'));
-  const app512 = readFileSync(path.join(srcDir, 'icon-512.png'));
+  const icoSizes = [16, 24, 32, 48, 64, 128, 256];
+  const icnsSizes = [16, 32, 64, 128, 256, 512, 1024];
 
-  writeFileSync(path.join(outDir, 'icon.ico'), buildIcoFromPngs([app256]));
-  writeFileSync(path.join(outDir, 'icon.icns'), buildIcnsFromPngs([app256, app512]));
+  const app512 = readFileSync(path.join(srcDir, 'icon-512.png'));
+  const appMap = await resizePngMap(app512, [...new Set([...icoSizes, ...icnsSizes])]);
+  appMap.set(256, readFileSync(path.join(srcDir, 'icon-256.png')));
+
+  writeFileSync(
+    path.join(outDir, 'icon.ico'),
+    buildIcoFromPngs(icoSizes.map((s) => appMap.get(s)).filter(Boolean)),
+  );
+  writeFileSync(
+    path.join(outDir, 'icon.icns'),
+    buildIcnsFromPngs(icnsSizes.map((s) => appMap.get(s)).filter(Boolean)),
+  );
 
   const fileIconNames = [
     'file-word',
@@ -142,13 +187,20 @@ export function generateDesktopIcons(srcDir = iconsSrcDir, outDir = buildDir) {
   ];
 
   for (const name of fileIconNames) {
-    const png = readFileSync(path.join(srcDir, `${name}.png`));
-    writeFileSync(path.join(outDir, `${name}.ico`), buildIcoFromPngs([png]));
-    writeFileSync(path.join(outDir, `${name}.icns`), buildIcnsFromPngs([png]));
+    const srcPng = readFileSync(path.join(srcDir, `${name}.png`));
+    const sizeMap = await resizePngMap(srcPng, [...new Set([...icoSizes, ...icnsSizes])]);
+    writeFileSync(
+      path.join(outDir, `${name}.ico`),
+      buildIcoFromPngs(icoSizes.map((s) => sizeMap.get(s)).filter(Boolean)),
+    );
+    writeFileSync(
+      path.join(outDir, `${name}.icns`),
+      buildIcnsFromPngs(icnsSizes.map((s) => sizeMap.get(s)).filter(Boolean)),
+    );
   }
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  generateDesktopIcons();
-  console.log('Generated desktop .icns and .ico icons in packages/desktop/build');
+  await generateDesktopIcons();
+  console.log('Generated multi-resolution desktop .icns and .ico icons in packages/desktop/build');
 }

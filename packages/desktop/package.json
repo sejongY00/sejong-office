@@ -25,6 +25,7 @@
     "appId": "dev.sejong.office",
     "productName": "Sejong Office",
     "electronVersion": "35.7.5",
+    "afterPack": "scripts/after-pack.cjs",
     "publish": [
       {
         "provider": "github",
