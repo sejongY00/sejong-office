@@ -2,6 +2,7 @@
 import { onMounted, onUnmounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import AppShell from '@/components/AppShell.vue';
+import DesktopWindowControls from '@/components/DesktopWindowControls.vue';
 import EditorErrorState from '@/components/EditorErrorState.vue';
 import FileChangedBanner from '@/components/FileChangedBanner.vue';
 import { useFileChangeWatch } from '@/composables/useFileChangeWatch';
@@ -10,6 +11,7 @@ import { OFFICE_EDITOR_URL } from '@/config/app';
 import { consumeOfficeDocument } from '@/composables/officeSession';
 import { useOpenDocument } from '@/composables/useOpenDocument';
 import { usePageTitle, type DocumentSaveStatus } from '@/composables/usePageTitle';
+import { recordRecentFile } from '@/composables/useRecentFiles';
 import { useSaveShortcut } from '@/composables/useSaveShortcut';
 import { AppError } from '@/utils/appError';
 import { saveFile } from '@/utils/fileAccess';
@@ -36,7 +38,7 @@ let fileHandle = doc?.handle ?? null;
 // Unsaved edits, as reported by the editor (it also clears this when we export for Save).
 let dirty = false;
 // Opening a file remounts this page under a new key, so the guard never needs re-arming here.
-useUnsavedGuard(() => dirty);
+const { confirmDiscard } = useUnsavedGuard(() => dirty);
 
 // Reload stays on this route (only the query changes), which the leave guard doesn't see; the
 // banner already warned that unsaved edits are dropped.
@@ -79,12 +81,26 @@ function send(type: string, payload: Record<string, unknown> = {}): string {
 }
 
 function onMessage(event: MessageEvent) {
-  if (event.origin !== editorOrigin || event.source !== frame.value?.contentWindow) return;
-  const { id, type, payload } = (event.data ?? {}) as {
+  if (event.origin !== editorOrigin) return;
+  const { id, type, action, screenX, screenY, payload } = (event.data ?? {}) as {
     id?: string;
     type?: string;
+    action?: string;
+    screenX?: number;
+    screenY?: number;
     payload?: Record<string, unknown>;
   };
+  if (type === 'sejong-desktop:window-control') {
+    if (action === 'home') onClose();
+    else if (action === 'minimize') void window.sejongDesktop?.minimizeWindow?.();
+    else if (action === 'toggle-maximize') void window.sejongDesktop?.toggleMaximizeWindow?.();
+    else if (action === 'close-app') void onCloseApp();
+    else if (action === 'drag-start') window.sejongDesktop?.startWindowDrag?.(Number(screenX) || 0, Number(screenY) || 0);
+    else if (action === 'drag-move') window.sejongDesktop?.moveWindowDrag?.(Number(screenX) || 0, Number(screenY) || 0);
+    else if (action === 'drag-end') window.sejongDesktop?.endWindowDrag?.();
+    return;
+  }
+  if (event.source !== frame.value?.contentWindow) return;
   if (!type?.startsWith('document:')) return;
 
   switch (type) {
@@ -150,6 +166,7 @@ function openStagedDocument() {
 function onFrameLoad() {
   if (!doc || openId) return;
   stopProbe();
+  send('document:get-state');
   let tries = 0;
   probeTimer = setInterval(() => {
     tries += 1;
@@ -159,7 +176,7 @@ function onFrameLoad() {
       return;
     }
     send('document:get-state');
-  }, 500);
+  }, 250);
 }
 
 function stopProbe() {
@@ -217,6 +234,7 @@ async function onSave() {
     if (written) {
       fileHandle = written;
       filename.value = written.name;
+      recordRecentFile({ name: written.name, handle: written });
     }
     if (completed) {
       dirty = false;
@@ -237,11 +255,23 @@ async function onSave() {
 function onClose() {
   void router.push({ name: 'home' });
 }
+
+async function onCloseApp() {
+  if (!(await confirmDiscard())) return;
+  void window.sejongDesktop?.closeApp?.();
+}
 </script>
 
 <template>
   <AppShell :editor="true">
     <div class="editor-page">
+      <div v-if="error || !opened" class="editor-win-bar">
+        <DesktopWindowControls
+          :show-browser-close="false"
+          :before-close-app="confirmDiscard"
+          @home="onClose"
+        />
+      </div>
       <FileChangedBanner v-if="diskChanged" @reload="reloadFromDisk" @keep="keepMine" />
       <p v-if="saveError" class="editor-error" role="alert">{{ saveError }}</p>
 
@@ -272,6 +302,21 @@ function onClose() {
   min-height: 0;
   height: 100%;
   background: var(--canvas);
+}
+
+.editor-win-bar {
+  flex: 0 0 auto;
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  padding: 0.35rem 0.75rem;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  -webkit-app-region: drag;
+}
+
+.editor-win-bar:empty {
+  display: none;
 }
 
 .editor-error {

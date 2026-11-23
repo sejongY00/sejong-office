@@ -1,0 +1,108 @@
+{
+  "name": "@sejong-office/desktop",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Sejong Office desktop application (macOS & Windows)",
+  "license": "GPL-3.0-only",
+  "author": "Sejong Office",
+  "main": "src/main.cjs",
+  "scripts": {
+    "icons": "node scripts/generate-desktop-icons.mjs",
+    "copy:web": "node scripts/copy-web-dist.mjs",
+    "prepare:bundle": "npm run icons && npm run build -w @sejong-office/frontend && npm run copy:web",
+    "dev": "npm run prepare:bundle && electron .",
+    "pack": "npm run prepare:bundle && electron-builder --dir --publish never",
+    "dist": "npm run prepare:bundle && electron-builder --publish never",
+    "release": "npm run prepare:bundle && electron-builder --publish always",
+    "test": "node --test test/*.test.mjs"
+  },
+  "devDependencies": {
+    "electron": "^35.0.0",
+    "electron-builder": "^26.0.12"
+  },
+  "build": {
+    "appId": "dev.sejong.office",
+    "productName": "Sejong Office",
+    "artifactName": "Sejong-Office-${version}-${os}-${arch}.${ext}",
+    "directories": {
+      "buildResources": "build",
+      "output": "release"
+    },
+    "files": [
+      "src/**/*",
+      "dist/**/*"
+    ],
+    "mac": {
+      "category": "public.app-category.productivity",
+      "icon": "build/icon.icns",
+      "target": [
+        {
+          "target": "dmg",
+          "arch": ["arm64", "x64"]
+        },
+        {
+          "target": "zip",
+          "arch": ["arm64", "x64"]
+        }
+      ]
+    },
+    "win": {
+      "icon": "build/icon.ico",
+      "target": [
+        {
+          "target": "nsis",
+          "arch": ["x64"]
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true
+    },
+    "fileAssociations": [
+      {
+        "ext": ["docx", "dotx", "doc", "odt", "rtf"],
+        "name": "Word Document",
+        "description": "Word 문서",
+        "role": "Editor",
+        "icon": "file-word"
+      },
+      {
+        "ext": ["xlsx", "xltx", "xls", "ods"],
+        "name": "Excel Spreadsheet",
+        "description": "Excel 스프레드시트",
+        "role": "Editor",
+        "icon": "file-excel"
+      },
+      {
+        "ext": ["csv"],
+        "name": "CSV Table",
+        "description": "CSV 표",
+        "role": "Editor",
+        "icon": "file-csv"
+      },
+      {
+        "ext": ["pptx", "potx", "ppt", "odp"],
+        "name": "PowerPoint Presentation",
+        "description": "PowerPoint 프레젠테이션",
+        "role": "Editor",
+        "icon": "file-powerpoint"
+      },
+      {
+        "ext": ["pdf"],
+        "name": "PDF Document",
+        "description": "PDF 문서",
+        "role": "Editor",
+        "icon": "file-pdf"
+      },
+      {
+        "ext": ["hwp", "hwpx"],
+        "name": "Hangul Document",
+        "description": "한글 문서",
+        "role": "Editor",
+        "icon": "file-hwp"
+      }
+    ]
+  }
+}

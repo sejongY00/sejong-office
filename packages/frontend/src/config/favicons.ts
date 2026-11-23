@@ -64,8 +64,27 @@ export const ICON_PATHS: Record<FaviconKind, string> = {
   file: 'M6,2A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2H6M6,4H13V9H18V20H6V4M8,12V14H16V12H8M8,16V18H13V16H8Z',
 };
 
+/** Folded corner tint for document-sheet icons (Style 1). */
+export const DOC_FOLD_COLORS: Partial<Record<FaviconKind, string>> = {
+  word: '#d0e4f7',
+  excel: '#c8e6c9',
+  powerpoint: '#ffe0b2',
+  pdf: '#ffcdd2',
+  csv: '#b2ebf2',
+  hwp: '#b3e5fc',
+};
+
+export const DOCUMENT_SHEET_KINDS = new Set<FaviconKind>([
+  'word',
+  'excel',
+  'powerpoint',
+  'pdf',
+  'csv',
+  'hwp',
+]);
+
 /**
- * White glyphs drawn on `DOC_SHELL_PATH` (evenodd for letter counters).
+ * White glyphs drawn on `DOC_SHELL_PATH` or the Style 1 document badge (evenodd for letter counters).
  * Paths adapted from Material Design Icons (@mdi/svg), Apache-2.0.
  */
 export const ICON_MARK_PATHS: Partial<Record<FaviconKind, string>> = {
@@ -78,6 +97,10 @@ export const ICON_MARK_PATHS: Partial<Record<FaviconKind, string>> = {
     'M16.2,17H14.2L12,13.2L9.8,17H7.8L11,12L7.8,7H9.8L12,10.8L14.2,7H16.2L13,12Z',
   powerpoint:
     'M9.8,13.4H12.3C13.8,13.4 14.46,13.12 15.1,12.58C15.74,12.03 16,11.25 16,10.23C16,9.26 15.75,8.5 15.1,7.88C14.45,7.29 13.83,7 12.3,7H8V17H9.8V13.4M9.8,12V8.4H12.1C12.76,8.4 13.27,8.65 13.6,9C13.93,9.35 14.1,9.72 14.1,10.24C14.1,10.8 13.92,11.19 13.6,11.5C13.28,11.81 12.9,12 12.22,12H9.8Z',
+  csv:
+    'M9.5,10.5H7V13.5H9.5V15H6.5C5.95,15 5.5,14.55 5.5,14V10C5.5,9.45 5.95,9 6.5,9H9.5V10.5Z' +
+    'M14,10.5H11.8V11.3H13C13.55,11.3 14,11.75 14,12.3V14C14,14.55 13.55,15 13,15H10.5V13.5H12.6V12.7H11.5C10.95,12.7 10.5,12.25 10.5,11.7V10C10.5,9.45 10.95,9 11.5,9H14V10.5Z' +
+    'M16.1,15L14.6,9H16.1L16.85,12.8L17.6,9H19.1L17.6,15H16.1Z',
 };
 
 /** Raster logo for Hangul (HWP) documents. */
@@ -194,8 +217,18 @@ export function iconKindForExtension(ext: string): FaviconKind {
   return EXT_KIND[ext] ?? 'file';
 }
 
+const FILE_HANDLER_ICON_URLS: Partial<Record<FaviconKind, string>> = {
+  word: '/icons/file-word.png',
+  excel: '/icons/file-excel.png',
+  powerpoint: '/icons/file-powerpoint.png',
+  pdf: '/icons/file-pdf.png',
+  csv: '/icons/file-csv.png',
+  hwp: '/icons/file-hwp.png',
+};
+
 export function faviconHrefForKind(kind: FaviconKind): string {
-  if (kind === 'hwp') return HWP_ICON_URL;
+  const fileIcon = FILE_HANDLER_ICON_URLS[kind];
+  if (fileIcon) return fileIcon;
   if (kind === 'home') return '/icons/icon.svg';
   let href = CACHE.get(kind);
   if (!href) {

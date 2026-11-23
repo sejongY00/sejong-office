@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue';
+import DesktopWindowControls from '@/components/DesktopWindowControls.vue';
 import {
   formatFilenameWithStatus,
   type DocumentSaveStatus,
@@ -29,13 +30,23 @@ const displayFilename = computed(() =>
   formatFilenameWithStatus(props.filename, props.saveStatus),
 );
 
-defineEmits<{
+const emit = defineEmits<{
   open: [];
   save: [];
   exportSvg: [];
   exportPng: [];
   close: [];
 }>();
+
+function confirmIfModified(): boolean {
+  if (props.saveStatus !== 'modified') return true;
+  return window.confirm('저장하지 않은 수정이 있습니다. 저장하지 않고 계속할까요?');
+}
+
+function onRequestHome() {
+  if (!confirmIfModified()) return;
+  emit('close');
+}
 </script>
 
 <template>
@@ -86,10 +97,21 @@ defineEmits<{
       {{ showFilename ? displayFilename : '' }}
     </p>
     <div class="toolbar__right">
-      <RouterLink class="toolbar__link" to="/licenses">라이선스</RouterLink>
-      <button type="button" class="toolbar__btn" @click="$emit('close')">
-        닫기
-      </button>
+      <RouterLink
+        class="toolbar__icon-link"
+        to="/licenses"
+        title="오픈소스 라이선스"
+        aria-label="라이선스"
+      >
+        <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="8" cy="8" r="6" />
+          <path d="M8 7.2v3.6M8 4.9h.01" />
+        </svg>
+      </RouterLink>
+      <DesktopWindowControls
+        :before-close-app="confirmIfModified"
+        @home="onRequestHome"
+      />
     </div>
   </header>
 </template>
@@ -106,6 +128,8 @@ defineEmits<{
   border-bottom: 1px solid var(--border);
   background: var(--surface);
   z-index: 2;
+  user-select: none;
+  -webkit-app-region: drag;
 }
 
 .toolbar__left {
@@ -123,7 +147,7 @@ defineEmits<{
 
 .toolbar__right {
   display: flex;
-  gap: 0.65rem;
+  gap: 2px;
   align-items: center;
   justify-self: end;
 }
@@ -150,6 +174,7 @@ defineEmits<{
   font-family: inherit;
   background: var(--surface);
   color: var(--ink);
+  -webkit-app-region: no-drag;
 }
 
 .toolbar__btn:hover {
@@ -162,15 +187,23 @@ defineEmits<{
   cursor: wait;
 }
 
-.toolbar__link {
-  font-size: 0.8rem;
-  font-weight: 500;
-  color: var(--muted);
+.toolbar__icon-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 26px;
+  border-radius: 4px;
+  color: var(--ink);
+  opacity: 0.75;
   text-decoration: none;
+  transition: background-color 0.12s ease, opacity 0.12s ease;
+  -webkit-app-region: no-drag;
 }
 
-.toolbar__link:hover {
-  color: var(--accent);
+.toolbar__icon-link:hover {
+  opacity: 1;
+  background: color-mix(in srgb, var(--ink) 8%, transparent);
 }
 
 @media (max-width: 640px) {

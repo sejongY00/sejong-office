@@ -1,8 +1,11 @@
 <script setup lang="ts">
+import { useRouter } from 'vue-router';
 import AppShell from '@/components/AppShell.vue';
+import DesktopWindowControls from '@/components/DesktopWindowControls.vue';
 import { APP_DISPLAY_NAME, APP_GIT_URL, APP_NAME } from '@/config/app';
 import { usePageTitle } from '@/composables/usePageTitle';
 
+const router = useRouter();
 usePageTitle('오픈소스 라이선스');
 
 const thirdParty = [
@@ -115,9 +118,21 @@ const thirdParty = [
 
 <template>
   <AppShell>
+    <div class="licenses__topbar">
+      <div class="licenses__top">
+        <RouterLink class="back" to="/" title="홈으로 이동" aria-label="홈으로 이동">
+          <svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M10 3.5L5.5 8l4.5 4.5" />
+          </svg>
+        </RouterLink>
+        <DesktopWindowControls
+          :show-browser-close="false"
+          @home="router.push({ name: 'home' })"
+        />
+      </div>
+    </div>
     <main class="licenses">
       <header class="licenses__header">
-        <RouterLink class="back" to="/">← 홈</RouterLink>
         <h1>오픈소스 라이선스 · 고지</h1>
         <p>
           {{ APP_DISPLAY_NAME }}({{ APP_NAME }})에 포함된 주요 소프트웨어의 라이선스와
@@ -319,17 +334,30 @@ const thirdParty = [
 </template>
 
 <style scoped>
+.licenses__topbar {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  width: 100%;
+  min-height: 40px;
+  padding: 0.35rem 0.75rem;
+  background: color-mix(in srgb, var(--canvas) 92%, transparent);
+  backdrop-filter: blur(8px);
+  user-select: none;
+  -webkit-app-region: drag;
+}
+
 .licenses {
   flex: 1;
   width: min(720px, 100%);
   margin: 0 auto;
-  padding: 2rem 1.25rem 3rem;
+  padding: 0.5rem 1.25rem 3rem;
 }
 
 .licenses__header h1 {
   font-family: var(--font-display);
   font-size: 1.85rem;
-  margin: 0.5rem 0 0.5rem;
+  margin: 0.25rem 0 0.5rem;
 }
 
 .licenses__header p {
@@ -338,10 +366,31 @@ const thirdParty = [
   line-height: 1.5;
 }
 
+.licenses__top {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
 .back {
-  color: var(--accent);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 26px;
+  border-radius: 4px;
+  color: var(--ink);
+  opacity: 0.82;
   text-decoration: none;
-  font-size: 0.9rem;
+  transition: background-color 0.12s ease, opacity 0.12s ease;
+  -webkit-app-region: no-drag;
+}
+
+.back:hover {
+  opacity: 1;
+  background: color-mix(in srgb, var(--ink) 8%, transparent);
 }
 
 .card {

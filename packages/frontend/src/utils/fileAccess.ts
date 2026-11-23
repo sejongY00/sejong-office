@@ -37,6 +37,10 @@ function remember(file: File, handle: FileSystemFileHandle): File {
   return file;
 }
 
+export function bindFileHandle(file: File, handle: FileSystemFileHandle): File {
+  return remember(file, handle);
+}
+
 /** The on-disk file this File was read from, if the browser gave us one. */
 export function handleOf(file: File | null | undefined): FileSystemFileHandle | null {
   return (file && handles.get(file)) ?? null;

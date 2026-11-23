@@ -2,17 +2,32 @@
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
 import AppShell from '@/components/AppShell.vue';
+import DesktopWindowControls from '@/components/DesktopWindowControls.vue';
 import FileTypeIcon from '@/components/FileTypeIcon.vue';
-import { APP_DISPLAY_NAME } from '@/config/app';
+import { APP_DISPLAY_NAME, APP_WEB_URL, extensionOf } from '@/config/app';
 import { useOpenDocument } from '@/composables/useOpenDocument';
 import { usePageTitle } from '@/composables/usePageTitle';
+import { useRecentFiles, type RecentFileEntry } from '@/composables/useRecentFiles';
 import type { BlankDocumentType } from '@/utils/appError';
 import { filesFromDrop, pickFiles } from '@/utils/fileAccess';
 
 const dragging = ref(false);
 const fileInput = ref<HTMLInputElement | null>(null);
 const router = useRouter();
-const { busy, error, openDocument, createAndOpenBlank } = useOpenDocument();
+const { busy, error, openDocument, openRecentDocument, createAndOpenBlank } = useOpenDocument();
+const {
+  recentFiles,
+  recentFilesDisabled,
+  removeRecentFile,
+  clearRecentFiles,
+  setRecentFilesDisabled,
+} = useRecentFiles();
+const isDesktop = Boolean(window.sejongDesktop);
+
+const DESKTOP_ACCEPT =
+  '.docx,.xlsx,.pptx,.pdf,.hwp,.hwpx,.odt,.ods,.odp,.doc,.xls,.ppt,.rtf,.txt,.csv,.dotx,.xltx,.potx';
+const WEB_ACCEPT =
+  '.docx,.xlsx,.pptx,.pdf,.hwp,.hwpx,.odt,.ods,.odp,.doc,.xls,.ppt,.rtf,.txt,.csv,.excalidraw,.mmd,.mermaid,.drawio,.xml,.dxf,.dwg,.ai,.psd,.md,.markdown,.3dm,.3ds,.3mf,.amf,.bim,.brp,.brep,.dae,.fbx,.fcstd,.gltf,.glb,.ifc,.igs,.iges,.stp,.step,.stl,.obj,.off,.ply,.wrl,.zip,.bin,.mtl,.png,.jpg,.jpeg,.webp,.ico';
 
 usePageTitle();
 
@@ -127,20 +142,72 @@ function onCreate(type: BlankDocumentType) {
 function onOpenTool(route: string) {
   void router.push({ name: route });
 }
+
+function onOpenRecent(entry: RecentFileEntry) {
+  void openRecentDocument(entry);
+}
+
+function onRemoveRecent(id: string) {
+  removeRecentFile(id);
+}
+
+function onClearRecent() {
+  clearRecentFiles();
+}
+
+function onToggleRecentDisabled() {
+  setRecentFilesDisabled(!recentFilesDisabled.value);
+}
+
+function formatRecentMeta(entry: RecentFileEntry): string {
+  const d = new Date(entry.openedAt);
+  const pad = (n: number) => String(n).padStart(2, '0');
+  const timeStr = `${d.getFullYear()}.${pad(d.getMonth() + 1)}.${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  return entry.path ? `${entry.path} · ${timeStr}` : timeStr;
+}
 </script>
 
 <template>
   <AppShell>
+    <header class="home__topbar">
+      <div class="home__actions">
+        <RouterLink
+          class="home__icon-btn"
+          to="/licenses"
+          title="오픈소스 라이선스"
+          aria-label="라이선스"
+        >
+          <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="8" cy="8" r="6" />
+            <path d="M8 7.2v3.6M8 4.9h.01" />
+          </svg>
+        </RouterLink>
+        <DesktopWindowControls :show-home="false" :show-browser-close="false" />
+      </div>
+    </header>
     <main class="home">
-      <header class="home__top">
-        <h1 class="home__brand">{{ APP_DISPLAY_NAME }}</h1>
-        <RouterLink class="home__licenses" to="/licenses">라이선스</RouterLink>
-      </header>
+      <div class="home__top">
+        <div class="home__brand-wrap">
+          <img
+            class="home__logo"
+            src="/icons/icon.svg"
+            alt=""
+            width="34"
+            height="34"
+            draggable="false"
+          />
+          <h1 class="home__brand">{{ APP_DISPLAY_NAME }}</h1>
+        </div>
+      </div>
 
       <section class="section">
         <h2 class="section__title">파일 열기</h2>
         <p class="section__lead">
-          파일은 브라우저 안에서만 열리고 어디에도 업로드되지 않습니다. 편집 후 저장하면 연 파일에 그대로 덮어씁니다(크롬·엣지 PC). 그 외 브라우저에서는 다운로드됩니다.
+          {{
+            isDesktop
+              ? '모든 문서는 오프라인으로 내 컴퓨터 안에서만 열리고 편집 후 저장하면 원본 파일에 그대로 덮어씁니다.'
+              : '파일은 브라우저 안에서만 열리고 어디에도 업로드되지 않습니다. 편집 후 저장하면 연 파일에 그대로 덮어씁니다(크롬·엣지 PC). 그 외 브라우저에서는 다운로드됩니다.'
+          }}
         </p>
 
         <label
@@ -156,7 +223,7 @@ function onOpenTool(route: string) {
             ref="fileInput"
             class="drop__input"
             type="file"
-            accept=".docx,.xlsx,.pptx,.pdf,.hwp,.hwpx,.odt,.ods,.odp,.doc,.xls,.ppt,.rtf,.txt,.csv,.excalidraw,.mmd,.mermaid,.drawio,.xml,.dxf,.dwg,.ai,.psd,.md,.markdown,.3dm,.3ds,.3mf,.amf,.bim,.brp,.brep,.dae,.fbx,.fcstd,.gltf,.glb,.ifc,.igs,.iges,.stp,.step,.stl,.obj,.off,.ply,.wrl,.zip,.bin,.mtl,.png,.jpg,.jpeg,.webp,.ico"
+            :accept="isDesktop ? DESKTOP_ACCEPT : WEB_ACCEPT"
             multiple
             :disabled="busy"
             @change="onInput"
@@ -165,7 +232,11 @@ function onOpenTool(route: string) {
             {{ busy ? '여는 중…' : '파일을 끌어다 놓거나 클릭하여 선택' }}
           </span>
           <span class="drop__hint">
-            오피스·PDF · HWP/HWPX · 다이어그램 · CAD · 3D · 일러스트(.ai) · 포토샵(.psd) · 마크다운(.md) · 이미지(스캐너) · 아이콘(.ico)
+            {{
+              isDesktop
+                ? '오피스 문서 (Word · Excel · PowerPoint · PDF · CSV) · 한글 문서 (HWP · HWPX)'
+                : '오피스·PDF · HWP/HWPX · 다이어그램 · CAD · 3D · 일러스트(.ai) · 포토샵(.psd) · 마크다운(.md) · 이미지(스캐너) · 아이콘(.ico)'
+            }}
           </span>
         </label>
 
@@ -194,7 +265,84 @@ function onOpenTool(route: string) {
         </div>
       </section>
 
-      <section class="section">
+      <section class="section recent-section" aria-label="최근 파일">
+        <div class="recent-section__header">
+          <h2 class="section__title recent-section__title">최근 파일</h2>
+          <div class="recent-section__actions">
+            <button
+              v-if="!recentFilesDisabled && recentFiles.length > 0"
+              type="button"
+              class="recent-action-btn"
+              @click="onClearRecent"
+            >
+              목록 전체 삭제
+            </button>
+            <button
+              type="button"
+              class="recent-action-btn"
+              :aria-pressed="recentFilesDisabled"
+              @click="onToggleRecentDisabled"
+            >
+              {{ recentFilesDisabled ? '최근 파일 목록 사용' : '최근 파일 목록 사용 안 함' }}
+            </button>
+          </div>
+        </div>
+
+        <p v-if="recentFilesDisabled" class="recent-empty">
+          최근 파일 목록 기능이 사용 안 함으로 설정되어 있습니다.
+        </p>
+        <p v-else-if="recentFiles.length === 0" class="recent-empty">
+          최근에 열거나 저장한 문서가 없습니다. (최대 5개까지 표시)
+        </p>
+        <ul v-else class="recent-list">
+          <li
+            v-for="item in recentFiles"
+            :key="item.id"
+            class="recent-item"
+          >
+            <button
+              type="button"
+              class="recent-item__open"
+              :disabled="busy"
+              :title="item.path || item.name"
+              @click="onOpenRecent(item)"
+            >
+              <FileTypeIcon :extension="extensionOf(item.name)" :size="30" />
+              <span class="recent-item__text">
+                <strong>{{ item.name }}</strong>
+                <span>{{ formatRecentMeta(item) }}</span>
+              </span>
+            </button>
+            <button
+              type="button"
+              class="recent-item__remove"
+              title="목록에서 삭제"
+              :aria-label="`${item.name} 최근 목록에서 삭제`"
+              @click="onRemoveRecent(item.id)"
+            >
+              <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true">
+                <path d="M4.5 4.5l7 7M11.5 4.5l-7 7" />
+              </svg>
+            </button>
+          </li>
+        </ul>
+      </section>
+
+      <section v-if="isDesktop" class="desktop-web-notice" aria-label="웹 버전 안내">
+        <p class="desktop-web-notice__text">
+          다이어그램(Excalidraw · Mermaid · draw.io), 뷰어(CAD · 3D · 일러스트 · 포토샵 · 마크다운), 스캐너·이미지 도구는 온라인 웹 버전에서 이용할 수 있습니다.
+          <a
+            class="desktop-web-notice__link"
+            :href="APP_WEB_URL"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            office.sejong.dev 접속 ↗
+          </a>
+        </p>
+      </section>
+
+      <section v-if="!isDesktop" class="section">
         <h2 class="section__title">다이어그램</h2>
         <p class="section__lead">
           브라우저에서 직접 편집하고 원본·SVG·PNG로 저장합니다.
@@ -218,7 +366,7 @@ function onOpenTool(route: string) {
         </div>
       </section>
 
-      <section class="section">
+      <section v-if="!isDesktop" class="section">
         <h2 class="section__title">뷰어</h2>
         <p class="section__lead">
           서버 업로드 없이 도면·모델·일러스트·포토샵·마크다운을 조회합니다. 텍스처·MTL·BIN
@@ -244,7 +392,7 @@ function onOpenTool(route: string) {
         </div>
       </section>
 
-      <section class="section">
+      <section v-if="!isDesktop" class="section">
         <h2 class="section__title">도구</h2>
         <p class="section__lead">
           브라우저에서 문서를 스캔하고, 배경을 제거하며, 이미지를 크롭·축소·경량화합니다.
@@ -272,11 +420,27 @@ function onOpenTool(route: string) {
 </template>
 
 <style scoped>
+.home__topbar {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  width: 100%;
+  min-height: 40px;
+  padding: 0.35rem 0.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  background: color-mix(in srgb, var(--canvas) 92%, transparent);
+  backdrop-filter: blur(8px);
+  user-select: none;
+  -webkit-app-region: drag;
+}
+
 .home {
   flex: 1;
   width: min(920px, 100%);
   margin: 0 auto;
-  padding: 1.5rem 1.25rem 3rem;
+  padding: 0.25rem 1.25rem 3rem;
 }
 
 .home__top {
@@ -284,7 +448,29 @@ function onOpenTool(route: string) {
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
-  margin-bottom: 1.75rem;
+  margin-bottom: 1.5rem;
+}
+
+.home__actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin-left: auto;
+  -webkit-app-region: no-drag;
+}
+
+.home__brand-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.home__logo {
+  display: block;
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  flex-shrink: 0;
 }
 
 .home__brand {
@@ -296,14 +482,23 @@ function onOpenTool(route: string) {
   color: var(--ink);
 }
 
-.home__licenses {
-  font-size: 0.85rem;
-  color: var(--muted);
+.home__icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 26px;
+  border-radius: 4px;
+  color: var(--ink);
+  opacity: 0.78;
   text-decoration: none;
+  transition: background-color 0.12s ease, opacity 0.12s ease;
+  -webkit-app-region: no-drag;
 }
 
-.home__licenses:hover {
-  color: var(--accent);
+.home__icon-btn:hover {
+  opacity: 1;
+  background: color-mix(in srgb, var(--ink) 8%, transparent);
 }
 
 .section {
@@ -429,5 +624,180 @@ function onOpenTool(route: string) {
 .tile__text span {
   font-size: 0.78rem;
   color: var(--muted);
+}
+
+.recent-section__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.recent-section__title {
+  margin: 0;
+}
+
+.recent-section__actions {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.recent-action-btn {
+  padding: 0.25rem 0.55rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  font-family: inherit;
+  font-size: 0.76rem;
+  cursor: pointer;
+  transition:
+    color 0.15s ease,
+    border-color 0.15s ease,
+    background-color 0.15s ease;
+}
+
+.recent-action-btn:hover {
+  color: var(--ink);
+  border-color: color-mix(in srgb, var(--ink) 25%, var(--border));
+  background: color-mix(in srgb, var(--ink) 5%, transparent);
+}
+
+.recent-empty {
+  margin: 0;
+  padding: 0.85rem 1rem;
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+  font-size: 0.83rem;
+  color: var(--muted);
+  background: color-mix(in srgb, var(--card) 55%, transparent);
+}
+
+.recent-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.recent-item {
+  display: flex;
+  align-items: center;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--card);
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease;
+}
+
+.recent-item:hover {
+  background: var(--card-hover);
+  border-color: color-mix(in srgb, var(--accent) 40%, var(--border));
+}
+
+.recent-item__open {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.65rem 0.85rem;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.recent-item__open:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.recent-item__open :deep(.ft-icon) {
+  width: 30px;
+  height: 30px;
+  flex-shrink: 0;
+}
+
+.recent-item__text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  min-width: 0;
+}
+
+.recent-item__text strong {
+  font-size: 0.88rem;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.recent-item__text span {
+  font-size: 0.75rem;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.recent-item__remove {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  margin-right: 0.45rem;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  transition:
+    color 0.15s ease,
+    background-color 0.15s ease;
+}
+
+.recent-item__remove:hover {
+  color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 10%, transparent);
+}
+
+.desktop-web-notice {
+  margin-top: 2.25rem;
+  padding-top: 1.1rem;
+  border-top: 1px solid color-mix(in srgb, var(--border) 65%, transparent);
+}
+
+.desktop-web-notice__text {
+  margin: 0;
+  font-size: 0.82rem;
+  line-height: 1.55;
+  color: var(--muted);
+}
+
+.desktop-web-notice__link {
+  display: inline-block;
+  margin-left: 0.35rem;
+  color: var(--ink);
+  opacity: 0.78;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-color: color-mix(in srgb, var(--muted) 55%, transparent);
+  transition: opacity 0.15s ease, color 0.15s ease;
+}
+
+.desktop-web-notice__link:hover {
+  opacity: 1;
+  color: var(--accent);
 }
 </style>

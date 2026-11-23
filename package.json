@@ -10,8 +10,11 @@
   "scripts": {
     "dev": "npm run dev -w @sejong-office/frontend",
     "build": "npm run build -w @sejong-office/frontend",
-    "test": "npm run test -w @sejong-office/frontend",
+    "test": "npm run test -w @sejong-office/frontend && npm run test -w @sejong-office/desktop",
     "preview": "npm run preview -w @sejong-office/frontend",
+    "desktop:dev": "npm run dev -w @sejong-office/desktop",
+    "desktop:pack": "npm run pack -w @sejong-office/desktop",
+    "desktop:dist": "npm run dist -w @sejong-office/desktop",
     "sync:upstreams": "bash scripts/sync-upstreams.sh"
   },
   "engines": {

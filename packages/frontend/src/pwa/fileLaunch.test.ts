@@ -2,9 +2,11 @@ import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
 import { isHwp, isOffice } from '@/config/app';
-import { handleOf } from '@/utils/fileAccess';
+import { handleOf, saveFile } from '@/utils/fileAccess';
 import {
+  desktopLaunchQueue,
   registerFileLaunch,
+  type DesktopBridge,
   type FileLaunchParams,
   type FileLaunchQueue,
 } from './fileLaunch';
@@ -108,6 +110,63 @@ describe('registerFileLaunch', () => {
     await flush();
 
     expect(onError).toHaveBeenCalledWith(boom);
+  });
+
+  it('opens desktop bridge files and overwrites them in place on saveFile', async () => {
+    const disk = new Map<string, { bytes: Uint8Array; lastModified: number }>();
+    disk.set('/Users/sejong/Documents/report.hwpx', {
+      bytes: new TextEncoder().encode('original-hwpx'),
+      lastModified: 1000,
+    });
+
+    let openListener: ((paths: string[]) => void) | null = null;
+    const bridge: DesktopBridge = {
+      consumeLaunchFiles: vi.fn(async () => ['/Users/sejong/Documents/report.hwpx']),
+      onOpenFiles: vi.fn((cb) => {
+        openListener = cb;
+        return () => {
+          openListener = null;
+        };
+      }),
+      readFile: vi.fn(async (filePath) => {
+        const entry = disk.get(filePath);
+        if (!entry) throw new Error('missing file');
+        return {
+          path: filePath,
+          name: 'report.hwpx',
+          bytes: entry.bytes,
+          lastModified: entry.lastModified,
+        };
+      }),
+      writeFile: vi.fn(async (filePath, bytes) => {
+        const nextMod = 2000;
+        disk.set(filePath, { bytes, lastModified: nextMod });
+        return { lastModified: nextMod };
+      }),
+    };
+
+    const opened: File[] = [];
+    registerFileLaunch(desktopLaunchQueue(bridge), (files) => {
+      opened.push(...files);
+    });
+
+    await flush();
+    await flush();
+
+    expect(opened).toHaveLength(1);
+    expect(opened[0].name).toBe('report.hwpx');
+    const handle = handleOf(opened[0]);
+    expect(handle).not.toBeNull();
+
+    await saveFile(
+      { suggestedName: 'report.hwpx', handle },
+      () => new Blob(['updated-hwpx']),
+    );
+
+    const saved = disk.get('/Users/sejong/Documents/report.hwpx');
+    expect(new TextDecoder().decode(saved?.bytes)).toBe('updated-hwpx');
+    expect(saved?.lastModified).toBe(2000);
+    expect(openListener).toBeTypeOf('function');
   });
 });
 

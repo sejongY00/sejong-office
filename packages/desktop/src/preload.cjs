@@ -1,0 +1,44 @@
+const { contextBridge, ipcRenderer, webUtils } = require('electron');
+
+contextBridge.exposeInMainWorld('sejongDesktop', {
+  isDesktop: true,
+  getFilePath: (file) => {
+    try {
+      if (webUtils && typeof webUtils.getPathForFile === 'function') {
+        return webUtils.getPathForFile(file) || '';
+      }
+      return (file && typeof file.path === 'string' && file.path) || '';
+    } catch {
+      return '';
+    }
+  },
+  consumeLaunchFiles: () => ipcRenderer.invoke('sejong:consume-launch-files'),
+  onOpenFiles: (callback) => {
+    const listener = (_event, filePaths) => {
+      if (Array.isArray(filePaths) && filePaths.length > 0) {
+        callback(filePaths);
+      }
+    };
+    ipcRenderer.on('sejong:open-files', listener);
+    return () => ipcRenderer.removeListener('sejong:open-files', listener);
+  },
+  readFile: (filePath) => ipcRenderer.invoke('sejong:read-file', filePath),
+  statFile: (filePath) => ipcRenderer.invoke('sejong:stat-file', filePath),
+  writeFile: (filePath, bytes) => ipcRenderer.invoke('sejong:write-file', filePath, bytes),
+  minimizeWindow: () => ipcRenderer.invoke('sejong:window-minimize'),
+  toggleMaximizeWindow: () => ipcRenderer.invoke('sejong:window-toggle-maximize'),
+  isWindowMaximized: () => ipcRenderer.invoke('sejong:window-is-maximized'),
+  onWindowMaximizedChange: (callback) => {
+    const listener = (_event, maximized) => {
+      callback(Boolean(maximized));
+    };
+    ipcRenderer.on('sejong:window-maximized-changed', listener);
+    return () => ipcRenderer.removeListener('sejong:window-maximized-changed', listener);
+  },
+  closeApp: () => ipcRenderer.invoke('sejong:window-close'),
+  startWindowDrag: (screenX, screenY) =>
+    ipcRenderer.send('sejong:window-drag-start', screenX, screenY),
+  moveWindowDrag: (screenX, screenY) =>
+    ipcRenderer.send('sejong:window-drag-move', screenX, screenY),
+  endWindowDrag: () => ipcRenderer.send('sejong:window-drag-end'),
+});

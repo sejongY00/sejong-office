@@ -1,6 +1,9 @@
 /** 본 프로젝트 소스 저장소. 공개 후 URL 채우기. 비우면 푸터에서 링크 숨김 */
 export const APP_GIT_URL = "https://github.com/sejongY00/sejong-office";
 
+/** 온라인 웹 버전 주소 (다이어그램·뷰어·도구 전체 지원) */
+export const APP_WEB_URL = "https://office.sejong.dev";
+
 /**
  * Browser-only office editor (ranuts/document, OnlyOffice + x2t WASM), embedded by iframe.
  * Built by sejongY00/office-editor onto GitHub Pages at a domain root (ranuts uses root-absolute

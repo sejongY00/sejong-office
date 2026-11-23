@@ -7,7 +7,7 @@ import {
   bindSessionPageHideOnce,
   hwpOpenToken,
 } from '@/composables/useSessionLifecycle';
-import { registerFileLaunch } from '@/pwa/fileLaunch';
+import { desktopLaunchQueue, registerFileLaunch } from '@/pwa/fileLaunch';
 
 bindSessionPageHideOnce();
 
@@ -17,7 +17,7 @@ const { error: launchError, openDocument } = useOpenDocument();
 
 onMounted(() => {
   registerFileLaunch(
-    window.launchQueue,
+    desktopLaunchQueue(window.sejongDesktop) ?? window.launchQueue,
     async (files) => {
       await router.isReady();
       const opened = await openDocument(files);

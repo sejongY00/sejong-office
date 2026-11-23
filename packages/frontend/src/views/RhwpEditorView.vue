@@ -3,6 +3,7 @@ import { nextTick, onActivated, onMounted, onUnmounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { createEditor, type RhwpEditor } from '@rhwp/editor';
 import AppShell from '@/components/AppShell.vue';
+import DesktopWindowControls from '@/components/DesktopWindowControls.vue';
 import EditorErrorState from '@/components/EditorErrorState.vue';
 import FileChangedBanner from '@/components/FileChangedBanner.vue';
 import { useFileChangeWatch } from '@/composables/useFileChangeWatch';
@@ -11,6 +12,7 @@ import { AppError } from '@/utils/appError';
 import { extensionOf, isHwp, RHWP_STUDIO_URL } from '@/config/app';
 import { saveFile } from '@/utils/fileAccess';
 import { usePageTitle, type DocumentSaveStatus } from '@/composables/usePageTitle';
+import { recordRecentFile } from '@/composables/useRecentFiles';
 import { useSaveShortcut } from '@/composables/useSaveShortcut';
 import {
   clearHwpFile,
@@ -63,8 +65,25 @@ useSaveShortcut(() => void onSave());
 const studioOrigin = new URL(RHWP_STUDIO_URL, window.location.href).origin;
 
 function onStudioMessage(event: MessageEvent) {
-  if (event.origin !== studioOrigin || event.source !== editor?.element.contentWindow) return;
-  const data = event.data as { type?: string; status?: DocumentSaveStatus } | null;
+  if (event.origin !== studioOrigin) return;
+  const data = event.data as {
+    type?: string;
+    action?: string;
+    screenX?: number;
+    screenY?: number;
+    status?: DocumentSaveStatus;
+  } | null;
+  if (data?.type === 'sejong-desktop:window-control') {
+    if (data.action === 'home') void onClose();
+    else if (data.action === 'minimize') void window.sejongDesktop?.minimizeWindow?.();
+    else if (data.action === 'toggle-maximize') void window.sejongDesktop?.toggleMaximizeWindow?.();
+    else if (data.action === 'close-app') void onCloseApp();
+    else if (data.action === 'drag-start') window.sejongDesktop?.startWindowDrag?.(Number(data.screenX) || 0, Number(data.screenY) || 0);
+    else if (data.action === 'drag-move') window.sejongDesktop?.moveWindowDrag?.(Number(data.screenX) || 0, Number(data.screenY) || 0);
+    else if (data.action === 'drag-end') window.sejongDesktop?.endWindowDrag?.();
+    return;
+  }
+  if (event.source !== editor?.element.contentWindow) return;
   if (data?.type === 'rhwp:save-requested') {
     void onSave();
   } else if (data?.type === 'rhwp:close-requested') {
@@ -195,6 +214,7 @@ async function onSave() {
     if (written) {
       setHwpFileHandle(written);
       filename.value = written.name;
+      recordRecentFile({ name: written.name, handle: written });
     }
     if (completed) {
       // Clears the studio's unsaved-changes guard and updates its top title to "- 저장됨".
@@ -215,11 +235,23 @@ async function onClose() {
   clearHwpFile();
   void router.push({ name: 'home' });
 }
+
+async function onCloseApp() {
+  if (!(await confirmDiscard())) return;
+  void window.sejongDesktop?.closeApp?.();
+}
 </script>
 
 <template>
   <AppShell :editor="true">
     <div class="editor-page">
+      <div v-if="error" class="editor-win-bar">
+        <DesktopWindowControls
+          :show-browser-close="false"
+          :before-close-app="confirmDiscard"
+          @home="onClose"
+        />
+      </div>
       <FileChangedBanner v-if="diskChanged" @reload="reloadFromDisk" @keep="keepMine" />
       <p v-if="saveError" class="editor-error" role="alert">{{ saveError }}</p>
 
@@ -237,6 +269,21 @@ async function onClose() {
   min-height: 0;
   height: 100%;
   background: var(--canvas);
+}
+
+.editor-win-bar {
+  flex: 0 0 auto;
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  padding: 0.35rem 0.75rem;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  -webkit-app-region: drag;
+}
+
+.editor-win-bar:empty {
+  display: none;
 }
 
 .editor-error {

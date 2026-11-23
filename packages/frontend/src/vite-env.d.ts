@@ -40,7 +40,33 @@ interface LaunchQueue {
   setConsumer(consumer: (launchParams: LaunchParams) => void): void;
 }
 
+interface SejongDesktopFileSnapshot {
+  readonly path: string;
+  readonly name: string;
+  readonly bytes: Uint8Array;
+  readonly lastModified: number;
+}
+
+interface SejongDesktopBridge {
+  readonly isDesktop?: boolean;
+  getFilePath?(file: File): string;
+  consumeLaunchFiles(): Promise<string[]>;
+  onOpenFiles(callback: (filePaths: string[]) => void): () => void;
+  readFile(filePath: string): Promise<SejongDesktopFileSnapshot>;
+  statFile(filePath: string): Promise<{ lastModified: number }>;
+  writeFile(filePath: string, bytes: Uint8Array): Promise<{ lastModified: number }>;
+  minimizeWindow?(): Promise<void>;
+  toggleMaximizeWindow?(): Promise<boolean>;
+  isWindowMaximized?(): Promise<boolean>;
+  onWindowMaximizedChange?(callback: (maximized: boolean) => void): () => void;
+  closeApp?(): Promise<void>;
+  startWindowDrag?(screenX: number, screenY: number): void;
+  moveWindowDrag?(screenX: number, screenY: number): void;
+  endWindowDrag?(): void;
+}
+
 interface Window {
   EXCALIDRAW_ASSET_PATH?: string;
   launchQueue?: LaunchQueue;
+  sejongDesktop?: SejongDesktopBridge;
 }
