@@ -94,32 +94,43 @@ export function createDesktopFileHandle(
   return handle as unknown as FileSystemFileHandle;
 }
 
+export interface DesktopLaunchQueueOptions {
+  /** Called immediately when OS file paths arrive (before async disk reads finish). */
+  readonly onIncoming?: () => void;
+  /** Called when the initial startup queue resolves with no files to open. */
+  readonly onInitialEmpty?: () => void;
+}
+
 /**
  * Adapts the Electron preload bridge (`window.sejongDesktop`) to the PWA `FileLaunchQueue`
  * interface so `App.vue` can consume OS file launches through a single path.
  */
 export function desktopLaunchQueue(
   bridge: DesktopBridge | undefined,
+  options: DesktopLaunchQueueOptions = {},
 ): FileLaunchQueue | undefined {
   if (!bridge) return undefined;
   return {
     setConsumer(consumer) {
       const dispatchPaths = (paths: readonly string[]) => {
         const valid = paths.filter((p) => typeof p === 'string' && p.trim().length > 0);
-        if (!valid.length) return;
+        if (!valid.length) return false;
+        options.onIncoming?.();
         consumer({
           files: valid.map((p) => createDesktopFileHandle(bridge, p)),
         });
+        return true;
       };
 
       void Promise.resolve(bridge.consumeLaunchFiles())
         .then((initial) => {
-          if (Array.isArray(initial) && initial.length > 0) {
-            dispatchPaths(initial);
+          const dispatched = Array.isArray(initial) && dispatchPaths(initial);
+          if (!dispatched) {
+            options.onInitialEmpty?.();
           }
         })
         .catch(() => {
-          // Ignore startup IPC errors
+          options.onInitialEmpty?.();
         });
 
       bridge.onOpenFiles((paths) => {

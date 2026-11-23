@@ -155,7 +155,8 @@ function createAppWindow(initialFiles = []) {
     return { action: 'deny' };
   });
 
-  void win.loadURL(`${APP_ORIGIN}/`);
+  const startUrl = initialFiles.length > 0 ? `${APP_ORIGIN}/?launch=1` : `${APP_ORIGIN}/`;
+  void win.loadURL(startUrl);
   return win;
 }
 

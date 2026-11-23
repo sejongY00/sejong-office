@@ -29,6 +29,7 @@ const router = useRouter();
 const error = ref<unknown>(null);
 const filename = ref('문서.hwp');
 const saving = ref(false);
+const opened = ref(false);
 const saveStatus = ref<DocumentSaveStatus>('pristine');
 const saveError = ref('');
 let editor: RhwpEditor | null = null;
@@ -119,11 +120,13 @@ async function bootstrapFromStore() {
   if (editor && loadedToken === token && loadedToken !== '0') {
     filename.value = stored.name;
     error.value = null;
+    opened.value = true;
     return;
   }
 
   filename.value = stored.name;
   error.value = null;
+  opened.value = false;
 
   try {
     await nextTick();
@@ -142,11 +145,13 @@ async function bootstrapFromStore() {
     if (seq !== loadSeq) return;
 
     loadedToken = token;
+    opened.value = true;
     dirty = false;
     saveStatus.value = 'pristine';
     saveError.value = '';
   } catch (err) {
     if (seq !== loadSeq) return;
+    opened.value = false;
     error.value = err;
   }
 }
@@ -247,7 +252,7 @@ async function onCloseApp() {
 <template>
   <AppShell :editor="true">
     <div class="editor-page">
-      <div v-if="error" class="editor-win-bar">
+      <div v-if="error || !opened" class="editor-win-bar">
         <DesktopWindowControls
           :show-browser-close="false"
           :before-close-app="confirmDiscard"
@@ -258,7 +263,13 @@ async function onCloseApp() {
       <p v-if="saveError" class="editor-error" role="alert">{{ saveError }}</p>
 
       <EditorErrorState v-if="error" :error="error" context="rhwp" />
-      <div v-show="!error" id="rhwp-host" class="editor-frame" />
+      <div v-show="!error" class="editor-frame">
+        <div id="rhwp-host" class="editor-frame__inner" />
+        <div v-if="!opened" class="editor-loading" role="status" aria-live="polite">
+          <span>편집기를 불러오는 중…</span>
+          <progress />
+        </div>
+      </div>
     </div>
   </AppShell>
 </template>
@@ -305,9 +316,34 @@ async function onCloseApp() {
   width: 100%;
 }
 
+.editor-frame__inner {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
 .editor-frame :deep(iframe) {
   width: 100% !important;
   height: 100% !important;
   border: none;
+}
+
+.editor-loading {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  background: var(--canvas);
+  color: var(--ink);
+  font-size: 0.85rem;
+}
+
+.editor-loading progress {
+  width: min(16rem, calc(100% - 2rem));
+  accent-color: var(--accent);
 }
 </style>

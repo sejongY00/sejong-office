@@ -168,6 +168,44 @@ describe('registerFileLaunch', () => {
     expect(saved?.lastModified).toBe(2000);
     expect(openListener).toBeTypeOf('function');
   });
+
+  it('notifies onInitialEmpty when no startup files exist and onIncoming when files arrive later', async () => {
+    let listener: ((paths: string[]) => void) | null = null;
+    const onIncoming = vi.fn();
+    const onInitialEmpty = vi.fn();
+    const bridge: DesktopBridge = {
+      consumeLaunchFiles: vi.fn(async () => []),
+      onOpenFiles: vi.fn((cb) => {
+        listener = cb;
+        return () => {};
+      }),
+      readFile: vi.fn(async (p) => ({
+        path: p,
+        name: 'late.docx',
+        bytes: new Uint8Array([1, 2, 3]),
+        lastModified: 100,
+      })),
+      writeFile: vi.fn(async () => ({ lastModified: 200 })),
+    };
+
+    const opened: File[][] = [];
+    registerFileLaunch(
+      desktopLaunchQueue(bridge, { onIncoming, onInitialEmpty }),
+      (files) => {
+        opened.push(files);
+      },
+    );
+    await flush();
+
+    expect(onInitialEmpty).toHaveBeenCalledTimes(1);
+    expect(onIncoming).not.toHaveBeenCalled();
+
+    listener?.(['/tmp/late.docx']);
+    expect(onIncoming).toHaveBeenCalledTimes(1);
+    await flush();
+    expect(opened).toHaveLength(1);
+    expect(opened[0][0].name).toBe('late.docx');
+  });
 });
 
 describe('manifest.webmanifest file handling', () => {
