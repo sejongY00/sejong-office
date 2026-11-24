@@ -1,11 +1,13 @@
-import { mount, RouterLinkStub } from '@vue/test-utils';
+import { flushPromises, mount, RouterLinkStub } from '@vue/test-utils';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { hasAnyUnsavedChanges } from '@/composables/useUnsavedGuard';
 import { APP_LATEST_RELEASE_URL } from '@/config/app';
 import type { DocumentSaveStatus } from '@/composables/usePageTitle';
 import EditorToolbar from './EditorToolbar.vue';
 
-function mockDesktopBridge(): SejongDesktopBridge {
+function mockDesktopBridge(
+  overrides: Partial<SejongDesktopBridge> = {},
+): SejongDesktopBridge {
   return {
     isDesktop: true,
     consumeLaunchFiles: vi.fn(async () => []),
@@ -13,6 +15,7 @@ function mockDesktopBridge(): SejongDesktopBridge {
     readFile: vi.fn(),
     statFile: vi.fn(),
     writeFile: vi.fn(),
+    ...overrides,
   };
 }
 
@@ -52,6 +55,7 @@ describe('EditorToolbar release download button', () => {
 
   afterEach(() => {
     delete window.sejongDesktop;
+    vi.restoreAllMocks();
     Object.defineProperty(window, 'matchMedia', {
       configurable: true,
       writable: true,
@@ -133,5 +137,42 @@ describe('EditorToolbar release download button', () => {
     expect(await hasAnyUnsavedChanges()).toBe(true);
     wrapper.unmount();
     expect(await hasAnyUnsavedChanges()).toBe(false);
+  });
+
+  it('uses desktop native confirm dialog on home and close buttons when modified', async () => {
+    const confirmUnsavedChanges = vi
+      .fn<() => Promise<boolean>>()
+      .mockResolvedValueOnce(false)
+      .mockResolvedValueOnce(true)
+      .mockResolvedValueOnce(false)
+      .mockResolvedValueOnce(true);
+    const closeApp = vi.fn(async () => {});
+    const windowConfirm = vi.spyOn(window, 'confirm').mockReturnValue(true);
+
+    window.sejongDesktop = mockDesktopBridge({
+      confirmUnsavedChanges,
+      closeApp,
+    });
+
+    const wrapper = mountToolbar('modified');
+
+    await wrapper.find('[data-win-action="home"]').trigger('click');
+    await flushPromises();
+    expect(wrapper.emitted('close')).toBeUndefined();
+
+    await wrapper.find('[data-win-action="home"]').trigger('click');
+    await flushPromises();
+    expect(wrapper.emitted('close')).toHaveLength(1);
+
+    await wrapper.find('[data-win-action="close"]').trigger('click');
+    await flushPromises();
+    expect(closeApp).not.toHaveBeenCalled();
+
+    await wrapper.find('[data-win-action="close"]').trigger('click');
+    await flushPromises();
+    expect(closeApp).toHaveBeenCalledTimes(1);
+
+    expect(confirmUnsavedChanges).toHaveBeenCalledTimes(4);
+    expect(windowConfirm).not.toHaveBeenCalled();
   });
 });

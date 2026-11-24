@@ -30,6 +30,14 @@ export async function hasAnyUnsavedChanges(): Promise<boolean> {
   return false;
 }
 
+export async function confirmUnsavedChanges(): Promise<boolean> {
+  const desktopConfirm = window.sejongDesktop?.confirmUnsavedChanges;
+  if (typeof desktopConfirm === 'function') {
+    return Boolean(await desktopConfirm());
+  }
+  return window.confirm(MESSAGE);
+}
+
 /**
  * Asks before unsaved edits are thrown away: leaving the page (닫기 or any link), opening another
  * file (await `confirmDiscard` first) and closing or reloading the tab (browser's own prompt).
@@ -47,7 +55,7 @@ export function useUnsavedGuard(isDirty: () => boolean, refresh?: () => Promise<
     if (discarded) return true;
     await refresh?.().catch(() => undefined);
     if (!isDirty()) return true;
-    if (!window.confirm(MESSAGE)) return false;
+    if (!(await confirmUnsavedChanges())) return false;
     discarded = true;
     return true;
   }

@@ -85,6 +85,7 @@ interface SejongDesktopBridge {
   isWindowMaximized?(): Promise<boolean>;
   onWindowMaximizedChange?(callback: (maximized: boolean) => void): () => void;
   closeApp?(): Promise<void>;
+  confirmUnsavedChanges?(): Promise<boolean>;
   startWindowDrag?(screenX: number, screenY: number): void;
   moveWindowDrag?(screenX: number, screenY: number): void;
   endWindowDrag?(): void;

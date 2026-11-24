@@ -6,7 +6,10 @@ import {
   formatFilenameWithStatus,
   type DocumentSaveStatus,
 } from '@/composables/usePageTitle';
-import { registerUnsavedChecker } from '@/composables/useUnsavedGuard';
+import {
+  confirmUnsavedChanges,
+  registerUnsavedChecker,
+} from '@/composables/useUnsavedGuard';
 
 const isDesktop = computed(() => Boolean(window.sejongDesktop));
 
@@ -42,13 +45,13 @@ const emit = defineEmits<{
   close: [];
 }>();
 
-function confirmIfModified(): boolean {
+async function confirmIfModified(): Promise<boolean> {
   if (props.saveStatus !== 'modified') return true;
-  return window.confirm('저장하지 않은 수정이 있습니다. 저장하지 않고 계속할까요?');
+  return confirmUnsavedChanges();
 }
 
-function onRequestHome() {
-  if (!confirmIfModified()) return;
+async function onRequestHome() {
+  if (!(await confirmIfModified())) return;
   emit('close');
 }
 

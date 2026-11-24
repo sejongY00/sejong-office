@@ -41,6 +41,15 @@ const windowStates = new Map();
 let confirmedAppExit = false;
 let unsavedRequestSeq = 0;
 
+const UNSAVED_CHANGES_DIALOG_OPTIONS = {
+  type: 'question',
+  buttons: ['취소', '저장하지 않고 계속'],
+  defaultId: 0,
+  cancelId: 0,
+  title: '저장하지 않은 변경 사항',
+  message: '저장하지 않은 수정이 있습니다. 저장하지 않고 계속할까요?',
+};
+
 function queryWindowUnsavedChanges(win, timeoutMs = 1500) {
   if (!win || win.isDestroyed() || win.webContents.isDestroyed()) {
     return Promise.resolve(false);
@@ -195,14 +204,7 @@ function createAppWindow(initialFiles = []) {
       event.preventDefault();
       return;
     }
-    const choice = dialog.showMessageBoxSync(win, {
-      type: 'question',
-      buttons: ['취소', '저장하지 않고 닫기'],
-      defaultId: 0,
-      cancelId: 0,
-      title: '저장하지 않은 변경 사항',
-      message: '저장하지 않은 수정이 있습니다. 저장하지 않고 계속할까요?',
-    });
+    const choice = dialog.showMessageBoxSync(win, UNSAVED_CHANGES_DIALOG_OPTIONS);
     if (choice === 1) {
       event.preventDefault();
     }
@@ -317,6 +319,15 @@ function registerIpcHandlers(updater) {
   ipcMain.handle('sejong:window-close', () => {
     confirmedAppExit = true;
     app.quit();
+  });
+
+  ipcMain.handle('sejong:confirm-unsaved-changes', async (event) => {
+    const win = BrowserWindow.fromWebContents(event.sender);
+    const { response } =
+      win && !win.isDestroyed()
+        ? await dialog.showMessageBox(win, UNSAVED_CHANGES_DIALOG_OPTIONS)
+        : await dialog.showMessageBox(UNSAVED_CHANGES_DIALOG_OPTIONS);
+    return response === 1;
   });
 
   /**

@@ -755,3 +755,16 @@ test('desktop packaging includes LICENSE, THIRD-PARTY-NOTICES.md, and THIRD-PART
   }
 });
 
+test('desktop main and preload unify unsaved changes dialog with 저장하지 않고 계속', () => {
+  const mainSource = readFileSync(path.join(desktopRoot, 'src/main.cjs'), 'utf8');
+  const preloadSource = readFileSync(path.join(desktopRoot, 'src/preload.cjs'), 'utf8');
+
+  assert.equal(mainSource.includes("buttons: ['취소', '저장하지 않고 계속']"), true);
+  assert.equal(mainSource.includes('저장하지 않고 닫기'), false);
+  assert.equal(mainSource.includes("ipcMain.handle('sejong:confirm-unsaved-changes'"), true);
+  assert.equal(
+    preloadSource.includes("confirmUnsavedChanges: () => ipcRenderer.invoke('sejong:confirm-unsaved-changes')"),
+    true,
+  );
+});
+
