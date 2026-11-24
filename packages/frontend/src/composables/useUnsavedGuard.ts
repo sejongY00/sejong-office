@@ -1,7 +1,12 @@
 import { onActivated, onDeactivated, onMounted, onUnmounted } from 'vue';
 import { onBeforeRouteLeave } from 'vue-router';
 
-const MESSAGE = '저장하지 않은 수정이 있습니다. 저장하지 않고 계속할까요?';
+export type UnsavedConfirmAction = 'close' | 'leave';
+
+const MESSAGES: Record<UnsavedConfirmAction, string> = {
+  close: '저장하지 않은 수정이 있습니다. 저장하지 않고 닫을까요?',
+  leave: '저장하지 않은 수정이 있습니다. 저장하지 않고 나갈까요?',
+};
 const REFRESH_MS = 2000;
 
 interface UnsavedChecker {
@@ -30,12 +35,14 @@ export async function hasAnyUnsavedChanges(): Promise<boolean> {
   return false;
 }
 
-export async function confirmUnsavedChanges(): Promise<boolean> {
+export async function confirmUnsavedChanges(
+  action: UnsavedConfirmAction = 'leave',
+): Promise<boolean> {
   const desktopConfirm = window.sejongDesktop?.confirmUnsavedChanges;
   if (typeof desktopConfirm === 'function') {
-    return Boolean(await desktopConfirm());
+    return Boolean(await desktopConfirm(action));
   }
-  return window.confirm(MESSAGE);
+  return window.confirm(MESSAGES[action]);
 }
 
 /**
@@ -51,11 +58,13 @@ export function useUnsavedGuard(isDirty: () => boolean, refresh?: () => Promise<
   let timer: ReturnType<typeof setInterval> | undefined;
   let unregisterChecker: (() => void) | undefined;
 
-  async function confirmDiscard(): Promise<boolean> {
+  async function confirmDiscard(
+    action: UnsavedConfirmAction = 'leave',
+  ): Promise<boolean> {
     if (discarded) return true;
     await refresh?.().catch(() => undefined);
     if (!isDirty()) return true;
-    if (!(await confirmUnsavedChanges())) return false;
+    if (!(await confirmUnsavedChanges(action))) return false;
     discarded = true;
     return true;
   }
@@ -94,7 +103,7 @@ export function useUnsavedGuard(isDirty: () => boolean, refresh?: () => Promise<
   onDeactivated(stop);
   onUnmounted(stop);
 
-  onBeforeRouteLeave(() => confirmDiscard());
+  onBeforeRouteLeave(() => confirmDiscard('leave'));
 
   return {
     confirmDiscard,

@@ -36,7 +36,8 @@ contextBridge.exposeInMainWorld('sejongDesktop', {
     return () => ipcRenderer.removeListener('sejong:window-maximized-changed', listener);
   },
   closeApp: () => ipcRenderer.invoke('sejong:window-close'),
-  confirmUnsavedChanges: () => ipcRenderer.invoke('sejong:confirm-unsaved-changes'),
+  confirmUnsavedChanges: (action = 'leave') =>
+    ipcRenderer.invoke('sejong:confirm-unsaved-changes', action),
   startWindowDrag: (screenX, screenY) =>
     ipcRenderer.send('sejong:window-drag-start', screenX, screenY),
   moveWindowDrag: (screenX, screenY) =>

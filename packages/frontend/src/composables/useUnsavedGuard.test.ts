@@ -54,7 +54,11 @@ describe('confirmUnsavedChanges', () => {
   });
 
   it('uses desktop native dialog bridge when sejongDesktop.confirmUnsavedChanges is available', async () => {
-    const desktopConfirm = vi.fn(async () => false).mockResolvedValueOnce(false).mockResolvedValueOnce(true);
+    const desktopConfirm = vi
+      .fn<(action?: 'close' | 'leave') => Promise<boolean>>()
+      .mockResolvedValueOnce(false)
+      .mockResolvedValueOnce(true)
+      .mockResolvedValueOnce(true);
     const windowConfirm = vi.spyOn(window, 'confirm').mockReturnValue(true);
     window.sejongDesktop = {
       isDesktop: true,
@@ -67,23 +71,36 @@ describe('confirmUnsavedChanges', () => {
     };
 
     expect(await confirmUnsavedChanges()).toBe(false);
-    expect(await confirmUnsavedChanges()).toBe(true);
-    expect(desktopConfirm).toHaveBeenCalledTimes(2);
+    expect(await confirmUnsavedChanges('leave')).toBe(true);
+    expect(await confirmUnsavedChanges('close')).toBe(true);
+    expect(desktopConfirm).toHaveBeenNthCalledWith(1, 'leave');
+    expect(desktopConfirm).toHaveBeenNthCalledWith(2, 'leave');
+    expect(desktopConfirm).toHaveBeenNthCalledWith(3, 'close');
     expect(windowConfirm).not.toHaveBeenCalled();
   });
 
   it('falls back to window.confirm in web environments', async () => {
-    const windowConfirm = vi.spyOn(window, 'confirm').mockReturnValueOnce(false).mockReturnValueOnce(true);
+    const windowConfirm = vi
+      .fn<(message?: string) => boolean>()
+      .mockReturnValueOnce(false)
+      .mockReturnValueOnce(true)
+      .mockReturnValueOnce(true);
+    vi.spyOn(window, 'confirm').mockImplementation(windowConfirm);
 
     expect(await confirmUnsavedChanges()).toBe(false);
-    expect(await confirmUnsavedChanges()).toBe(true);
+    expect(await confirmUnsavedChanges('leave')).toBe(true);
+    expect(await confirmUnsavedChanges('close')).toBe(true);
     expect(windowConfirm).toHaveBeenNthCalledWith(
       1,
-      '저장하지 않은 수정이 있습니다. 저장하지 않고 계속할까요?',
+      '저장하지 않은 수정이 있습니다. 저장하지 않고 나갈까요?',
     );
     expect(windowConfirm).toHaveBeenNthCalledWith(
       2,
-      '저장하지 않은 수정이 있습니다. 저장하지 않고 계속할까요?',
+      '저장하지 않은 수정이 있습니다. 저장하지 않고 나갈까요?',
+    );
+    expect(windowConfirm).toHaveBeenNthCalledWith(
+      3,
+      '저장하지 않은 수정이 있습니다. 저장하지 않고 닫을까요?',
     );
   });
 });

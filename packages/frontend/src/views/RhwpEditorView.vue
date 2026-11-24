@@ -238,13 +238,13 @@ async function onSave() {
 
 async function onClose() {
   // Ask before clearing the stored file, so "keep editing" really keeps it.
-  if (!(await confirmDiscard())) return;
+  if (!(await confirmDiscard('leave'))) return;
   clearHwpFile();
   void router.push({ name: 'home' });
 }
 
 async function onCloseApp() {
-  if (!(await confirmDiscard())) return;
+  if (!(await confirmDiscard('close'))) return;
   void window.sejongDesktop?.closeApp?.();
 }
 </script>
@@ -255,7 +255,7 @@ async function onCloseApp() {
       <div v-if="error || !opened" class="editor-win-bar">
         <DesktopWindowControls
           :show-browser-close="false"
-          :before-close-app="confirmDiscard"
+          :before-close-app="() => confirmDiscard('close')"
           @home="onClose"
         />
       </div>

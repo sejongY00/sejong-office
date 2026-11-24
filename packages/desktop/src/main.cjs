@@ -41,14 +41,26 @@ const windowStates = new Map();
 let confirmedAppExit = false;
 let unsavedRequestSeq = 0;
 
-const UNSAVED_CHANGES_DIALOG_OPTIONS = {
-  type: 'question',
-  buttons: ['취소', '저장하지 않고 계속'],
-  defaultId: 0,
-  cancelId: 0,
-  title: '저장하지 않은 변경 사항',
-  message: '저장하지 않은 수정이 있습니다. 저장하지 않고 계속할까요?',
-};
+function getUnsavedChangesDialogOptions(action = 'close') {
+  if (action === 'leave') {
+    return {
+      type: 'question',
+      buttons: ['취소', '저장하지 않고 나가기'],
+      defaultId: 0,
+      cancelId: 0,
+      title: '저장하지 않은 변경 사항',
+      message: '저장하지 않은 수정이 있습니다. 저장하지 않고 나갈까요?',
+    };
+  }
+  return {
+    type: 'question',
+    buttons: ['취소', '저장하지 않고 닫기'],
+    defaultId: 0,
+    cancelId: 0,
+    title: '저장하지 않은 변경 사항',
+    message: '저장하지 않은 수정이 있습니다. 저장하지 않고 닫을까요?',
+  };
+}
 
 function queryWindowUnsavedChanges(win, timeoutMs = 1500) {
   if (!win || win.isDestroyed() || win.webContents.isDestroyed()) {
@@ -204,7 +216,7 @@ function createAppWindow(initialFiles = []) {
       event.preventDefault();
       return;
     }
-    const choice = dialog.showMessageBoxSync(win, UNSAVED_CHANGES_DIALOG_OPTIONS);
+    const choice = dialog.showMessageBoxSync(win, getUnsavedChangesDialogOptions('close'));
     if (choice === 1) {
       event.preventDefault();
     }
@@ -321,12 +333,13 @@ function registerIpcHandlers(updater) {
     app.quit();
   });
 
-  ipcMain.handle('sejong:confirm-unsaved-changes', async (event) => {
+  ipcMain.handle('sejong:confirm-unsaved-changes', async (event, action = 'leave') => {
     const win = BrowserWindow.fromWebContents(event.sender);
+    const options = getUnsavedChangesDialogOptions(action === 'close' ? 'close' : 'leave');
     const { response } =
       win && !win.isDestroyed()
-        ? await dialog.showMessageBox(win, UNSAVED_CHANGES_DIALOG_OPTIONS)
-        : await dialog.showMessageBox(UNSAVED_CHANGES_DIALOG_OPTIONS);
+        ? await dialog.showMessageBox(win, options)
+        : await dialog.showMessageBox(options);
     return response === 1;
   });
 

@@ -9,6 +9,7 @@ import {
 import {
   confirmUnsavedChanges,
   registerUnsavedChecker,
+  type UnsavedConfirmAction,
 } from '@/composables/useUnsavedGuard';
 
 const isDesktop = computed(() => Boolean(window.sejongDesktop));
@@ -45,13 +46,19 @@ const emit = defineEmits<{
   close: [];
 }>();
 
-async function confirmIfModified(): Promise<boolean> {
+async function confirmIfModified(
+  action: UnsavedConfirmAction = 'leave',
+): Promise<boolean> {
   if (props.saveStatus !== 'modified') return true;
-  return confirmUnsavedChanges();
+  return confirmUnsavedChanges(action);
+}
+
+function confirmBeforeCloseApp(): Promise<boolean> {
+  return confirmIfModified('close');
 }
 
 async function onRequestHome() {
-  if (!(await confirmIfModified())) return;
+  if (!(await confirmIfModified('leave'))) return;
   emit('close');
 }
 
@@ -165,7 +172,7 @@ onUnmounted(stopGuard);
         </svg>
       </RouterLink>
       <DesktopWindowControls
-        :before-close-app="confirmIfModified"
+        :before-close-app="confirmBeforeCloseApp"
         @home="onRequestHome"
       />
     </div>

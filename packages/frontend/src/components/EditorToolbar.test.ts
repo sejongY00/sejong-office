@@ -141,7 +141,7 @@ describe('EditorToolbar release download button', () => {
 
   it('uses desktop native confirm dialog on home and close buttons when modified', async () => {
     const confirmUnsavedChanges = vi
-      .fn<() => Promise<boolean>>()
+      .fn<(action?: 'close' | 'leave') => Promise<boolean>>()
       .mockResolvedValueOnce(false)
       .mockResolvedValueOnce(true)
       .mockResolvedValueOnce(false)
@@ -172,7 +172,10 @@ describe('EditorToolbar release download button', () => {
     await flushPromises();
     expect(closeApp).toHaveBeenCalledTimes(1);
 
-    expect(confirmUnsavedChanges).toHaveBeenCalledTimes(4);
+    expect(confirmUnsavedChanges).toHaveBeenNthCalledWith(1, 'leave');
+    expect(confirmUnsavedChanges).toHaveBeenNthCalledWith(2, 'leave');
+    expect(confirmUnsavedChanges).toHaveBeenNthCalledWith(3, 'close');
+    expect(confirmUnsavedChanges).toHaveBeenNthCalledWith(4, 'close');
     expect(windowConfirm).not.toHaveBeenCalled();
   });
 });
