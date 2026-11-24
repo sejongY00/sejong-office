@@ -50,6 +50,9 @@ export default defineConfig(({ mode }) => {
     },
     server: {
       port: 5173,
+      fs: {
+        allow: [path.resolve(__dirname, '../..')],
+      },
     },
     build: {
       outDir: path.resolve(__dirname, 'dist'),

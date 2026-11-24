@@ -96,7 +96,7 @@
 
 ### 오피스 편집기 (OnlyOffice / `ranuts/document`) 연동
 
-오피스·PDF 편집은 [sejongY00/office-editor](https://github.com/sejongY00/office-editor)에서 빌드·배포하는 `https://editor.sejong.dev/`(GitHub Pages)의 `ranuts/document` 편집기를 iframe으로 임베드하고, 파일 바이트를 `postMessage`(`document:open-buffer` / `document:save`, `ranuts` `docs/embed-api.md`)로 주고받습니다.
+오피스·PDF 편집은 [sejongY00/document](https://github.com/sejongY00/document)에서 빌드·배포하는 `https://editor.sejong.dev/`(GitHub Pages)의 `ranuts/document` 편집기를 iframe으로 임베드하고, 파일 바이트를 `postMessage`(`document:open-buffer` / `document:save`, `ranuts` `docs/embed-api.md`)로 주고받습니다.
 
 - **COOP/COEP 헤더 금지**: 두 사이트 모두 COOP/COEP 헤더가 없어야 동작합니다. 격리된 부모는 COEP 없는 편집기 프레임을 차단하고, COEP를 보내는 편집기(예: 공식 `edit.chaxus.com`)는 비격리 부모 안에서 파일 열기가 실패합니다. GitHub Pages는 해당 헤더를 보내지 않으므로 현재 구성이 적합합니다.
 - **도메인 루트 필수**: `ranuts`가 `/sdkjs/…` 루트 절대 경로를 사용하므로 하위 경로(예: `/office-editor/`)에서는 변환 엔진(`x2t` WASM)이 404 오류를 냅니다.

@@ -1,6 +1,6 @@
 {
   "name": "sejong-office",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "private": true,
   "description": "Browser-only document, diagram and viewer web app (static site)",
   "license": "GPL-3.0-only",

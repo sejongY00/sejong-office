@@ -11,6 +11,10 @@ import {
   generateDesktopIcons,
   readPngDimensions,
 } from '../scripts/generate-desktop-icons.mjs';
+import {
+  copyRootLicenseDocs,
+  stripDesktopUnusedFrontendAssets,
+} from '../scripts/copy-web-dist.mjs';
 
 const require = createRequire(import.meta.url);
 const {
@@ -721,5 +725,33 @@ test('auto updater mode respects confirmBeforeQuitForUpdate before quitAndInstal
     'onBeforeQuitForUpdate',
     'quitAndInstall:false:true',
   ]);
+});
+
+test('desktop packaging includes LICENSE, THIRD-PARTY-NOTICES.md, and THIRD-PARTY-LICENSES.txt', () => {
+  const pkg = JSON.parse(readFileSync(path.join(desktopRoot, 'package.json'), 'utf8'));
+  const extraResources = pkg.build?.extraResources ?? [];
+  const targets = new Map(extraResources.map((item) => [item.to, item.from]));
+
+  assert.equal(targets.get('LICENSE'), 'dist/LICENSE');
+  assert.equal(targets.get('THIRD-PARTY-NOTICES.md'), 'dist/THIRD-PARTY-NOTICES.md');
+  assert.equal(targets.get('THIRD-PARTY-LICENSES.txt'), 'dist/THIRD-PARTY-LICENSES.txt');
+
+  const tmpDist = mkdtempSync(path.join(os.tmpdir(), 'sejong-desktop-licenses-'));
+  try {
+    writeFileSync(path.join(tmpDist, 'THIRD-PARTY-LICENSES.txt'), 'stub notices\n', 'utf8');
+    mkdirSync(path.join(tmpDist, 'viewer-assets'), { recursive: true });
+    writeFileSync(path.join(tmpDist, 'viewer-assets', 'dummy.txt'), 'unused', 'utf8');
+
+    const repoRoot = path.resolve(desktopRoot, '../..');
+    copyRootLicenseDocs(repoRoot, tmpDist);
+    stripDesktopUnusedFrontendAssets(tmpDist);
+
+    assert.equal(existsSync(path.join(tmpDist, 'LICENSE')), true);
+    assert.equal(existsSync(path.join(tmpDist, 'THIRD-PARTY-NOTICES.md')), true);
+    assert.equal(existsSync(path.join(tmpDist, 'THIRD-PARTY-LICENSES.txt')), true);
+    assert.equal(existsSync(path.join(tmpDist, 'viewer-assets')), false);
+  } finally {
+    rmSync(tmpDist, { recursive: true, force: true });
+  }
 });
 

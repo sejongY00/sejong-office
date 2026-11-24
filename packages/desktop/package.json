@@ -1,6 +1,6 @@
 {
   "name": "@sejong-office/desktop",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "private": true,
   "description": "Sejong Office desktop application (macOS & Windows)",
   "license": "GPL-3.0-only",
@@ -41,6 +41,20 @@
     "files": [
       "src/**/*",
       "dist/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "dist/LICENSE",
+        "to": "LICENSE"
+      },
+      {
+        "from": "dist/THIRD-PARTY-NOTICES.md",
+        "to": "THIRD-PARTY-NOTICES.md"
+      },
+      {
+        "from": "dist/THIRD-PARTY-LICENSES.txt",
+        "to": "THIRD-PARTY-LICENSES.txt"
+      }
     ],
     "mac": {
       "category": "public.app-category.productivity",

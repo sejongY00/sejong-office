@@ -24,6 +24,7 @@ const { patchRhwpOriginCheck } = require('../src/offlineCache.cjs');
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const desktopRoot = path.resolve(__dirname, '..');
+const repoRoot = path.resolve(desktopRoot, '../..');
 const frontendDist = path.resolve(desktopRoot, '../frontend/dist');
 const desktopDist = path.resolve(desktopRoot, 'dist');
 const bundleCacheRoot = path.resolve(desktopRoot, '.cache/offline-bundle');
@@ -128,7 +129,7 @@ async function fetchBatch(items, concurrency, worker) {
  * Remove heavy web-only viewer/scanner/diagram assets from desktop `dist/` since desktop mode
  * exclusively supports Office and RHWP.
  */
-function stripDesktopUnusedFrontendAssets() {
+export function stripDesktopUnusedFrontendAssets(targetDir = desktopDist) {
   const unusedPaths = [
     'viewer-assets',
     'excalidraw-assets',
@@ -137,7 +138,17 @@ function stripDesktopUnusedFrontendAssets() {
     'assets/mtext-renderer-worker.js',
   ];
   for (const rel of unusedPaths) {
-    rmSync(path.join(desktopDist, rel), { recursive: true, force: true });
+    rmSync(path.join(targetDir, rel), { recursive: true, force: true });
+  }
+}
+
+export function copyRootLicenseDocs(sourceRoot = repoRoot, targetDir = desktopDist) {
+  for (const docName of ['LICENSE', 'THIRD-PARTY-NOTICES.md']) {
+    const srcPath = path.join(sourceRoot, docName);
+    if (!existsSync(srcPath)) {
+      throw new Error(`필수 라이선스 문서가 없습니다: ${srcPath}`);
+    }
+    cpSync(srcPath, path.join(targetDir, docName));
   }
 }
 
@@ -413,7 +424,8 @@ async function main() {
   mkdirSync(desktopDist, { recursive: true });
   cpSync(frontendDist, desktopDist, { recursive: true });
 
-  stripDesktopUnusedFrontendAssets();
+  copyRootLicenseDocs(repoRoot, desktopDist);
+  stripDesktopUnusedFrontendAssets(desktopDist);
   await bundleOfflineOffice();
   await bundleOfflineRhwp();
 
@@ -422,7 +434,9 @@ async function main() {
   );
 }
 
-main().catch((err) => {
-  console.error(err);
-  process.exit(1);
-});
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  main().catch((err) => {
+    console.error(err);
+    process.exit(1);
+  });
+}

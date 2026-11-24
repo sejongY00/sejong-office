@@ -11,6 +11,7 @@ packages/frontend/public/assets/dxf-parser-worker.js
 packages/frontend/public/assets/libredwg-parser-worker.js
 packages/frontend/public/assets/mtext-renderer-worker.js
 packages/frontend/public/viewer-assets/
+packages/frontend/public/THIRD-PARTY-LICENSES.txt
 packages/frontend/.cache/
 .env
 .env.local
