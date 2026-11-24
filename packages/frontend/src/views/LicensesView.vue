@@ -8,9 +8,22 @@ import { usePageTitle } from '@/composables/usePageTitle';
 const router = useRouter();
 usePageTitle('오픈소스 라이선스');
 
+const repoBaseUrl = APP_GIT_URL.replace(/\/+$/, '');
+const licenseFileUrl = repoBaseUrl ? `${repoBaseUrl}/blob/main/LICENSE` : '';
+const thirdPartyNoticesUrl = repoBaseUrl
+  ? `${repoBaseUrl}/blob/main/THIRD-PARTY-NOTICES.md`
+  : '';
+
 const thirdParty = [
   { name: 'Vue', license: 'MIT', url: 'https://github.com/vuejs/core' },
   { name: 'Vue Router', license: 'MIT', url: 'https://github.com/vuejs/router' },
+  { name: 'VueUse', license: 'MIT', url: 'https://github.com/vueuse/vueuse' },
+  { name: 'Vue I18n', license: 'MIT', url: 'https://github.com/intlify/vue-i18n' },
+  {
+    name: 'Element Plus',
+    license: 'MIT',
+    url: 'https://github.com/element-plus/element-plus',
+  },
   { name: 'Vite', license: 'MIT', url: 'https://github.com/vitejs/vite' },
   { name: 'React', license: 'MIT', url: 'https://github.com/facebook/react' },
   {
@@ -33,6 +46,12 @@ const thirdParty = [
     license: 'MPL-2.0 OR Apache-2.0',
     url: 'https://github.com/cure53/DOMPurify',
   },
+  {
+    name: 'ag-psd',
+    license: 'MIT',
+    url: 'https://github.com/Agamnentzar/ag-psd',
+  },
+  { name: 'lodash-es', license: 'MIT', url: 'https://github.com/lodash/lodash' },
   { name: 'Three.js', license: 'MIT', url: 'https://github.com/mrdoob/three.js' },
   {
     name: 'Online 3D Viewer',
@@ -72,7 +91,7 @@ const thirdParty = [
   {
     name: 'OpenCV.js',
     license: 'Apache-2.0',
-    url: 'https://opencv.org/',
+    url: 'https://github.com/opencv/opencv',
   },
   {
     name: 'ppu-paddle-ocr',
@@ -95,9 +114,29 @@ const thirdParty = [
     url: 'https://github.com/Hopding/pdf-lib',
   },
   {
+    name: '@pdf-lib/fontkit',
+    license: 'MIT',
+    url: 'https://github.com/Hopding/fontkit',
+  },
+  {
     name: 'PDF.js',
     license: 'Apache-2.0',
     url: 'https://github.com/mozilla/pdf.js',
+  },
+  {
+    name: 'Electron',
+    license: 'MIT',
+    url: 'https://github.com/electron/electron',
+  },
+  {
+    name: 'electron-updater / electron-builder',
+    license: 'MIT',
+    url: 'https://github.com/electron-userland/electron-builder',
+  },
+  {
+    name: 'sharp (빌드 아이콘 생성)',
+    license: 'Apache-2.0',
+    url: 'https://github.com/lovell/sharp',
   },
   {
     name: 'Pretendard',
@@ -105,14 +144,35 @@ const thirdParty = [
     url: 'https://github.com/orioncactus/pretendard',
   },
   {
-    name: 'Noto Sans KR',
+    name: 'Noto Sans KR / Noto Sans',
     license: 'SIL OFL 1.1',
     url: 'https://github.com/notofonts/noto-cjk',
   },
-  { name: 'Express', license: 'MIT', url: 'https://github.com/expressjs/express' },
-  { name: 'jsonwebtoken', license: 'MIT', url: 'https://github.com/auth0/node-jsonwebtoken' },
-  { name: 'multer', license: 'MIT', url: 'https://github.com/expressjs/multer' },
-  { name: 'uuid', license: 'MIT', url: 'https://github.com/uuidjs/uuid' },
+  {
+    name: '나눔글꼴 (NanumGothic · NanumBarunGothic · NanumSquare · NanumMyeongjo)',
+    license: 'SIL OFL 1.1',
+    url: 'https://github.com/naver/nanumfont',
+  },
+  {
+    name: 'Carlito',
+    license: 'SIL OFL 1.1',
+    url: 'https://github.com/googlefonts/carlito',
+  },
+  {
+    name: 'Caladea',
+    license: 'Apache-2.0',
+    url: 'https://fonts.google.com/specimen/Caladea',
+  },
+  {
+    name: 'Liberation Fonts',
+    license: 'SIL OFL 1.1',
+    url: 'https://github.com/liberationfonts/liberation-fonts',
+  },
+  {
+    name: 'DejaVu Fonts',
+    license: 'Bitstream Vera / DejaVu License',
+    url: 'https://github.com/dejavu-fonts/dejavu-fonts',
+  },
 ];
 </script>
 
@@ -143,12 +203,27 @@ const thirdParty = [
       <section class="card">
         <h2>본 앱</h2>
         <p>라이선스: <strong>GNU General Public License v3.0 only</strong></p>
-        <p v-if="APP_GIT_URL">
-          소스 코드:
-          <a :href="APP_GIT_URL" target="_blank" rel="noopener noreferrer">{{
-            APP_GIT_URL
-          }}</a>
-        </p>
+        <template v-if="APP_GIT_URL">
+          <p>
+            소스 코드:
+            <a :href="APP_GIT_URL" target="_blank" rel="noopener noreferrer">{{
+              APP_GIT_URL
+            }}</a>
+          </p>
+          <p>
+            문서:
+            <a :href="licenseFileUrl" target="_blank" rel="noopener noreferrer"
+              >LICENSE (GPL-3.0 전문)</a
+            >
+            ·
+            <a
+              :href="thirdPartyNoticesUrl"
+              target="_blank"
+              rel="noopener noreferrer"
+              >THIRD-PARTY-NOTICES.md</a
+            >
+          </p>
+        </template>
         <p v-else class="muted">
           소스 저장소 URL은 <code>APP_GIT_URL</code> 상수에 설정할 수 있습니다.
         </p>
@@ -174,7 +249,7 @@ const thirdParty = [
         <p>
           DXF 변환기
           <a
-            href="https://github.com/mlightcad/dxf-json"
+            href="https://github.com/mlightcad/realdwg-web"
             target="_blank"
             rel="noopener noreferrer"
             >@mlightcad/dxf-json-converter</a
@@ -315,6 +390,110 @@ const thirdParty = [
         <p class="muted">
           “한글”, “한컴”, “HWP”, “HWPX”는 주식회사 한글과컴퓨터의 등록 상표입니다.
           rhwp 및 본 앱은 한글과컴퓨터와 제휴·후원·승인 관계가 없는 독립 프로젝트입니다.
+        </p>
+      </section>
+
+      <section class="card">
+        <h2>데스크톱 앱 (Electron)</h2>
+        <p>
+          macOS·Windows 데스크톱 앱은
+          <a
+            href="https://github.com/electron/electron"
+            target="_blank"
+            rel="noopener noreferrer"
+            >Electron</a
+          >
+          (MIT)과
+          <a
+            href="https://github.com/electron-userland/electron-builder"
+            target="_blank"
+            rel="noopener noreferrer"
+            >electron-updater / electron-builder</a
+          >
+          (MIT)를 사용하며, 패키징 시 아이콘 변환에는
+          <a
+            href="https://github.com/lovell/sharp"
+            target="_blank"
+            rel="noopener noreferrer"
+            >sharp</a
+          >
+          (Apache-2.0)를 사용합니다.
+        </p>
+        <p class="muted">
+          데스크톱 배포판은 오프라인 실행을 위해 <strong>ranuts/document</strong>
+          (ONLYOFFICE, AGPL-3.0)와 <strong>rhwp</strong> (MIT) 런타임을 로컬에
+          번들하며, 문서 데이터는 외부 서버로 전송하지 않습니다.
+        </p>
+      </section>
+
+      <section class="card">
+        <h2>내장 글꼴 (한국어 · 영문)</h2>
+        <p>
+          UI 기본 글꼴은
+          <a
+            href="https://github.com/orioncactus/pretendard"
+            target="_blank"
+            rel="noopener noreferrer"
+            >Pretendard</a
+          >
+          (SIL OFL 1.1), CAD 한글 폴백 글꼴은
+          <a
+            href="https://github.com/notofonts/noto-cjk"
+            target="_blank"
+            rel="noopener noreferrer"
+            >Noto Sans KR</a
+          >
+          (SIL OFL 1.1)을 자체 호스팅합니다.
+        </p>
+        <p>
+          데스크톱 오피스·HWP 편집기에는 네이버
+          <a
+            href="https://github.com/naver/nanumfont"
+            target="_blank"
+            rel="noopener noreferrer"
+            >나눔글꼴</a
+          >
+          (<strong>나눔고딕 · 나눔바른고딕 · 나눔스퀘어 · 나눔명조</strong>,
+          SIL OFL 1.1)이 내장되어 있으며, 영문·기호 호환을 위해
+          <a
+            href="https://github.com/googlefonts/carlito"
+            target="_blank"
+            rel="noopener noreferrer"
+            >Carlito</a
+          >
+          (SIL OFL 1.1),
+          <a
+            href="https://fonts.google.com/specimen/Caladea"
+            target="_blank"
+            rel="noopener noreferrer"
+            >Caladea</a
+          >
+          (Apache-2.0),
+          <a
+            href="https://github.com/liberationfonts/liberation-fonts"
+            target="_blank"
+            rel="noopener noreferrer"
+            >Liberation Fonts</a
+          >
+          (SIL OFL 1.1),
+          <a
+            href="https://github.com/dejavu-fonts/dejavu-fonts"
+            target="_blank"
+            rel="noopener noreferrer"
+            >DejaVu Fonts</a
+          >,
+          <a
+            href="https://github.com/notofonts/notofonts.github.io"
+            target="_blank"
+            rel="noopener noreferrer"
+            >Noto Sans</a
+          >
+          (SIL OFL 1.1)가 포함됩니다.
+        </p>
+        <p class="muted">
+          맑은 고딕·바탕·돋움·굴림·궁서·함초롬·Calibri·Cambria·Consolas 등
+          상용 글꼴 파일은 포함하지 않으며, 해당 글꼴명이 지정된 문서는
+          내장 오픈소스 글꼴로 자동 매핑하여 표시합니다.
         </p>
       </section>
 
