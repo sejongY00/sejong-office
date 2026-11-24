@@ -4,6 +4,32 @@ import { onBeforeRouteLeave } from 'vue-router';
 const MESSAGE = '저장하지 않은 수정이 있습니다. 저장하지 않고 계속할까요?';
 const REFRESH_MS = 2000;
 
+interface UnsavedChecker {
+  isDirty: () => boolean;
+  refresh?: () => Promise<void>;
+}
+
+const activeCheckers = new Set<UnsavedChecker>();
+
+export function registerUnsavedChecker(
+  isDirty: () => boolean,
+  refresh?: () => Promise<void>,
+): () => void {
+  const checker: UnsavedChecker = { isDirty, refresh };
+  activeCheckers.add(checker);
+  return () => {
+    activeCheckers.delete(checker);
+  };
+}
+
+export async function hasAnyUnsavedChanges(): Promise<boolean> {
+  for (const checker of [...activeCheckers]) {
+    await checker.refresh?.().catch(() => undefined);
+    if (checker.isDirty()) return true;
+  }
+  return false;
+}
+
 /**
  * Asks before unsaved edits are thrown away: leaving the page (닫기 or any link), opening another
  * file (await `confirmDiscard` first) and closing or reloading the tab (browser's own prompt).
@@ -15,6 +41,7 @@ export function useUnsavedGuard(isDirty: () => boolean, refresh?: () => Promise<
   // Set once the user agreed, so the navigation that follows doesn't ask a second time.
   let discarded = false;
   let timer: ReturnType<typeof setInterval> | undefined;
+  let unregisterChecker: (() => void) | undefined;
 
   async function confirmDiscard(): Promise<boolean> {
     if (discarded) return true;
@@ -34,6 +61,9 @@ export function useUnsavedGuard(isDirty: () => boolean, refresh?: () => Promise<
 
   function start() {
     window.addEventListener('beforeunload', onBeforeUnload);
+    if (!unregisterChecker) {
+      unregisterChecker = registerUnsavedChecker(() => !discarded && isDirty(), refresh);
+    }
     if (refresh && !timer) {
       timer = setInterval(() => void refresh().catch(() => undefined), REFRESH_MS);
     }
@@ -41,6 +71,8 @@ export function useUnsavedGuard(isDirty: () => boolean, refresh?: () => Promise<
 
   function stop() {
     window.removeEventListener('beforeunload', onBeforeUnload);
+    unregisterChecker?.();
+    unregisterChecker = undefined;
     if (timer) clearInterval(timer);
     timer = undefined;
   }

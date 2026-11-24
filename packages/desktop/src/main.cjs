@@ -39,6 +39,66 @@ const startupQueue = [];
 const windowStates = new Map();
 /** True when the renderer already confirmed unsaved changes and requested app exit. */
 let confirmedAppExit = false;
+let unsavedRequestSeq = 0;
+
+function queryWindowUnsavedChanges(win, timeoutMs = 1500) {
+  if (!win || win.isDestroyed() || win.webContents.isDestroyed()) {
+    return Promise.resolve(false);
+  }
+  const requestId = `unsaved-${++unsavedRequestSeq}`;
+  const senderId = win.webContents.id;
+
+  return new Promise((resolve) => {
+    let settled = false;
+    const finish = (dirty) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      ipcMain.removeListener('sejong:unsaved-changes-reply', onReply);
+      win.removeListener('closed', onClosed);
+      resolve(Boolean(dirty));
+    };
+    const onReply = (event, replyId, dirty) => {
+      if (replyId === requestId && event.sender.id === senderId) {
+        finish(dirty);
+      }
+    };
+    const onClosed = () => finish(false);
+    const timer = setTimeout(() => finish(false), timeoutMs);
+
+    ipcMain.on('sejong:unsaved-changes-reply', onReply);
+    win.once('closed', onClosed);
+    try {
+      win.webContents.send('sejong:check-unsaved-changes', requestId);
+    } catch {
+      finish(false);
+    }
+  });
+}
+
+async function confirmQuitForUpdate() {
+  let dirtyWindow = null;
+  for (const win of BrowserWindow.getAllWindows()) {
+    if (win.isDestroyed()) continue;
+    if (await queryWindowUnsavedChanges(win)) {
+      dirtyWindow = win;
+      break;
+    }
+  }
+  if (!dirtyWindow) return true;
+
+  if (dirtyWindow.isMinimized()) dirtyWindow.restore();
+  dirtyWindow.focus();
+  const { response } = await dialog.showMessageBox(dirtyWindow, {
+    type: 'question',
+    buttons: ['취소', '저장하지 않고 종료'],
+    defaultId: 0,
+    cancelId: 0,
+    title: '저장하지 않은 변경 사항',
+    message: '저장하지 않은 수정이 있습니다. 저장하지 않고 앱을 종료한 뒤 업데이트를 진행할까요?',
+  });
+  return response === 1;
+}
 
 // macOS Finder passes files via open-file event (can fire before app is ready)
 app.on('open-file', (event, filePath) => {
@@ -380,6 +440,7 @@ app.whenReady().then(async () => {
     net,
     shell,
     autoUpdater: electronAutoUpdater,
+    confirmBeforeQuitForUpdate: confirmQuitForUpdate,
     onBeforeQuitForUpdate: () => {
       confirmedAppExit = true;
     },

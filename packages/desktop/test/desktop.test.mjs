@@ -576,3 +576,150 @@ test('autoUpdater compares semver, selects OS/arch installer assets, and handles
   assert.equal(avail.downloadUrl, 'https://example.com/arm64.dmg');
 });
 
+test('manual-dmg updater defers opening installer until installUpdate and quits after unsaved confirmation', async () => {
+  const downloadsDir = mkdtempSync(path.join(os.tmpdir(), 'sejong-updater-dl-'));
+  try {
+    let allowQuit = false;
+    const events = [];
+    const openedPaths = [];
+    let openPathResult = '';
+
+    const updater = createDesktopUpdater({
+      app: {
+        isPackaged: true,
+        getVersion: () => '0.1.0',
+        getPath: (key) => (key === 'downloads' ? downloadsDir : os.tmpdir()),
+        quit: () => events.push('app.quit'),
+      },
+      BrowserWindow: { getAllWindows: () => [] },
+      net: {
+        fetch: async (url) => {
+          if (url.includes('api.github.com')) {
+            return new Response(
+              JSON.stringify({
+                tag_name: 'v0.2.0',
+                html_url: 'https://github.com/sejongY00/sejong-office/releases/tag/v0.2.0',
+                assets: [
+                  { name: 'Sejong-Office-0.2.0-mac-arm64.dmg', browser_download_url: 'https://example.com/arm64.dmg' },
+                ],
+              }),
+              { status: 200, headers: { 'content-type': 'application/json' } },
+            );
+          }
+          return new Response(new Uint8Array([1, 2, 3, 4]), {
+            status: 200,
+            headers: { 'content-length': '4' },
+          });
+        },
+      },
+      shell: {
+        openExternal: async () => {},
+        openPath: async (target) => {
+          openedPaths.push(target);
+          events.push('shell.openPath');
+          return openPathResult;
+        },
+      },
+      confirmBeforeQuitForUpdate: async () => {
+        events.push('confirmBeforeQuitForUpdate');
+        return allowQuit;
+      },
+      onBeforeQuitForUpdate: () => events.push('onBeforeQuitForUpdate'),
+      platform: 'darwin',
+      arch: 'arm64',
+    });
+
+    await updater.checkForUpdates({ silent: false });
+    const downloaded = await updater.downloadUpdate();
+    const expectedPath = path.join(downloadsDir, 'Sejong-Office-0.2.0-mac-arm64.dmg');
+    assert.equal(downloaded.status, 'downloaded');
+    assert.equal(downloaded.downloadedPath, expectedPath);
+    assert.equal(existsSync(expectedPath), true);
+    // Download completion must NOT auto-open the installer
+    assert.deepEqual(openedPaths, []);
+    assert.deepEqual(events, []);
+
+    // Cancelled by user -> no openPath, no onBeforeQuitForUpdate, no app.quit
+    allowQuit = false;
+    assert.equal(await updater.installUpdate(), false);
+    assert.deepEqual(openedPaths, []);
+    assert.deepEqual(events, ['confirmBeforeQuitForUpdate']);
+
+    // shell.openPath error -> sets error state and does NOT quit
+    events.length = 0;
+    allowQuit = true;
+    openPathResult = 'Failed to open DMG';
+    assert.equal(await updater.installUpdate(), false);
+    assert.equal(updater.getState().status, 'error');
+    assert.deepEqual(events, ['confirmBeforeQuitForUpdate', 'shell.openPath']);
+
+    // Confirmed & openPath succeeds -> openPath -> onBeforeQuitForUpdate -> app.quit
+    events.length = 0;
+    openedPaths.length = 0;
+    openPathResult = '';
+    assert.equal(await updater.installUpdate(), true);
+    assert.deepEqual(openedPaths, [expectedPath]);
+    assert.deepEqual(events, [
+      'confirmBeforeQuitForUpdate',
+      'shell.openPath',
+      'onBeforeQuitForUpdate',
+      'app.quit',
+    ]);
+  } finally {
+    rmSync(downloadsDir, { recursive: true, force: true });
+  }
+});
+
+test('auto updater mode respects confirmBeforeQuitForUpdate before quitAndInstall', async () => {
+  const listeners = new Map();
+  const events = [];
+  let allowQuit = false;
+
+  const mockAutoUpdater = {
+    on(event, fn) {
+      listeners.set(event, fn);
+    },
+    async checkForUpdates() {
+      listeners.get('update-available')?.({ version: '0.2.0' });
+    },
+    async downloadUpdate() {
+      listeners.get('update-downloaded')?.({ version: '0.2.0' });
+    },
+    quitAndInstall(isSilent, isForceRunAfter) {
+      events.push(`quitAndInstall:${isSilent}:${isForceRunAfter}`);
+    },
+  };
+
+  const updater = createDesktopUpdater({
+    app: { isPackaged: true, getVersion: () => '0.1.0', getPath: () => os.tmpdir() },
+    BrowserWindow: { getAllWindows: () => [] },
+    net: { fetch: async () => new Response() },
+    shell: { openExternal: async () => {}, openPath: async () => '' },
+    autoUpdater: mockAutoUpdater,
+    confirmBeforeQuitForUpdate: async () => {
+      events.push('confirmBeforeQuitForUpdate');
+      return allowQuit;
+    },
+    onBeforeQuitForUpdate: () => events.push('onBeforeQuitForUpdate'),
+    platform: 'win32',
+    arch: 'x64',
+  });
+
+  await updater.checkForUpdates({ silent: false });
+  await updater.downloadUpdate();
+  assert.equal(updater.getState().status, 'downloaded');
+
+  allowQuit = false;
+  assert.equal(await updater.installUpdate(), false);
+  assert.deepEqual(events, ['confirmBeforeQuitForUpdate']);
+
+  events.length = 0;
+  allowQuit = true;
+  assert.equal(await updater.installUpdate(), true);
+  assert.deepEqual(events, [
+    'confirmBeforeQuitForUpdate',
+    'onBeforeQuitForUpdate',
+    'quitAndInstall:false:true',
+  ]);
+});
+

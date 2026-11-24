@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, onActivated, onDeactivated, onMounted, onUnmounted } from 'vue';
 import DesktopWindowControls from '@/components/DesktopWindowControls.vue';
 import { APP_LATEST_RELEASE_URL } from '@/config/app';
 import {
   formatFilenameWithStatus,
   type DocumentSaveStatus,
 } from '@/composables/usePageTitle';
+import { registerUnsavedChecker } from '@/composables/useUnsavedGuard';
 
 const isDesktop = computed(() => Boolean(window.sejongDesktop));
 
@@ -50,6 +51,39 @@ function onRequestHome() {
   if (!confirmIfModified()) return;
   emit('close');
 }
+
+function onBeforeUnload(event: BeforeUnloadEvent) {
+  if (props.saveStatus !== 'modified') return;
+  event.preventDefault();
+  event.returnValue = '';
+}
+
+let unregisterUnsaved: (() => void) | undefined;
+let listeningBeforeUnload = false;
+
+function startGuard() {
+  if (!unregisterUnsaved) {
+    unregisterUnsaved = registerUnsavedChecker(() => props.saveStatus === 'modified');
+  }
+  if (!listeningBeforeUnload) {
+    window.addEventListener('beforeunload', onBeforeUnload);
+    listeningBeforeUnload = true;
+  }
+}
+
+function stopGuard() {
+  unregisterUnsaved?.();
+  unregisterUnsaved = undefined;
+  if (listeningBeforeUnload) {
+    window.removeEventListener('beforeunload', onBeforeUnload);
+    listeningBeforeUnload = false;
+  }
+}
+
+onMounted(startGuard);
+onActivated(startGuard);
+onDeactivated(stopGuard);
+onUnmounted(stopGuard);
 </script>
 
 <template>

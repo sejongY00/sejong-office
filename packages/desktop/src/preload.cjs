@@ -54,4 +54,18 @@ contextBridge.exposeInMainWorld('sejongDesktop', {
     ipcRenderer.on('sejong:update-state', listener);
     return () => ipcRenderer.removeListener('sejong:update-state', listener);
   },
+  onCheckUnsavedChanges: (callback) => {
+    const listener = (_event, requestId) => {
+      Promise.resolve()
+        .then(() => callback())
+        .then((dirty) => {
+          ipcRenderer.send('sejong:unsaved-changes-reply', requestId, Boolean(dirty));
+        })
+        .catch(() => {
+          ipcRenderer.send('sejong:unsaved-changes-reply', requestId, false);
+        });
+    };
+    ipcRenderer.on('sejong:check-unsaved-changes', listener);
+    return () => ipcRenderer.removeListener('sejong:check-unsaved-changes', listener);
+  },
 });

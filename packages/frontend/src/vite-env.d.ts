@@ -93,6 +93,7 @@ interface SejongDesktopBridge {
   downloadUpdate?(): Promise<SejongDesktopUpdateState>;
   installUpdate?(): Promise<boolean>;
   onUpdateStateChange?(callback: (state: SejongDesktopUpdateState) => void): () => void;
+  onCheckUnsavedChanges?(callback: () => boolean | Promise<boolean>): () => void;
 }
 
 interface Window {

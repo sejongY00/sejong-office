@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue';
+import { computed, onMounted, onUnmounted, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import DesktopWindowControls from '@/components/DesktopWindowControls.vue';
 import UpdateBanner from '@/components/UpdateBanner.vue';
@@ -8,6 +8,7 @@ import {
   bindSessionPageHideOnce,
   hwpOpenToken,
 } from '@/composables/useSessionLifecycle';
+import { hasAnyUnsavedChanges } from '@/composables/useUnsavedGuard';
 import { desktopLaunchQueue, registerFileLaunch } from '@/pwa/fileLaunch';
 
 bindSessionPageHideOnce();
@@ -35,7 +36,12 @@ function clearLaunchOverlay(stripQuery = false) {
   }
 }
 
+let stopUnsavedListener: (() => void) | undefined;
+
 onMounted(() => {
+  stopUnsavedListener = window.sejongDesktop?.onCheckUnsavedChanges?.(() =>
+    hasAnyUnsavedChanges(),
+  );
   registerFileLaunch(
     desktopLaunchQueue(window.sejongDesktop, {
       onIncoming: () => {
@@ -71,6 +77,11 @@ onMounted(() => {
       );
     },
   );
+});
+
+onUnmounted(() => {
+  stopUnsavedListener?.();
+  stopUnsavedListener = undefined;
 });
 
 /** Keep editor instances alive when visiting /licenses etc. */

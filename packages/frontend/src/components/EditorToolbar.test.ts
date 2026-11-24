@@ -1,6 +1,8 @@
 import { mount, RouterLinkStub } from '@vue/test-utils';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { hasAnyUnsavedChanges } from '@/composables/useUnsavedGuard';
 import { APP_LATEST_RELEASE_URL } from '@/config/app';
+import type { DocumentSaveStatus } from '@/composables/usePageTitle';
 import EditorToolbar from './EditorToolbar.vue';
 
 function mockDesktopBridge(): SejongDesktopBridge {
@@ -31,10 +33,11 @@ function mockMatchMedia(standalone: boolean) {
   });
 }
 
-function mountToolbar() {
+function mountToolbar(saveStatus: DocumentSaveStatus = 'pristine') {
   return mount(EditorToolbar, {
     props: {
       filename: 'example.mmd',
+      saveStatus,
     },
     global: {
       stubs: {
@@ -109,5 +112,26 @@ describe('EditorToolbar release download button', () => {
     expect(wrapper.find('[data-download-release-link]').exists()).toBe(false);
     expect(wrapper.find('[aria-label="라이선스"]').exists()).toBe(true);
     expect(wrapper.find('.win-controls').exists()).toBe(true);
+  });
+
+  it('tracks modified saveStatus in unsaved checker and beforeunload', async () => {
+    const wrapper = mountToolbar('modified');
+    expect(await hasAnyUnsavedChanges()).toBe(true);
+
+    const modifiedUnload = new Event('beforeunload', { cancelable: true });
+    window.dispatchEvent(modifiedUnload);
+    expect(modifiedUnload.defaultPrevented).toBe(true);
+
+    await wrapper.setProps({ saveStatus: 'saved' });
+    expect(await hasAnyUnsavedChanges()).toBe(false);
+
+    const savedUnload = new Event('beforeunload', { cancelable: true });
+    window.dispatchEvent(savedUnload);
+    expect(savedUnload.defaultPrevented).toBe(false);
+
+    await wrapper.setProps({ saveStatus: 'modified' });
+    expect(await hasAnyUnsavedChanges()).toBe(true);
+    wrapper.unmount();
+    expect(await hasAnyUnsavedChanges()).toBe(false);
   });
 });

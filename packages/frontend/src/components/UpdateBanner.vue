@@ -63,7 +63,7 @@ function dismissWeb() {
         {{
           updateState.mode === 'auto'
             ? `v${updateState.latestVersion ?? ''} 업데이트가 준비되었습니다. 저장한 뒤 재시작하세요.`
-            : `v${updateState.latestVersion ?? ''} 설치 파일을 다운로드했습니다.`
+            : `v${updateState.latestVersion ?? ''} 설치 파일을 다운로드했습니다. 열기 시 앱이 종료됩니다.`
         }}
       </span>
       <button type="button" class="update__primary" @click="installUpdate">

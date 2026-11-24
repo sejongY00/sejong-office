@@ -81,7 +81,7 @@ function selectReleaseAsset(assets, platform = process.platform, arch = process.
  * Hybrid desktop updater (zero custom backend — backed solely by GitHub Releases):
  * - Packaged Windows: uses `electron-updater` for blockmap delta auto-download & auto-install.
  * - macOS (unsigned) & dev mode: checks GitHub Releases API, downloads the matching `.dmg`/`.exe`
- *   with live progress, and opens it directly for installation.
+ *   with live progress, and opens it when the user clicks install (after checking unsaved edits and quitting).
  */
 function createDesktopUpdater({
   app,
@@ -89,6 +89,7 @@ function createDesktopUpdater({
   net,
   shell,
   autoUpdater = null,
+  confirmBeforeQuitForUpdate = null,
   onBeforeQuitForUpdate = null,
   platform = process.platform,
   arch = process.arch,
@@ -107,6 +108,7 @@ function createDesktopUpdater({
   };
   let activeSilent = true;
   let busy = false;
+  let installing = false;
 
   function broadcastState(patch) {
     state = { ...state, ...patch, currentVersion, mode };
@@ -358,9 +360,6 @@ function createDesktopUpdater({
         message: undefined,
       });
 
-      if (shell && typeof shell.openPath === 'function') {
-        await shell.openPath(targetPath);
-      }
       return state;
     } catch {
       return broadcastState({
@@ -372,17 +371,59 @@ function createDesktopUpdater({
   }
 
   async function installUpdate() {
+    if (installing) return false;
+
     if (useElectronUpdater && state.status === 'downloaded') {
-      if (typeof onBeforeQuitForUpdate === 'function') {
-        onBeforeQuitForUpdate();
+      installing = true;
+      try {
+        if (typeof confirmBeforeQuitForUpdate === 'function') {
+          const allowed = await confirmBeforeQuitForUpdate();
+          if (!allowed) return false;
+        }
+        if (typeof onBeforeQuitForUpdate === 'function') {
+          onBeforeQuitForUpdate();
+        }
+        autoUpdater.quitAndInstall(false, true);
+        return true;
+      } finally {
+        installing = false;
       }
-      autoUpdater.quitAndInstall(false, true);
-      return true;
     }
 
     if (state.downloadedPath && shell && typeof shell.openPath === 'function') {
-      await shell.openPath(state.downloadedPath);
-      return true;
+      installing = true;
+      try {
+        if (!fs.existsSync(state.downloadedPath)) {
+          broadcastState({
+            status: 'error',
+            silent: false,
+            message: '다운로드한 설치 파일을 찾을 수 없습니다. 다시 받아 주세요.',
+          });
+          return false;
+        }
+        if (typeof confirmBeforeQuitForUpdate === 'function') {
+          const allowed = await confirmBeforeQuitForUpdate();
+          if (!allowed) return false;
+        }
+        const openError = await shell.openPath(state.downloadedPath);
+        if (openError) {
+          broadcastState({
+            status: 'error',
+            silent: false,
+            message: '설치 파일을 열지 못했습니다. 다운로드 폴더에서 직접 실행해 주세요.',
+          });
+          return false;
+        }
+        if (typeof onBeforeQuitForUpdate === 'function') {
+          onBeforeQuitForUpdate();
+        }
+        if (app && typeof app.quit === 'function') {
+          app.quit();
+        }
+        return true;
+      } finally {
+        installing = false;
+      }
     }
 
     if (state.releaseUrl && shell && typeof shell.openExternal === 'function') {
