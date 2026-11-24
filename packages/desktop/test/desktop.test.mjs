@@ -763,11 +763,9 @@ test('desktop main and preload distinguish close vs leave unsaved changes dialog
   assert.equal(mainSource.includes("buttons: ['취소', '저장하지 않고 나가기']"), true);
   assert.equal(mainSource.includes('저장하지 않고 계속'), false);
   assert.equal(mainSource.includes("ipcMain.handle('sejong:confirm-unsaved-changes'"), true);
-  assert.equal(
-    preloadSource.includes(
-      "confirmUnsavedChanges: (action = 'leave') =>\n    ipcRenderer.invoke('sejong:confirm-unsaved-changes', action)",
-    ),
-    true,
+  assert.match(
+    preloadSource,
+    /confirmUnsavedChanges:\s*\(action\s*=\s*'leave'\)\s*=>\s*ipcRenderer\.invoke\('sejong:confirm-unsaved-changes',\s*action\)/,
   );
 });
 
