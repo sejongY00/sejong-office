@@ -2,6 +2,8 @@
 // A file opened through the picker or dropped onto the page keeps its handle, so Save overwrites
 // that same file on disk. Other browsers (Safari, Firefox, mobile) fall back to <input> + download.
 
+import { extensionOf } from '@/config/app';
+import type { DesktopFileSystemFileHandle } from '@/pwa/fileLaunch';
 import { downloadBlob } from '@/utils/downloadBlob';
 
 type PickerType = { description?: string; accept: Record<string, string[]> };
@@ -111,14 +113,36 @@ export function filesFromDrop(event: DragEvent): Promise<File[]> {
     .catch(() => plain);
 }
 
+const TEXT_EXTENSIONS = new Set(['txt', 'md', 'markdown', 'mdown', 'csv']);
+
+async function readLastModified(handle: FileSystemFileHandle): Promise<number> {
+  const desktopHandle = handle as DesktopFileSystemFileHandle;
+  if (typeof desktopHandle.getLastModified === 'function') {
+    return desktopHandle.getLastModified();
+  }
+  // getFile() only reads metadata in browsers; desktop handles prefer statFile via getLastModified().
+  return (await handle.getFile()).lastModified;
+}
+
+function assertNonEmptySaveBlob(
+  blob: Blob,
+  fileName: string,
+  hasTargetHandle: boolean,
+): void {
+  if (blob.size > 0) return;
+  const ext = extensionOf(fileName);
+  if (hasTargetHandle || !TEXT_EXTENSIONS.has(ext)) {
+    throw new Error('저장할 파일 데이터가 비어 있어 저장할 수 없습니다.');
+  }
+}
+
 /** True when another app has changed the file since we last read or wrote it. */
 export async function changedOnDisk(handle: FileSystemFileHandle): Promise<boolean> {
   if (writing.has(handle)) return false;
   const known = knownVersion.get(handle);
   if (known === undefined) return false;
   try {
-    // getFile() only reads metadata here; the contents are not loaded.
-    return (await handle.getFile()).lastModified !== known;
+    return (await readLastModified(handle)) !== known;
   } catch {
     // Moved, deleted or permission lost: nothing to reload from.
     return false;
@@ -132,7 +156,7 @@ export async function readFromDisk(handle: FileSystemFileHandle): Promise<File> 
 
 /** "Keep my version": stop reporting the current disk version as a change. */
 export async function acceptDiskVersion(handle: FileSystemFileHandle): Promise<void> {
-  knownVersion.set(handle, (await handle.getFile()).lastModified);
+  knownVersion.set(handle, await readLastModified(handle));
 }
 
 async function canWrite(handle: FileSystemFileHandle): Promise<boolean> {
@@ -186,6 +210,11 @@ export async function saveFile(
   }
 
   const blob = await produce();
+  assertNonEmptySaveBlob(
+    blob,
+    target?.name ?? options.suggestedName,
+    Boolean(options.handle || target),
+  );
   if (!target) {
     downloadBlob(blob, options.suggestedName);
     options.onSaved?.(null);
@@ -196,7 +225,7 @@ export async function saveFile(
     const writable = await target.createWritable();
     await writable.write(blob);
     await writable.close();
-    knownVersion.set(target, (await target.getFile()).lastModified);
+    knownVersion.set(target, await readLastModified(target));
   } finally {
     writing.delete(target);
   }

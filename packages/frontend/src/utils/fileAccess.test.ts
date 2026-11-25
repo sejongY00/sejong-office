@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 vi.mock('@/utils/downloadBlob', () => ({ downloadBlob: vi.fn() }));
 
 import { downloadBlob } from '@/utils/downloadBlob';
-import { changedOnDisk, saveFile } from './fileAccess';
+import { acceptDiskVersion, bindFileHandle, changedOnDisk, saveFile } from './fileAccess';
 
 /** An on-disk file as the File System Access API exposes it, kept in memory. */
 class FakeHandle {
@@ -126,5 +126,57 @@ describe('saveFile', () => {
 
     expect(written).toBe(asHandle(other));
     expect(opened.written).toEqual([]);
+  });
+
+  it('aborts before createWritable() when produced blob is empty or invalid', async () => {
+    const handle = new FakeHandle('report.docx');
+    const createWritableSpy = vi.spyOn(handle, 'createWritable');
+    const onSaved = vi.fn();
+
+    await expect(
+      saveFile({ suggestedName: 'report.docx', handle: asHandle(handle), onSaved }, () => new Blob([])),
+    ).rejects.toThrow(/비어/);
+
+    await expect(
+      saveFile({ suggestedName: 'notes.txt', handle: asHandle(handle), onSaved }, () => new Blob([])),
+    ).rejects.toThrow(/비어/);
+
+    await expect(
+      saveFile({ suggestedName: 'export.pdf', onSaved }, () => new Blob([])),
+    ).rejects.toThrow(/비어/);
+
+    await expect(
+      saveFile({ suggestedName: 'report.docx', handle: asHandle(handle), onSaved }, () => {
+        throw new Error('손상된 DOCX');
+      }),
+    ).rejects.toThrow('손상된 DOCX');
+
+    expect(createWritableSpy).not.toHaveBeenCalled();
+    expect(handle.written).toEqual([]);
+    expect(downloadBlob).not.toHaveBeenCalled();
+    expect(onSaved).not.toHaveBeenCalled();
+  });
+
+  it('prefers getLastModified() over getFile() in changedOnDisk and acceptDiskVersion', async () => {
+    let diskMtime = 1000;
+    const getFile = vi.fn(async () => new File(['disk'], 'a.docx', { lastModified: diskMtime }));
+    const getLastModified = vi.fn(async () => diskMtime);
+    const handle = {
+      kind: 'file' as const,
+      name: 'a.docx',
+      getFile,
+      getLastModified,
+    } as unknown as FileSystemFileHandle;
+
+    bindFileHandle(new File(['disk'], 'a.docx', { lastModified: 1000 }), handle);
+    expect(await changedOnDisk(handle)).toBe(false);
+    expect(getLastModified).toHaveBeenCalledTimes(1);
+    expect(getFile).not.toHaveBeenCalled();
+
+    diskMtime = 2000;
+    expect(await changedOnDisk(handle)).toBe(true);
+    await acceptDiskVersion(handle);
+    expect(await changedOnDisk(handle)).toBe(false);
+    expect(getFile).not.toHaveBeenCalled();
   });
 });

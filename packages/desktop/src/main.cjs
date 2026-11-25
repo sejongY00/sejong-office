@@ -11,6 +11,10 @@ const {
   resolveDistAsset,
 } = require('./fileArgs.cjs');
 const {
+  createAppLogger,
+  writeFileAtomically,
+} = require('./fileSafety.cjs');
+const {
   createOfflineAssetManager,
 } = require('./offlineCache.cjs');
 const {
@@ -40,6 +44,21 @@ const windowStates = new Map();
 /** True when the renderer already confirmed unsaved changes and requested app exit. */
 let confirmedAppExit = false;
 let unsavedRequestSeq = 0;
+let appLogger = null;
+
+function getLogger() {
+  if (appLogger) return appLogger;
+  try {
+    appLogger = createAppLogger({ logDir: app.getPath('logs') });
+    return appLogger;
+  } catch {
+    return { log: () => {} };
+  }
+}
+
+process.on('uncaughtException', (err) => {
+  getLogger().log('error', 'uncaughtException', { error: err });
+});
 
 function getUnsavedChangesDialogOptions(action = 'close') {
   if (action === 'leave') {
@@ -97,6 +116,13 @@ function queryWindowUnsavedChanges(win, timeoutMs = 1500) {
   });
 }
 
+async function focusAndConfirmWindow(win, dialogOptions) {
+  if (win.isMinimized()) win.restore();
+  win.focus();
+  const { response } = await dialog.showMessageBox(win, dialogOptions);
+  return response === 1;
+}
+
 async function confirmQuitForUpdate() {
   let dirtyWindow = null;
   for (const win of BrowserWindow.getAllWindows()) {
@@ -108,9 +134,7 @@ async function confirmQuitForUpdate() {
   }
   if (!dirtyWindow) return true;
 
-  if (dirtyWindow.isMinimized()) dirtyWindow.restore();
-  dirtyWindow.focus();
-  const { response } = await dialog.showMessageBox(dirtyWindow, {
+  return focusAndConfirmWindow(dirtyWindow, {
     type: 'question',
     buttons: ['취소', '저장하지 않고 종료'],
     defaultId: 0,
@@ -118,7 +142,6 @@ async function confirmQuitForUpdate() {
     title: '저장하지 않은 변경 사항',
     message: '저장하지 않은 수정이 있습니다. 저장하지 않고 앱을 종료한 뒤 업데이트를 진행할까요?',
   });
-  return response === 1;
 }
 
 // macOS Finder passes files via open-file event (can fire before app is ready)
@@ -126,6 +149,10 @@ app.on('open-file', (event, filePath) => {
   event.preventDefault();
   if (!filePath) return;
   const resolved = path.resolve(filePath);
+  getLogger().log('info', 'open-file', {
+    path: resolved,
+    appReady: app.isReady(),
+  });
   if (!app.isReady()) {
     if (!startupQueue.includes(resolved)) startupQueue.push(resolved);
     return;
@@ -139,6 +166,10 @@ if (!gotLock) {
 } else {
   app.on('second-instance', (_event, argv, workingDirectory) => {
     const files = extractFilePathsFromArgv(argv, workingDirectory || process.cwd(), __filename);
+    getLogger().log('info', 'second-instance', {
+      filesCount: files.length,
+      files,
+    });
     if (files.length > 0) {
       for (const file of files) {
         dispatchFileToWindow(file);
@@ -213,13 +244,33 @@ function createAppWindow(initialFiles = []) {
   // Guard OS-level window close (Cmd+Q / Alt+F4) when a document has unsaved changes
   win.webContents.on('will-prevent-unload', (event) => {
     if (confirmedAppExit) {
+      getLogger().log('info', 'will-prevent-unload', {
+        windowId: win.id,
+        confirmedAppExit: true,
+        allowUnload: true,
+      });
       event.preventDefault();
       return;
     }
     const choice = dialog.showMessageBoxSync(win, getUnsavedChangesDialogOptions('close'));
-    if (choice === 1) {
+    const allowUnload = choice === 1;
+    getLogger().log('info', 'will-prevent-unload', {
+      windowId: win.id,
+      confirmedAppExit: false,
+      choice,
+      allowUnload,
+    });
+    if (allowUnload) {
       event.preventDefault();
     }
+  });
+
+  win.webContents.on('render-process-gone', (_event, details) => {
+    getLogger().log('error', 'render-process-gone', {
+      windowId: win.id,
+      reason: details?.reason,
+      exitCode: details?.exitCode,
+    });
   });
 
   win.webContents.setWindowOpenHandler(({ url }) => {
@@ -264,25 +315,52 @@ function registerIpcHandlers(updater) {
 
   ipcMain.handle('sejong:consume-launch-files', (event) => {
     const state = windowStates.get(event.sender.id);
-    if (!state) return [];
+    const senderWin = BrowserWindow.fromWebContents(event.sender);
+    if (!state) {
+      getLogger().log('info', 'consume-launch-files', {
+        windowId: senderWin?.id,
+        filesCount: 0,
+        files: [],
+      });
+      return [];
+    }
     state.ready = true;
     const files = [...state.pendingFiles];
     state.pendingFiles.length = 0;
+    getLogger().log('info', 'consume-launch-files', {
+      windowId: senderWin?.id,
+      filesCount: files.length,
+      files,
+    });
     return files;
   });
 
   ipcMain.handle('sejong:read-file', async (_event, filePath) => {
     const resolved = path.resolve(String(filePath));
-    const [bytes, stat] = await Promise.all([
-      fsp.readFile(resolved),
-      fsp.stat(resolved),
-    ]);
-    return {
-      path: resolved,
-      name: path.basename(resolved),
-      bytes: new Uint8Array(bytes.buffer, bytes.byteOffset, bytes.byteLength),
-      lastModified: Math.floor(stat.mtimeMs),
-    };
+    try {
+      const [bytes, stat] = await Promise.all([
+        fsp.readFile(resolved),
+        fsp.stat(resolved),
+      ]);
+      getLogger().log('info', 'sejong:read-file', {
+        status: 'success',
+        path: resolved,
+        bytes: bytes.byteLength,
+      });
+      return {
+        path: resolved,
+        name: path.basename(resolved),
+        bytes: new Uint8Array(bytes.buffer, bytes.byteOffset, bytes.byteLength),
+        lastModified: Math.floor(stat.mtimeMs),
+      };
+    } catch (err) {
+      getLogger().log('error', 'sejong:read-file', {
+        status: 'error',
+        path: resolved,
+        error: err,
+      });
+      throw err;
+    }
   });
 
   ipcMain.handle('sejong:stat-file', async (_event, filePath) => {
@@ -295,12 +373,31 @@ function registerIpcHandlers(updater) {
 
   ipcMain.handle('sejong:write-file', async (_event, filePath, data) => {
     const resolved = path.resolve(String(filePath));
-    const buffer = Buffer.from(data);
-    await fsp.writeFile(resolved, buffer);
-    const stat = await fsp.stat(resolved);
-    return {
-      lastModified: Math.floor(stat.mtimeMs),
-    };
+    const startedAt = Date.now();
+    const inputBytes =
+      data && typeof data.byteLength === 'number' ? data.byteLength : undefined;
+    try {
+      const result = await writeFileAtomically(resolved, data);
+      getLogger().log('info', 'sejong:write-file', {
+        status: 'success',
+        path: resolved,
+        bytes: result.bytes,
+        durationMs: Date.now() - startedAt,
+      });
+      return {
+        lastModified: result.lastModified,
+      };
+    } catch (err) {
+      const status = err && err.code === 'EINVALIDPAYLOAD' ? 'rejected' : 'error';
+      getLogger().log(status === 'rejected' ? 'warn' : 'error', 'sejong:write-file', {
+        status,
+        path: resolved,
+        bytes: inputBytes,
+        durationMs: Date.now() - startedAt,
+        error: err,
+      });
+      throw err;
+    }
   });
 
   ipcMain.handle('sejong:window-minimize', (event) => {
@@ -328,19 +425,50 @@ function registerIpcHandlers(updater) {
     return Boolean(win && (win.isMaximized() || win.isFullScreen()));
   });
 
-  ipcMain.handle('sejong:window-close', () => {
+  ipcMain.handle('sejong:window-close', async (event) => {
+    const senderWin = BrowserWindow.fromWebContents(event.sender);
+    for (const win of BrowserWindow.getAllWindows()) {
+      if (win.isDestroyed() || win.webContents.isDestroyed()) continue;
+      if (win.webContents.id === event.sender.id) continue;
+      if (await queryWindowUnsavedChanges(win)) {
+        const confirmed = await focusAndConfirmWindow(
+          win,
+          getUnsavedChangesDialogOptions('close'),
+        );
+        if (!confirmed) {
+          getLogger().log('info', 'sejong:window-close', {
+            status: 'aborted',
+            senderWindowId: senderWin?.id,
+            dirtyWindowId: win.id,
+          });
+          return false;
+        }
+      }
+    }
+    getLogger().log('info', 'sejong:window-close', {
+      status: 'quit',
+      senderWindowId: senderWin?.id,
+    });
     confirmedAppExit = true;
     app.quit();
+    return true;
   });
 
   ipcMain.handle('sejong:confirm-unsaved-changes', async (event, action = 'leave') => {
     const win = BrowserWindow.fromWebContents(event.sender);
-    const options = getUnsavedChangesDialogOptions(action === 'close' ? 'close' : 'leave');
+    const normalizedAction = action === 'close' ? 'close' : 'leave';
+    const options = getUnsavedChangesDialogOptions(normalizedAction);
     const { response } =
       win && !win.isDestroyed()
         ? await dialog.showMessageBox(win, options)
         : await dialog.showMessageBox(options);
-    return response === 1;
+    const confirmed = response === 1;
+    getLogger().log('info', 'sejong:confirm-unsaved-changes', {
+      windowId: win?.id,
+      action: normalizedAction,
+      confirmed,
+    });
+    return confirmed;
   });
 
   /**
@@ -391,6 +519,16 @@ function registerIpcHandlers(updater) {
 }
 
 app.whenReady().then(async () => {
+  const cliFiles = extractFilePathsFromArgv(process.argv, process.cwd(), __filename);
+  getLogger().log('info', 'app-startup', {
+    version: app.getVersion(),
+    isPackaged: app.isPackaged,
+    platform: process.platform,
+    arch: process.arch,
+    cliFilesCount: cliFiles.length,
+    startupQueueCount: startupQueue.length,
+  });
+
   try {
     await session.defaultSession.clearStorageData({ storages: ['serviceworkers'] });
   } catch {
@@ -478,7 +616,6 @@ app.whenReady().then(async () => {
     }, 5000);
   }
 
-  const cliFiles = extractFilePathsFromArgv(process.argv, process.cwd(), __filename);
   for (const file of cliFiles) {
     if (!startupQueue.includes(file)) startupQueue.push(file);
   }

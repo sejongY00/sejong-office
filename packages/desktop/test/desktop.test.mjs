@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import os from 'node:os';
 import path from 'node:path';
@@ -33,14 +33,22 @@ const {
 } = require('../src/koreanFontsPatch.cjs');
 const {
   createOfflineAssetManager,
+  patchOfficeFontNeedStylesClamp,
   patchRhwpOriginCheck,
   resolveBundledOfficeAsset,
+  transformOfficePayload,
 } = require('../src/offlineCache.cjs');
 const {
   compareSemver,
   createDesktopUpdater,
   selectReleaseAsset,
 } = require('../src/autoUpdater.cjs');
+const {
+  createAppLogger,
+  isZipContainerExt,
+  validateFileWritePayload,
+  writeFileAtomically,
+} = require('../src/fileSafety.cjs');
 const { enrichMacInfoPlist } = require('../scripts/after-pack.cjs');
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -221,6 +229,24 @@ test('patchRhwpOriginCheck allows app:// parent origin in RHWP Studio bridge and
   const once = patchRhwpOriginCheck(sample);
   assert.ok(once.includes('t===`http:`||t===`https:`||t===`app:`'));
   assert.equal(patchRhwpOriginCheck(once), once);
+});
+
+test('patchOfficeFontNeedStylesClamp clamps font styles with |15, is idempotent, and applies via transformOfficePayload', () => {
+  const sample = 'function fn(e,t){return t===void 0?e===void 0||e===0?15:e:t|3}const other=x|3;';
+  const once = patchOfficeFontNeedStylesClamp(sample);
+  assert.equal(once, 'function fn(e,t){return t===void 0?e===void 0||e===0?15:e:t|15}const other=x|3;');
+  assert.equal(patchOfficeFontNeedStylesClamp(once), once);
+
+  const unrelated = 'function keep(a,b){return a|3+b|30}';
+  assert.equal(patchOfficeFontNeedStylesClamp(unrelated), unrelated);
+
+  const transformed = transformOfficePayload(
+    'https://editor.sejong.dev/assets/document-DIk9yCTi.js',
+    Buffer.from(sample, 'utf8'),
+    'application/javascript',
+  );
+  assert.equal(transformed.contentType, 'text/javascript; charset=utf-8');
+  assert.equal(transformed.body.toString('utf8'), once);
 });
 
 test('patchAllFontsSource registers 나눔고딕, 나눔바른고딕, 나눔스퀘어 and automatic Korean aliases', () => {
@@ -768,4 +794,219 @@ test('desktop main and preload distinguish close vs leave unsaved changes dialog
     /confirmUnsavedChanges:\s*\(action\s*=\s*'leave'\)\s*=>\s*ipcRenderer\.invoke\('sejong:confirm-unsaved-changes',\s*action\)/,
   );
 });
+
+function makeMinimalZipBuffer(fillByte = 0x41, totalLength = 64) {
+  const len = Math.max(22, totalLength);
+  const buf = Buffer.alloc(len, fillByte);
+  // Local file header PK\x03\x04
+  buf[0] = 0x50;
+  buf[1] = 0x4b;
+  buf[2] = 0x03;
+  buf[3] = 0x04;
+  // EOCD PK\x05\x06 at tail
+  const eocdOffset = len - 22;
+  buf[eocdOffset] = 0x50;
+  buf[eocdOffset + 1] = 0x4b;
+  buf[eocdOffset + 2] = 0x05;
+  buf[eocdOffset + 3] = 0x06;
+  return buf;
+}
+
+function makeMinimalOle2Buffer(totalLength = 512) {
+  const buf = Buffer.alloc(totalLength, 0x00);
+  Buffer.from([0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1]).copy(buf, 0);
+  return buf;
+}
+
+test('isZipContainerExt recognizes OOXML, ODF, and HWPX container extensions', () => {
+  for (const ext of ['.docx', '.dotx', '.xlsx', '.xltx', '.pptx', '.potx', '.odt', '.ods', '.odp', '.hwpx']) {
+    assert.equal(isZipContainerExt(`/tmp/sample${ext}`), true);
+    assert.equal(isZipContainerExt(`/tmp/sample${ext.toUpperCase()}`), true);
+  }
+  for (const ext of ['.hwp', '.doc', '.xls', '.ppt', '.pdf', '.txt', '.csv']) {
+    assert.equal(isZipContainerExt(`/tmp/sample${ext}`), false);
+  }
+});
+
+test('validateFileWritePayload validates ZIP, PDF, OLE2, binary office, and rejects invalid inputs with Korean messages', () => {
+  // Non-Buffer / non-Uint8Array
+  for (const bad of [null, undefined, 'PK\x03\x04', 123, {}, new ArrayBuffer(32), new Int8Array(32)]) {
+    const res = validateFileWritePayload('/tmp/a.docx', bad);
+    assert.equal(res.ok, false);
+    assert.match(res.error, /[가-힣]/);
+  }
+
+  // ZIP container checks
+  assert.equal(validateFileWritePayload('/tmp/empty.docx', Buffer.alloc(0)).ok, false);
+  assert.equal(validateFileWritePayload('/tmp/short.docx', Buffer.from([0x50, 0x4b, 0x03, 0x04])).ok, false);
+
+  const missingHeader = makeMinimalZipBuffer();
+  missingHeader[0] = 0x00;
+  assert.equal(validateFileWritePayload('/tmp/nohdr.docx', missingHeader).ok, false);
+
+  const missingEocd = Buffer.alloc(64, 0x20);
+  missingEocd.set([0x50, 0x4b, 0x03, 0x04], 0);
+  assert.equal(validateFileWritePayload('/tmp/noeocd.hwpx', missingEocd).ok, false);
+
+  // EOCD outside last 65557 bytes must fail
+  const staleEocd = Buffer.alloc(70000, 0x00);
+  staleEocd.set([0x50, 0x4b, 0x03, 0x04], 0);
+  staleEocd.set([0x50, 0x4b, 0x05, 0x06], 100);
+  assert.equal(validateFileWritePayload('/tmp/stale-eocd.docx', staleEocd).ok, false);
+
+  const validZip = makeMinimalZipBuffer();
+  assert.equal(validateFileWritePayload('/tmp/valid.docx', validZip).ok, true);
+  assert.equal(validateFileWritePayload('/tmp/valid.hwpx', new Uint8Array(validZip)).ok, true);
+
+  // PDF checks
+  assert.equal(validateFileWritePayload('/tmp/empty.pdf', Buffer.alloc(0)).ok, false);
+  assert.equal(validateFileWritePayload('/tmp/bad.pdf', Buffer.from('NOT-PDF')).ok, false);
+  assert.equal(validateFileWritePayload('/tmp/good.pdf', Buffer.from('%PDF-1.7\n')).ok, true);
+
+  // OLE2 checks
+  assert.equal(validateFileWritePayload('/tmp/empty.hwp', Buffer.alloc(0)).ok, false);
+  assert.equal(validateFileWritePayload('/tmp/short.hwp', makeMinimalOle2Buffer(256)).ok, false);
+  assert.equal(validateFileWritePayload('/tmp/bad.doc', Buffer.alloc(512, 0x11)).ok, false);
+  assert.equal(validateFileWritePayload('/tmp/good.hwp', makeMinimalOle2Buffer(512)).ok, true);
+  assert.equal(validateFileWritePayload('/tmp/good.xls', makeMinimalOle2Buffer(512)).ok, true);
+
+  // Other binary office extensions reject 0-byte buffers
+  assert.equal(validateFileWritePayload('/tmp/empty.rtf', Buffer.alloc(0)).ok, false);
+  assert.equal(validateFileWritePayload('/tmp/nonempty.rtf', Buffer.from('{\\rtf1}')).ok, true);
+});
+
+test('writeFileAtomically writes safely, leaves original untouched on rejection, serializes concurrent writes, and supports Korean NFD filenames', async () => {
+  const tmpDir = mkdtempSync(path.join(os.tmpdir(), 'sejong-file-safety-'));
+  try {
+    const docxPath = path.join(tmpDir, 'report.docx');
+    const originalZip = makeMinimalZipBuffer(0x41, 128);
+    writeFileSync(docxPath, originalZip);
+    if (process.platform !== 'win32') {
+      chmodSync(docxPath, 0o640);
+    }
+
+    // Rejected 0-byte and garbage writes must fail and leave original untouched
+    await assert.rejects(
+      () => writeFileAtomically(docxPath, Buffer.alloc(0)),
+      (err) => err.code === 'EINVALIDPAYLOAD' && /[가-힣]/.test(err.message),
+    );
+    await assert.rejects(
+      () => writeFileAtomically(docxPath, Buffer.from('corrupt-garbage-payload-without-pk')),
+      (err) => err.code === 'EINVALIDPAYLOAD',
+    );
+    assert.deepEqual(readFileSync(docxPath), originalZip);
+    assert.deepEqual(readdirSync(tmpDir), ['report.docx']);
+
+    // Valid write replaces contents, preserves mode, and leaves no temp files
+    const updatedZip = makeMinimalZipBuffer(0x42, 256);
+    const result = await writeFileAtomically(docxPath, new Uint8Array(updatedZip));
+    assert.equal(result.bytes, updatedZip.length);
+    assert.equal(typeof result.lastModified, 'number');
+    assert.deepEqual(readFileSync(docxPath), updatedZip);
+    if (process.platform !== 'win32') {
+      assert.equal(statSync(docxPath).mode & 0o777, 0o640);
+    }
+    assert.deepEqual(readdirSync(tmpDir), ['report.docx']);
+
+    // Concurrent writes serialize cleanly via per-path queue
+    const payloads = Array.from({ length: 8 }, (_, idx) =>
+      makeMinimalZipBuffer(0x50 + idx, 100 + idx * 17),
+    );
+    const results = await Promise.all(payloads.map((buf) => writeFileAtomically(docxPath, buf)));
+    assert.equal(results.length, payloads.length);
+    assert.deepEqual(readFileSync(docxPath), payloads[payloads.length - 1]);
+    assert.deepEqual(readdirSync(tmpDir), ['report.docx']);
+
+    // Korean NFD filename round-trip
+    const nfdName = '비개발자_웹앱_시작_안내.docx'.normalize('NFD');
+    const nfdPath = path.join(tmpDir, nfdName);
+    const nfdZip = makeMinimalZipBuffer(0x63, 96);
+    const nfdRes = await writeFileAtomically(nfdPath, nfdZip);
+    assert.equal(nfdRes.bytes, nfdZip.length);
+    assert.deepEqual(readFileSync(nfdPath), nfdZip);
+    assert.equal(readdirSync(tmpDir).some((name) => name.endsWith('.tmp')), false);
+  } finally {
+    rmSync(tmpDir, { recursive: true, force: true });
+  }
+});
+
+test('createAppLogger writes structured lines, rotates to .1, and never throws on errors', () => {
+  const tmpDir = mkdtempSync(path.join(os.tmpdir(), 'sejong-logger-'));
+  try {
+    const logger = createAppLogger({
+      logDir: tmpDir,
+      fileName: 'sejong-office.log',
+      maxBytes: 350,
+    });
+
+    const circular = {};
+    circular.self = circular;
+
+    logger.log('info', 'app-startup', { version: '0.1.8', buffer: Buffer.from('secret-bytes') });
+    logger.log('warn', 'sejong:write-file', { status: 'rejected', path: '/tmp/a.docx', circular });
+    logger.log('error', 'uncaughtException', { error: new Error('boom') });
+
+    assert.equal(existsSync(logger.logPath), true);
+    assert.equal(existsSync(logger.rotatedPath), true);
+
+    const rotatedLines = readFileSync(logger.rotatedPath, 'utf8').trim().split('\n');
+    const activeLines = readFileSync(logger.logPath, 'utf8').trim().split('\n');
+    assert.ok(rotatedLines.length >= 1);
+    assert.ok(activeLines.length >= 1);
+
+    const parsedRotated = rotatedLines.map((line) => JSON.parse(line));
+    const parsedActive = activeLines.map((line) => JSON.parse(line));
+    assert.equal(parsedRotated[0].event, 'app-startup');
+    assert.equal(parsedRotated[0].meta.buffer, '[Binary bytes=12]');
+    assert.equal(
+      parsedActive.some((entry) => entry.event === 'uncaughtException' && entry.meta.error.message === 'boom'),
+      true,
+    );
+
+    // Additional writes rotate again while keeping only 1 backup file (.1)
+    logger.log('info', 'after-rotate-1', { padding: 'x'.repeat(300) });
+    logger.log('info', 'after-rotate-2', { ok: true });
+    assert.equal(readdirSync(tmpDir).filter((n) => n.startsWith('sejong-office.log')).length, 2);
+
+    // Non-throwing when logDir cannot be created (points at an existing file)
+    const badLogger = createAppLogger({ logDir: logger.logPath });
+    assert.doesNotThrow(() => badLogger.log('info', 'should-not-throw', { ok: true }));
+  } finally {
+    rmSync(tmpDir, { recursive: true, force: true });
+  }
+});
+
+test('main.cjs wires writeFileAtomically, app logger events, and multi-window close guard', () => {
+  const mainSource = readFileSync(path.join(desktopRoot, 'src/main.cjs'), 'utf8');
+
+  // File safety & atomic write wiring
+  assert.equal(mainSource.includes("require('./fileSafety.cjs')"), true);
+  assert.equal(mainSource.includes('await writeFileAtomically(resolved, data)'), true);
+  assert.equal(mainSource.includes('fsp.writeFile('), false);
+
+  // Logger initialization and required event logging
+  assert.equal(mainSource.includes("createAppLogger({ logDir: app.getPath('logs') })"), true);
+  for (const eventName of [
+    "'app-startup'",
+    "'open-file'",
+    "'second-instance'",
+    "'consume-launch-files'",
+    "'sejong:read-file'",
+    "'sejong:write-file'",
+    "'will-prevent-unload'",
+    "'sejong:confirm-unsaved-changes'",
+    "'sejong:window-close'",
+    "'render-process-gone'",
+    "'uncaughtException'",
+  ]) {
+    assert.equal(mainSource.includes(eventName), true, `Missing log event ${eventName} in main.cjs`);
+  }
+
+  // Multi-window close guard checks other windows excluding event.sender
+  assert.match(
+    mainSource,
+    /ipcMain\.handle\('sejong:window-close',\s*async\s*\(event\)\s*=>[\s\S]*win\.webContents\.id\s*===\s*event\.sender\.id[\s\S]*queryWindowUnsavedChanges\(win\)[\s\S]*getUnsavedChangesDialogOptions\('close'\)[\s\S]*return false;[\s\S]*confirmedAppExit = true;[\s\S]*app\.quit\(\);[\s\S]*return true;/,
+  );
+});
+
 

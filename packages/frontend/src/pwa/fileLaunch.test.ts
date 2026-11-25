@@ -2,8 +2,9 @@ import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
 import { isHwp, isOffice } from '@/config/app';
-import { handleOf, saveFile } from '@/utils/fileAccess';
+import { acceptDiskVersion, changedOnDisk, handleOf, saveFile } from '@/utils/fileAccess';
 import {
+  createDesktopFileHandle,
   desktopLaunchQueue,
   registerFileLaunch,
   type DesktopBridge,
@@ -205,6 +206,57 @@ describe('registerFileLaunch', () => {
     await flush();
     expect(opened).toHaveLength(1);
     expect(opened[0][0].name).toBe('late.docx');
+  });
+
+  it('uses bridge.statFile via getLastModified() in changedOnDisk and acceptDiskVersion without reading full file', async () => {
+    let mtime = 1000;
+    const readFile = vi.fn(async (p: string) => ({
+      path: p,
+      name: 'big.docx',
+      bytes: new Uint8Array([1, 2, 3]),
+      lastModified: mtime,
+    }));
+    const statFile = vi.fn(async () => ({ lastModified: mtime }));
+    const bridge: DesktopBridge = {
+      consumeLaunchFiles: vi.fn(async () => ['/tmp/big.docx']),
+      onOpenFiles: vi.fn(() => () => {}),
+      readFile,
+      statFile,
+      writeFile: vi.fn(async () => ({ lastModified: 3000 })),
+    };
+
+    const opened: File[] = [];
+    registerFileLaunch(desktopLaunchQueue(bridge), (files) => {
+      opened.push(...files);
+    });
+    await flush();
+    await flush();
+
+    const handle = handleOf(opened[0])!;
+    expect(readFile).toHaveBeenCalledTimes(1);
+
+    expect(await changedOnDisk(handle)).toBe(false);
+    expect(statFile).toHaveBeenCalledWith('/tmp/big.docx');
+    expect(readFile).toHaveBeenCalledTimes(1);
+
+    mtime = 2000;
+    expect(await changedOnDisk(handle)).toBe(true);
+    await acceptDiskVersion(handle);
+    expect(await changedOnDisk(handle)).toBe(false);
+    expect(readFile).toHaveBeenCalledTimes(1);
+
+    // Falls back to getFile().lastModified when statFile is absent.
+    const noStatBridge: DesktopBridge = {
+      consumeLaunchFiles: vi.fn(async () => []),
+      onOpenFiles: vi.fn(() => () => {}),
+      readFile,
+      writeFile: vi.fn(async () => ({ lastModified: 3000 })),
+    };
+    const fallbackHandle = createDesktopFileHandle(noStatBridge, '/tmp/big.docx') as FileSystemFileHandle & {
+      getLastModified?: () => Promise<number>;
+    };
+    expect(await fallbackHandle.getLastModified?.()).toBe(2000);
+    expect(readFile).toHaveBeenCalledTimes(2);
   });
 });
 

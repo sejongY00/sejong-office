@@ -15,12 +15,14 @@ import { recordRecentFile } from '@/composables/useRecentFiles';
 import { useSaveShortcut } from '@/composables/useSaveShortcut';
 import { AppError } from '@/utils/appError';
 import { saveFile } from '@/utils/fileAccess';
+import { validateAndSanitizeOfficeBlob } from '@/utils/ooxmlSafety';
 import { withTimeout } from '@/utils/withTimeout';
 
 defineOptions({ name: 'OfficeEditorView' });
 
 // Large files take a while to convert back, so this is generous; it only catches a dead frame.
 const SAVE_TIMEOUT_MS = 60_000;
+const STATE_REFRESH_TIMEOUT_MS = 1200;
 
 // The editor runs entirely in its own iframe (OnlyOffice editors + x2t WASM); this page only hands
 // it the bytes and asks for them back. Protocol: ranuts/document docs/embed-api.md.
@@ -38,7 +40,7 @@ let fileHandle = doc?.handle ?? null;
 // Unsaved edits, as reported by the editor (it also clears this when we export for Save).
 let dirty = false;
 // Opening a file remounts this page under a new key, so the guard never needs re-arming here.
-const { confirmDiscard } = useUnsavedGuard(() => dirty);
+const { confirmDiscard } = useUnsavedGuard(() => dirty, refreshDirtyState);
 
 // Reload stays on this route (only the query changes), which the leave guard doesn't see; the
 // banner already warned that unsaved edits are dropped.
@@ -72,7 +74,39 @@ let seq = 0;
 let openId = '';
 let pendingSaveId = '';
 let pendingSave: { resolve: (file: Blob) => void; reject: (err: Error) => void } | null = null;
+let pendingStateRefresh: { id: string; resolve: () => void } | null = null;
 let probeTimer: ReturnType<typeof setInterval> | undefined;
+
+function applyDirtyState(isDirty: boolean) {
+  dirty = isDirty;
+  if (isDirty) {
+    saveStatus.value = 'modified';
+  } else if (!saving.value && saveStatus.value !== 'saved') {
+    saveStatus.value = 'pristine';
+  }
+}
+
+async function refreshDirtyState(): Promise<void> {
+  if (!opened.value || saving.value || error.value || !frame.value?.contentWindow) return;
+  pendingStateRefresh?.resolve();
+  let current: { id: string; resolve: () => void } | null = null;
+  const refreshed = new Promise<void>((resolve) => {
+    const id = send('document:get-state');
+    current = { id, resolve };
+    pendingStateRefresh = current;
+  });
+  try {
+    await withTimeout(
+      refreshed,
+      STATE_REFRESH_TIMEOUT_MS,
+      '편집기 상태를 확인하지 못했습니다.',
+    );
+  } finally {
+    if (pendingStateRefresh === current) {
+      pendingStateRefresh = null;
+    }
+  }
+}
 
 function send(type: string, payload: Record<string, unknown> = {}): string {
   const id = `${Date.now()}-${(seq += 1)}`;
@@ -105,8 +139,20 @@ function onMessage(event: MessageEvent) {
 
   switch (type) {
     case 'document:ready':
-    case 'document:state':
       openStagedDocument();
+      break;
+    case 'document:state':
+      if (!openId) {
+        openStagedDocument();
+      }
+      if (payload?.hasDocument) {
+        applyDirtyState(payload.dirty === true);
+        pendingStateRefresh?.resolve();
+        pendingStateRefresh = null;
+      } else if (id && pendingStateRefresh?.id === id) {
+        pendingStateRefresh.resolve();
+        pendingStateRefresh = null;
+      }
       break;
     case 'document:opened':
       opened.value = true;
@@ -114,13 +160,7 @@ function onMessage(event: MessageEvent) {
       send('document:save-status', { status: 'pristine' });
       break;
     case 'document:dirty-changed': {
-      const isDirty = payload?.dirty === true;
-      dirty = isDirty;
-      if (isDirty) {
-        saveStatus.value = 'modified';
-      } else if (!saving.value && saveStatus.value !== 'saved') {
-        saveStatus.value = 'pristine';
-      }
+      applyDirtyState(payload?.dirty === true);
       break;
     }
     case 'document:save-requested':
@@ -190,6 +230,8 @@ onMounted(() => {
 
 onUnmounted(() => {
   stopProbe();
+  pendingStateRefresh?.resolve();
+  pendingStateRefresh = null;
   window.removeEventListener('message', onMessage);
 });
 
@@ -197,13 +239,13 @@ onUnmounted(() => {
  * Ask the editor for the current bytes (in the opened file's own format). Gives up after
  * SAVE_TIMEOUT_MS so a frame that never answers can't leave Save stuck; a late answer is ignored.
  */
-function exportFromEditor(): Promise<Blob> {
+async function exportFromEditor(): Promise<Blob> {
   const exported = new Promise<Blob>((resolve, reject) => {
     pendingSave = { resolve, reject };
     pendingSaveId = send('document:save');
   });
   const id = pendingSaveId;
-  return withTimeout(
+  const blob = await withTimeout(
     exported,
     SAVE_TIMEOUT_MS,
     '편집기가 응답하지 않아 저장하지 못했습니다. 잠시 후 다시 저장해 주세요.',
@@ -213,6 +255,7 @@ function exportFromEditor(): Promise<Blob> {
       pendingSave = null;
     }
   });
+  return validateAndSanitizeOfficeBlob(blob, filename.value);
 }
 
 async function onSave() {

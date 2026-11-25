@@ -20,7 +20,10 @@ const {
   padFontThumbnailSpriteBin,
   patchAllFontsSource,
 } = require('../src/koreanFontsPatch.cjs');
-const { patchRhwpOriginCheck } = require('../src/offlineCache.cjs');
+const {
+  patchOfficeFontNeedStylesClamp,
+  patchRhwpOriginCheck,
+} = require('../src/offlineCache.cjs');
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const desktopRoot = path.resolve(__dirname, '..');
@@ -328,6 +331,18 @@ async function bundleOfflineOffice() {
     const editorDirIndex = path.join(offlineOfficeDir, 'editor/index.html');
     mkdirSync(path.dirname(editorDirIndex), { recursive: true });
     cpSync(editorHtmlPath, editorDirIndex);
+  }
+
+  // Patch document-*.js font style clamp so all 4 font style bits (|15) are preserved
+  const officeAssetsDir = path.join(offlineOfficeDir, 'assets');
+  if (existsSync(officeAssetsDir)) {
+    for (const name of readdirSync(officeAssetsDir)) {
+      if (/^document-[^/]+\.js$/.test(name)) {
+        const jsPath = path.join(officeAssetsDir, name);
+        const patched = patchOfficeFontNeedStylesClamp(readFileSync(jsPath, 'utf8'));
+        writeFileSync(jsPath, patched, 'utf8');
+      }
+    }
   }
 }
 

@@ -27,6 +27,7 @@ export interface DesktopBridge {
 
 export interface DesktopFileSystemFileHandle extends FileSystemFileHandle {
   readonly desktopPath?: string;
+  getLastModified?(): Promise<number>;
 }
 
 function basenameOfPath(filePath: string): string {
@@ -69,6 +70,12 @@ export function createDesktopFileHandle(
       return new File([copy], snapshot.name || name, {
         lastModified: snapshot.lastModified,
       });
+    },
+    async getLastModified(): Promise<number> {
+      if (typeof bridge.statFile === 'function') {
+        return (await bridge.statFile(filePath)).lastModified;
+      }
+      return (await handle.getFile()).lastModified;
     },
     async queryPermission(): Promise<PermissionState> {
       return 'granted';

@@ -1,6 +1,6 @@
 {
   "name": "@sejong-office/desktop",
-  "version": "0.1.8",
+  "version": "0.1.9",
   "private": true,
   "description": "Sejong Office desktop application (macOS & Windows)",
   "license": "GPL-3.0-only",

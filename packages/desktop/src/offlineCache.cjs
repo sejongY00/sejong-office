@@ -183,11 +183,32 @@ function patchRhwpOriginCheck(source) {
   );
 }
 
+/**
+ * Patch OnlyOffice document-*.js so font style bitmask is clamped with `|15` instead of `|3`
+ * (preserving italic/bold/bold-italic bits across Korean font fallbacks).
+ */
+function patchOfficeFontNeedStylesClamp(source) {
+  if (typeof source !== 'string') {
+    return source;
+  }
+  return source.replace(
+    /return ([A-Za-z_$][\w$]*)===(?:void 0|undefined)\?([A-Za-z_$][\w$]*)===(?:void 0|undefined)\|\|\2===0\?15:\2:\1\|3(?![0-9])/g,
+    'return $1===void 0?$2===void 0||$2===0?15:$2:$1|15',
+  );
+}
+
 function transformOfficePayload(rawUrl, bodyBuffer, contentType) {
   try {
     const u = new URL(rawUrl);
     if (u.pathname.endsWith('/sdkjs/common/AllFonts.js')) {
       const patched = patchAllFontsSource(bodyBuffer.toString('utf8'));
+      return {
+        body: Buffer.from(patched, 'utf8'),
+        contentType: 'text/javascript; charset=utf-8',
+      };
+    }
+    if (/^\/assets\/document-[^/]+\.js$/.test(u.pathname)) {
+      const patched = patchOfficeFontNeedStylesClamp(bodyBuffer.toString('utf8'));
       return {
         body: Buffer.from(patched, 'utf8'),
         contentType: 'text/javascript; charset=utf-8',
@@ -384,6 +405,7 @@ module.exports = {
   OFFICE_CORE_PATHS,
   cacheKeyForUrl,
   createOfflineAssetManager,
+  patchOfficeFontNeedStylesClamp,
   patchRhwpOriginCheck,
   resolveBundledOfficeAsset,
   transformOfficePayload,
